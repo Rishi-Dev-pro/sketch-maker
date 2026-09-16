@@ -1,0 +1,18 @@
+{
+  "name": "@sketch-maker/structural-analysis",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Platform-agnostic subject segmentation and anatomical feature landmark extraction",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sketch-maker/shared-types": "*",
+    "@sketch-maker/image-processing": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

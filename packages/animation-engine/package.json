@@ -1,0 +1,17 @@
+{
+  "name": "@sketch-maker/animation-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Platform-agnostic progressive drawing timeline calculation and interpolation",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sketch-maker/shared-types": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@sketch-maker/style-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Platform-agnostic style generators and stroke render parameters",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sketch-maker/shared-types": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

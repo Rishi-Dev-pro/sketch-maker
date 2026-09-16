@@ -1,0 +1,17 @@
+{
+  "name": "@sketch-maker/export-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Headless export encoders for high-res raster and progressive animation formats",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sketch-maker/shared-types": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

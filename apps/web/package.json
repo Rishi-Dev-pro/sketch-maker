@@ -1,0 +1,31 @@
+{
+  "name": "@sketch-maker/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Web client for Photo-to-Procedural-Art",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sketch-maker/shared-types": "*",
+    "@sketch-maker/image-processing": "*",
+    "@sketch-maker/structural-analysis": "*",
+    "@sketch-maker/stroke-engine": "*",
+    "@sketch-maker/style-engine": "*",
+    "@sketch-maker/animation-engine": "*",
+    "@sketch-maker/export-engine": "*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  }
+}
