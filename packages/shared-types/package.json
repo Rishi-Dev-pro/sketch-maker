@@ -1,0 +1,14 @@
+{
+  "name": "@sketch-maker/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Universal data contracts and intermediate representations for Photo-to-Procedural-Art",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
