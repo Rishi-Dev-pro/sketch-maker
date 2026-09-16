@@ -14,11 +14,11 @@
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TASK-000** | Read & analyze complete 13-page project planning document | **COMPLETE** | P0 | None | Project PDF | All vision, architectural rules, and phases extracted | Verified against PDF OCR |
 | **TASK-001** | Create persistent project knowledge system (`docs/*`) | **COMPLETE** | P0 | TASK-000 | `docs/*` | 11 core documents created | Verified completeness |
-| **TASK-002** | Present initial audit & receive user sign-off to begin scaffolding | **IN_PROGRESS** | P0 | TASK-001 | `docs/CURRENT_STATE.md` | Awaiting user review before code creation | Not applicable |
-| **TASK-003** | Initialize git repository and `.gitignore` | `PLANNED` | P0 | TASK-002 | `.gitignore`, `.git/` | Ensure no large models/build artifacts committed | Pending |
-| **TASK-004** | Monorepo scaffolding & package workspace structure | `PLANNED` | P1 | TASK-003 | `package.json`, `packages/*`, `apps/*` | npm/pnpm workspace configuration | Pending |
-| **TASK-005** | Define core data contracts in `packages/shared-types` | `PLANNED` | P1 | TASK-004 | `packages/shared-types/src/index.ts` | `SubjectModel`, `Stroke`, `SemanticRegion`, etc. | Unit types check |
-| **TASK-006** | Curate initial benchmark image dataset | `PLANNED` | P1 | TASK-003 | `tests/images/*` | Standard diverse portrait set | Pending |
+| **TASK-002** | Present initial audit & receive user sign-off to begin scaffolding | **COMPLETE** | P0 | TASK-001 | `docs/CURRENT_STATE.md` | Direction aligned, proceed instruction provided | Not applicable |
+| **TASK-003** | Initialize git repository and `.gitignore` | **COMPLETE** | P0 | TASK-002 | `.gitignore`, `.git/` | Initialized and committed (`058e8fc`) | Verified clean git status |
+| **TASK-004** | Monorepo scaffolding & package workspace structure | **COMPLETE** | P1 | TASK-003 | `package.json`, `packages/*`, `apps/*` | npm workspaces configured, packages linked | Verified `npm run build` |
+| **TASK-005** | Define core data contracts in `packages/shared-types` | **COMPLETE** | P1 | TASK-004 | `packages/shared-types/src/*` | `SubjectModel`, `Stroke`, `StyleConfig`, etc. | Verified `npm run typecheck` (0 errors) |
+| **TASK-006** | Curate initial benchmark image dataset | **IN_PROGRESS** | P1 | TASK-005 | `tests/images/*` | 12 standard evaluation categories | Pending verification |
 
 ---
 

@@ -9,7 +9,28 @@
 
 ## Log Entries
 
-*(No bugs recorded yet. The repository is in pre-implementation Phase 0).*
+### BUG-001: Premature Session Interruption during Scaffolding
+* **Date:** 2026-09-16
+* **Status:** VERIFIED
+* **Symptom:** AI development session stopped abruptly immediately following the creation of `apps/web/src/main.tsx`. `node_modules` were uninstalled, monorepo packages were unlinked, and `CURRENT_STATE.md` / `TASK_TRACKER.md` were left in an un-updated state.
+* **Reproduction Steps:**
+  1. Inspect `transcript.jsonl` from session `a7a9c9f0-46c9-4d36-81c4-6fa0185476e9`.
+  2. Observe step 137 (`apps/web/src/main.tsx` created) followed by step 139: `wsarecv: A connection attempt failed... dial tcp: lookup daily-cloudcode-pa.googleapis.com: no such host`.
+* **Root Cause:** Upstream API network connection failure during SSE streaming abruptly killed the agent loop before it could execute `npm install`, run verification builds, or update documentation.
+* **Affected Files:**
+  * Root `package.json`
+  * `apps/web/`
+  * `packages/*`
+  * `docs/CURRENT_STATE.md`
+  * `docs/TASK_TRACKER.md`
+* **Fix Applied:**
+  1. Recovered exact filesystem state and confirmed untracked monorepo files.
+  2. Executed `npm install` to resolve and link workspace packages (`@sketch-maker/shared-types` etc.).
+  3. Ran `npm run typecheck` across all workspace packages (passed with zero errors).
+  4. Ran `npm run build` on `@sketch-maker/web` (production Vite build passed).
+  5. Verified live browser runtime rendering via browser subagent on `http://localhost:3000/`.
+* **Verification:** `npm run typecheck` and `npm run build` exit code 0; dev server confirmed operational.
+* **Regression Risk:** Zero. Scaffolding preserved without destructive changes.
 
 ---
 
