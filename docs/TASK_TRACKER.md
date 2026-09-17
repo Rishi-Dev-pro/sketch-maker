@@ -26,7 +26,7 @@
 
 | Task ID | Description | Status | Priority | Dependencies | Relevant Files | Notes | Testing Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TASK-101** | Image preprocessing & normalization module | `NOT_STARTED` | P1 | TASK-005 | `packages/image-processing/*` | Resize, grayscale, contrast enhancement | Not tested |
+| **TASK-101** | Image preprocessing & normalization module | **COMPLETE** | P1 | TASK-005, TASK-006 | `packages/image-processing/*`, `tests/image-processing/*` | Pure TS, Rec. 709 luminance, area-weighted downscaling, contrast stretch | Verified 10 unit tests + 12 benchmark images pass (68.7ms avg) |
 | **TASK-102** | Initial subject segmentation / background separation | `NOT_STARTED` | P1 | TASK-101 | `packages/structural-analysis/segmentation.ts` | Local browser-compatible foreground extraction | Not tested |
 | **TASK-103** | Initial facial landmark & structural contour extraction | `NOT_STARTED` | P1 | TASK-102 | `packages/structural-analysis/landmarks.ts` | Face geometry & boundary detection | Not tested |
 | **TASK-104** | Polyline extraction & curve simplification (Ramer-Douglas-Peucker) | `NOT_STARTED` | P1 | TASK-103 | `packages/stroke-engine/simplification.ts` | Convert raw contours to clean Bézier/polylines | Not tested |

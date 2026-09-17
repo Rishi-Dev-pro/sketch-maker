@@ -46,6 +46,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Implemented automated validator `tests/images/validate.js` verifying image structure, JPEG markers, resolution criteria, and checksums.
   * Added `test:dataset` script to root `package.json` integrated into `npm test` (verified 12/12 passing).
 
+---
+
+## [Unreleased] - Phase 1: Feasibility Prototype
+
+### Added
+* **Image Preprocessing & Normalization Engine (`TASK-101`):**
+  * Implemented `@sketch-maker/image-processing` in pure TypeScript with zero external runtime dependencies.
+  * Implemented `calculateTargetDimensions` enforcing profile resolution budgets (`FAST` 512px, `BALANCED` 1024px, `HIGH` 1600px, `ULTRA` 3000px) with strict floating-point aspect ratio preservation and small image protection (zero artificial upscaling).
+  * Implemented `resamplePixelBuffer` with area-weighted box downsampling, eliminating Moiré artifacts and aliasing on high-frequency details (hair, textiles, glasses).
+  * Implemented `rgbaToLuminance` with ITU-R Rec. BT.709 photometric coefficients ($Y = 0.2126R + 0.7152G + 0.0722B$) outputting both `Uint8Array` [0-255] and `Float32Array` [0.0 - 1.0].
+  * Implemented `computeLuminanceStats` single-pass accumulator (min, max, mean, stdDev, 256-bin histogram, 1st and 99th percentiles).
+  * Implemented `normalizeLuminanceContrast` gentle percentile-bounded dynamic range normalization ($p_1 \to p_{99}$), preventing crushed shadows or blown highlights.
+  * Implemented `bilateralFilterLuminance` edge-preserving bilateral filter for noise suppression in low-light inputs.
+  * Created `preprocessPixelBuffer` pipeline producing immutable `NormalizedImage` containers.
+  * Created browser DOM adapters for `ImageData`, `ImageBitmap`, `HTMLCanvasElement`, and `OffscreenCanvas`.
+  * Added automated test suite `tests/image-processing/preprocess.test.ts` (10/10 unit tests passing) and integrated into `npm test`.
+  * Added benchmark evaluation runner `tests/image-processing/benchmark-runner.ts` validating all 12 benchmark images (average latency 68.7ms, 24MP downsampling in 240.3ms with heap bounded at 18.6MB).
+  * Documented ADR-007 in `docs/DECISIONS.md`.
+
 ### Fixed
 * **Session Interruption Recovery (`BUG-001`):**
   * Identified root cause of prior session halt (upstream SSE connection drop).

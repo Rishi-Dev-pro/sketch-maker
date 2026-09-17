@@ -12,6 +12,8 @@
     "@sketch-maker/shared-types": "*"
   },
   "devDependencies": {
+    "@types/jpeg-js": "^0.3.0",
+    "jpeg-js": "^0.4.4",
     "typescript": "^5.4.5"
   }
 }

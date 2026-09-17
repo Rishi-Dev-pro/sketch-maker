@@ -10,8 +10,10 @@
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
     "build": "npm run build --workspaces --if-present",
-    "test": "npm run test:dataset && npm run test --workspaces --if-present",
+    "test": "npm run test:dataset && npm run test:preprocess && npm run test --workspaces --if-present",
     "test:dataset": "node tests/images/validate.js",
+    "test:preprocess": "tsx tests/image-processing/preprocess.test.ts",
+    "benchmark:image-processing": "tsx tests/image-processing/benchmark-runner.ts",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
@@ -23,5 +25,8 @@
     "creative-coding"
   ],
   "author": "",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "tsx": "^4.23.13"
+  }
 }

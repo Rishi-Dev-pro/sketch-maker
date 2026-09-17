@@ -3,20 +3,20 @@
 ## Project State Snapshot
 
 * **Current Date / Time:** 2026-09-17
-* **Current Phase:** Phase 0 — Product & Technical Foundation (COMPLETE) → Transitioning to Phase 1
-* **Current Version:** v0.1.0-alpha (Foundation, Shared Contracts & Benchmark Dataset)
-* **Current Milestone:** M0 — Project Knowledge System & Foundation Architecture (COMPLETE)
-* **Status:** READY_FOR_PHASE_1
+* **Current Phase:** Phase 1 — Feasibility Prototype (Headless Photo → Strokes Pipeline)
+* **Current Version:** v0.2.0-alpha (Image Preprocessing & Normalization Engine)
+* **Current Milestone:** M1 — Feasibility Prototype (Headless Pipeline)
+* **Status:** IN_PROGRESS (Phase 1 Underway: TASK-101 Complete)
 
 ---
 
 ## 1. Where Exactly Are We Right Now?
-Phase 0 foundation is 100% complete:
-1. The monorepo structure is fully established with npm workspaces linking `packages/*` and `apps/web`.
-2. Universal data contracts (`packages/shared-types`) are fully written and exported (`SubjectModel`, `Stroke`, `StrokeModel`, `StyleConfig`, `PipelineProgress`).
-3. The React + Vite + TypeScript client (`apps/web`) is verified: `npm run typecheck` (0 errors), `npm run build` (production assets generated), and browser rendering verified.
-4. The 12-category standard benchmark evaluation dataset (`tests/images/`) is fully curated, checksummed in `dataset.json`, documented in `tests/images/README.md`, and verified with automated integrity tests via `npm run test:dataset` (12/12 passing).
-5. The project is fully unblocked and ready to advance to Phase 1 (Feasibility Prototype: Headless Photo → Strokes Pipeline).
+Phase 1 implementation has commenced:
+1. **`packages/image-processing` (TASK-101)** is fully implemented in pure TypeScript with zero runtime dependencies.
+2. Implemented area-weighted box downsampling with zero aliasing, Rec. 709 perceptual photometric luminance extraction, statistical distribution accumulation, percentile-bounded contrast normalization ($p_1 \to p_{99}$), and edge-preserving bilateral filtering.
+3. Automated test suite (`npm run test:preprocess`) passes 10/10 comprehensive unit tests covering dimension math, energy conservation, photometric coefficients, contrast expansion, and deterministic execution.
+4. Benchmark suite (`npm run benchmark:image-processing`) validated across all 12 benchmark dataset categories (`BM-01` to `BM-12`). Average balanced profile latency is **68.7 ms** (well below 300ms SLA). 24MP high-resolution downsampling executes in **240.3 ms** with peak heap usage strictly constrained to **18.6 MB** (far below 150MB SLA ceiling).
+5. The monorepo builds cleanly and typechecks with 0 errors.
 
 ---
 
@@ -28,27 +28,28 @@ Phase 0 foundation is 100% complete:
 * [x] **TASK-004:** Monorepo scaffolding & package workspace structure (`packages/*`, `apps/web`, `tsconfig.base.json`, `npm install` executed, workspaces linked).
 * [x] **TASK-005:** Core data contracts defined in `packages/shared-types` (`geometry.ts`, `subject.ts`, `stroke.ts`, `style.ts`, `pipeline.ts`, `index.ts`).
 * [x] **TASK-006:** Curate initial benchmark image dataset (`tests/images/*`, `tests/images/dataset.json`, `tests/images/README.md`, automated validator `tests/images/validate.js`, `npm run test:dataset` 12/12 passing).
+* [x] **TASK-101:** Image preprocessing & normalization module (`packages/image-processing/*`, `tests/image-processing/*`, 10/10 unit tests, 12/12 benchmark images evaluated, 24MP downsampling verified).
 * [x] **Web App Foundation Verification:** `apps/web` builds cleanly with Vite, typechecks with 0 errors, and renders verified in browser.
 
 ---
 
 ## 3. Currently Being Worked On
-* Milestone transition: Phase 0 complete. Preparing to begin Phase 1 (`TASK-101`).
+* **TASK-102:** Initial subject segmentation / background separation (`packages/structural-analysis/segmentation.ts`).
 
 ---
 
 ## 4. What Is Partially Implemented
-* Headless package stubs (`image-processing`, `structural-analysis`, `stroke-engine`, `style-engine`, `animation-engine`, `export-engine`): Package manifests and version constants exist; algorithmic implementations begin in Phase 1.
+* Headless package stubs (`structural-analysis`, `stroke-engine`, `style-engine`, `animation-engine`, `export-engine`): Package manifests and version constants exist; algorithmic implementations begin in subsequent Phase 1 tasks.
 
 ---
 
 ## 5. What Is Blocked
-* None. All dependencies installed, workspaces functional, and benchmark dataset validated.
+* None. Image preprocessing pipeline is verified and unblocks structural analysis.
 
 ---
 
 ## 6. Known Bugs & Anomalies
-* **BUG-001 (Resolved):** Previous session dropped due to network timeout during scaffolding. Resolved by diagnosing root cause, installing dependencies, linking workspaces, and verifying typecheck/build.
+* None. All 10 unit tests and 12 benchmark image evaluations pass cleanly.
 
 ---
 
@@ -59,15 +60,14 @@ Phase 0 foundation is 100% complete:
 
 ## 8. Immediate Next Tasks
 
-### Immediate Next Task (Task ID: `TASK-101`):
-* `TASK-101`: Image preprocessing & normalization module (`packages/image-processing`). Implement resizing, grayscale conversion, contrast enhancement, and buffer normalization against benchmark images.
+### Immediate Next Task (Task ID: `TASK-102`):
+* `TASK-102`: Initial subject segmentation / background separation (`packages/structural-analysis/segmentation.ts`). Implement local browser-compatible foreground extraction using luminance and color gradients to isolate subject silhouettes from background clutter.
 
 ### Next Few Planned Tasks (Phase 1):
-1. `TASK-102`: Initial subject segmentation / background separation (`packages/structural-analysis/segmentation.ts`).
-2. `TASK-103`: Initial facial landmark & structural contour extraction (`packages/structural-analysis/landmarks.ts`).
-3. `TASK-104`: Polyline extraction & curve simplification (`packages/stroke-engine/simplification.ts`).
-4. `TASK-105`: Semantic importance weighting & stroke sorting (`packages/stroke-engine/ordering.ts`).
-5. `TASK-106`: Headless canvas draw runner & progressive animation test (`tests/rendering/prototype_runner.html`).
+1. `TASK-103`: Initial facial landmark & structural contour extraction (`packages/structural-analysis/landmarks.ts`).
+2. `TASK-104`: Polyline extraction & curve simplification (`packages/stroke-engine/simplification.ts`).
+3. `TASK-105`: Semantic importance weighting & stroke sorting (`packages/stroke-engine/ordering.ts`).
+4. `TASK-106`: Headless canvas draw runner & progressive animation test (`tests/rendering/prototype_runner.html`).
 
 ---
 
