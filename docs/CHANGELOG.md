@@ -74,6 +74,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Added automated unit test suite `tests/structural-analysis/segmentation.test.ts` (10/10 passing) covering dimensions, coverage, boundary adherence, multi-instance detection, and high-frequency edge preservation.
   * Added benchmark visual inspection suite `tests/structural-analysis/visual-inspector.ts` evaluating all 12 benchmark categories with performance metrics (average latency 239.7ms, combined preprocessing + segmentation 308.4ms, peak heap 24.5MB).
   * Documented ADR-008 (Pure-TypeScript Multi-Cue Perceptual Subject Segmentation Engine) in `docs/DECISIONS.md`.
+* **SubjectModel Contract Refinement for Structural Analysis (`TASK-103`):**
+  * Extended `packages/shared-types/src/subject.ts` with `FeatureVisibility` (`'visible' | 'occluded' | 'not_detected' | 'uncertain'`) and `HeadPose` (`'frontal' | 'three_quarter_left' | 'three_quarter_right' | 'left_profile' | 'right_profile'`).
+  * Updated `FacialFeatures` to make anatomical feature paths optional with a dedicated `featureVisibility` map, enabling legal representation of side-profile portraits (`BM-02`) and occlusions without hallucinating hidden features.
+  * Added `SubjectAnalysisResult` in `packages/structural-analysis/src/types.ts` representing primary subject, multi-subject collections (`BM-11`), coordinate scaling, and structural diagnostic metrics.
+  * Documented ADR-009 (Pure-TypeScript Anatomical Landmark & Structural Contour Extraction Engine) in `docs/DECISIONS.md`.
 
 ### Fixed
 * **Session Interruption Recovery (`BUG-001`):**

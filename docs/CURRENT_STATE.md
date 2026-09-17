@@ -4,9 +4,9 @@
 
 * **Current Date / Time:** 2026-09-17
 * **Current Phase:** Phase 1 — Feasibility Prototype (Headless Photo → Strokes Pipeline)
-* **Current Version:** v0.3.0-alpha (Subject Segmentation & Saliency Analysis Engine)
+* **Current Version:** v0.3.1-alpha (SubjectModel Contract Refinement for Landmarks)
 * **Current Milestone:** M1 — Feasibility Prototype (Headless Pipeline)
-* **Status:** IN_PROGRESS (Phase 1 Underway: TASK-101 & TASK-102 Complete)
+* **Status:** IN_PROGRESS (Phase 1 Underway: TASK-103 In Progress)
 
 ---
 
@@ -14,8 +14,9 @@
 Phase 1 pipeline is advancing through structural analysis:
 1. **`packages/image-processing` (TASK-101):** Fully implemented, verified with 10 unit tests, and benchmarked across all 12 benchmark categories (68.7ms average latency; 24MP downsampling in 240.3ms).
 2. **`packages/structural-analysis` Segmentation (TASK-102):** Implemented multi-cue perceptual saliency & gradient-barrier segmentation with zero external model dependencies (`ADR-008`). Evaluated across all 12 benchmark categories with an average latency of **239.7 ms** (combined pipeline latency: **308.4 ms**, well below the 1500 ms SLA target). Peak heap RAM remained bounded at **~24.5 MB**.
-3. **Automated Verification:** 10/10 segmentation unit tests passing (`tests/structural-analysis/segmentation.test.ts`), visual inspection HTML report generated (`tests/artifacts/segmentation-report.html`), all monorepo workspaces typecheck cleanly (0 errors), and client production build passes.
-4. **Next Step:** Ready to advance to **TASK-103** (Initial facial landmark & structural contour extraction in `packages/structural-analysis/landmarks.ts`).
+3. **TASK-103 Contract Foundation:** Refined `packages/shared-types/src/subject.ts` and `packages/structural-analysis/src/types.ts` to natively support asymmetric profile faces, occluded features, and multi-person scenes (`FeatureVisibility`, `HeadPose`, `SubjectAnalysisResult`). Recorded ADR-009.
+4. **Automated Verification:** 20/20 unit tests pass (10 preprocessing + 10 segmentation), 12/12 dataset images validate, all monorepo workspaces typecheck cleanly (0 errors), and client production build passes.
+5. **Next Step:** Proceed to incremental implementation of the anatomical landmark extraction engine (`packages/structural-analysis/landmarks.ts`).
 
 ---
 
@@ -34,7 +35,7 @@ Phase 1 pipeline is advancing through structural analysis:
 ---
 
 ## 3. Currently Being Worked On
-* Milestone transition: TASK-102 complete. Preparing to begin **TASK-103** (`packages/structural-analysis/landmarks.ts`).
+* **TASK-103 (In Progress):** Data contract foundation established (`FeatureVisibility`, `HeadPose`, `SubjectAnalysisResult`, ADR-009). Next: Landmark and structural contour extraction algorithms (`landmarks.ts`, `contours.ts`).
 
 ---
 

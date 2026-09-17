@@ -20,36 +20,74 @@ export type SemanticRegion =
   | 'background'
   | 'highlight';
 
+/**
+ * Visibility state of an anatomical or structural feature.
+ * - 'visible': Feature is observed with clear image evidence.
+ * - 'occluded': Feature is physically present but hidden by pose angle (e.g. opposite eye in profile) or foreground obstruction.
+ * - 'not_detected': Feature could not be resolved from image evidence within expected region.
+ * - 'uncertain': Weak or ambiguous image evidence exists.
+ */
+export type FeatureVisibility = 'visible' | 'occluded' | 'not_detected' | 'uncertain';
+
+/**
+ * Estimated head pose orientation based on facial asymmetry and silhouette boundaries.
+ */
+export type HeadPose =
+  | 'frontal'
+  | 'three_quarter_left'
+  | 'three_quarter_right'
+  | 'left_profile'
+  | 'right_profile';
+
 export interface ContourPath {
   readonly id: string;
   readonly region: SemanticRegion;
   readonly points: Point2D[];
   readonly closed: boolean;
   readonly confidence: number; // [0.0 - 1.0]
+  readonly visibility?: FeatureVisibility;
   readonly length?: number;
 }
 
 export interface EyeLandmarks {
+  readonly visibility?: FeatureVisibility;
   readonly upperLid: ContourPath;
   readonly lowerLid: ContourPath;
   readonly iris?: Point2D;
   readonly pupil?: Point2D;
+  readonly confidence?: number;
 }
 
 export interface FacialFeatures {
-  readonly leftEye: EyeLandmarks;
-  readonly rightEye: EyeLandmarks;
-  readonly leftEyebrow: ContourPath;
-  readonly rightEyebrow: ContourPath;
-  readonly noseBridge: ContourPath;
-  readonly noseTip: ContourPath;
-  readonly nostrils: ContourPath[];
-  readonly upperLip: ContourPath;
-  readonly lowerLip: ContourPath;
-  readonly lipSeparation: ContourPath;
-  readonly jawline: ContourPath;
+  readonly boundingBox?: BoundingBox;
+  readonly pose?: HeadPose;
+  readonly leftEye?: EyeLandmarks;
+  readonly rightEye?: EyeLandmarks;
+  readonly leftEyebrow?: ContourPath;
+  readonly rightEyebrow?: ContourPath;
+  readonly noseBridge?: ContourPath;
+  readonly noseTip?: ContourPath;
+  readonly nostrils?: ContourPath[];
+  readonly upperLip?: ContourPath;
+  readonly lowerLip?: ContourPath;
+  readonly lipSeparation?: ContourPath;
+  readonly jawline?: ContourPath;
   readonly leftEar?: ContourPath;
   readonly rightEar?: ContourPath;
+  readonly featureVisibility?: Partial<
+    Record<
+      | 'leftEye'
+      | 'rightEye'
+      | 'leftEyebrow'
+      | 'rightEyebrow'
+      | 'nose'
+      | 'mouth'
+      | 'jawline'
+      | 'leftEar'
+      | 'rightEar',
+      FeatureVisibility
+    >
+  >;
   readonly confidence: number;
 }
 

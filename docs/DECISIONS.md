@@ -111,5 +111,16 @@ This document serves as the permanent record of major architectural and technica
 * **Reason:** A pure-TypeScript multi-cue engine executes in ~240ms on CPU without any model downloads, runs deterministically across Node.js, Web Workers, and mobile runtimes, preserves fine hair boundaries and glasses frames, and directly outputs multi-subject instances with sub-pixel soft confidence maps.
 * **Consequences:** Provides an immediate zero-overhead foundation for Phase 1 feasibility; modular architecture allows plugging in client-side neural backends in `apps/web` as an optional enhancement in later phases.
 
+---
+
+### ADR-009: Pure-TypeScript Anatomical Landmark & Structural Contour Extraction Engine
+* **Date:** 2026-09-17
+* **Status:** ACCEPTED
+* **Decision:** For Phase 1 feasibility, implement the structural-analysis landmark and contour extraction engine in pure TypeScript, utilizing deterministic multi-scale gradient ridge/valley analysis, anthropometric search priors, and evidence-driven confidence scoring over existing image-processing and segmentation outputs.
+* **Context:** TASK-103 must transform segmented subjects into semantically structured `SubjectModel` representations containing explicit facial landmarks (eyes, eyebrows, nose, mouth, jawline, ears) and body boundaries. Generic whole-image edge detection (Canny) produces unranked noise, while heavyweight ML face-landmark models (MediaPipe FaceMesh, TF.js Blazeface) require 10MB+ model weights, fail in offline/headless Node.js CI test environments, and lock down external runtime dependencies.
+* **Architecture Openness:** This decision is specific to establishing the headless Phase 1 feasibility prototype and validating the core procedural vectorization pipeline. It is *not* a permanent prohibition against neural ML backends; the modular design preserves an open pluggable interface (`SubjectAnalysisResult`) so that an optional client-side ML detector backend can be incorporated in future phases if benchmark evaluations prove that classical methods cannot achieve required fidelity on extreme poses or complex lighting.
+* **Reason:** A pure-TypeScript implementation executes with zero network download, zero native binary bindings, sub-500ms CPU latency, complete platform independence (Node, Web Workers, browser, React Native), and deterministic testability against the 12-category benchmark dataset.
+* **Consequences:** Initial landmark extraction relies on robust image evidence (gradient barriers, valley tracking) over hard-coded geometric priors; features that are occluded (e.g. opposite eye in side-profile `BM-02`) or ambiguous are represented with explicit `FeatureVisibility` ('occluded' / 'uncertain' / 'not_detected') rather than hallucinated.
+
 
 

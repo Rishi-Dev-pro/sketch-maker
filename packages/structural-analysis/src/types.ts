@@ -1,4 +1,4 @@
-import { BoundingBox, Dimensions } from '@sketch-maker/shared-types';
+import { BoundingBox, Dimensions, SubjectModel } from '@sketch-maker/shared-types';
 
 /**
  * A detected structural subject instance (e.g. primary person, second person in multi-person shots).
@@ -98,4 +98,24 @@ export interface SegmentationOptions {
    * - 'conservative': wider subject boundary, prioritizing retaining delicate hair wisps
    */
   readonly mode?: 'standard' | 'aggressive' | 'conservative';
+}
+
+/**
+ * Complete immutable output emitted by the structural analysis and landmark extraction stage.
+ * Represents one or more subjects analyzed into structured semantic contours.
+ */
+export interface SubjectAnalysisResult {
+  /** Primary detected subject (or highest-confidence subject in multi-person shots) */
+  readonly primarySubject: SubjectModel;
+  /** All detected subjects (for multi-person images like BM-11) */
+  readonly subjects: SubjectModel[];
+  /** Coordinate scale multipliers (original dimension / processing dimension) */
+  readonly scale: { readonly x: number; readonly y: number };
+  /** Performance and diagnostic metrics */
+  readonly metrics: {
+    readonly latencyMs: number;
+    readonly subjectCount: number;
+    readonly hasFace: boolean;
+    readonly hasBody: boolean;
+  };
 }
