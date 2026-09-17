@@ -25,9 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Created root `README.md` introducing the project and linking to the persistent documentation knowledge system.
 
 ### Added
-* **Remote Repository Connection:**
+* **Remote Repository Connection & Branch Strategy:**
   * Configured GitHub remote `origin` pointing to `https://github.com/Rishi-Dev-pro/sketch-maker.git`.
-  * Initialized and pushed tracking branch `master` to remote origin.
+  * Preserved historical `master` branch and established `main` as the authoritative primary development branch (tracking `origin/main`).
 * **Monorepo Architecture Scaffolding (`TASK-004`):**
   * Configured npm workspaces in root `package.json` covering `packages/*` and `apps/*`.
   * Created `tsconfig.base.json` with strict TypeScript configuration and ES2022 target.
@@ -39,6 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Implemented `packages/shared-types/src/stroke.ts` (`Stroke`, `StrokePoint`, `StrokeModel`).
   * Implemented `packages/shared-types/src/style.ts` (`StyleConfig`, `StyleId`, `BackgroundMode`, `QualityProfile`).
   * Implemented `packages/shared-types/src/pipeline.ts` (`PipelineProgress`, `PipelineStage`, `RenderFrame`).
+* **Standard Benchmark Image Dataset (`TASK-006`):**
+  * Curated 12 standard test image categories in `tests/images/` covering neutral portraits, 90° profile silhouettes, eyewear occlusions, dense facial hair, textured afro curls, chiaroscuro/backlight extremes, cluttered urban street backgrounds, noisy low-light night selfies, full standing poses, sitting folded limb poses, multi-person groups, and 24MP+ high-resolution scaling masters.
+  * Created `tests/images/dataset.json` with machine-readable schemas, dimensions, aspect ratios, file sizes, SHA-256 cryptographic hashes, challenge factors, and acceptance criteria.
+  * Created `tests/images/README.md` cataloging the evaluation dataset.
+  * Implemented automated validator `tests/images/validate.js` verifying image structure, JPEG markers, resolution criteria, and checksums.
+  * Added `test:dataset` script to root `package.json` integrated into `npm test` (verified 12/12 passing).
 
 ### Fixed
 * **Session Interruption Recovery (`BUG-001`):**

@@ -18,7 +18,7 @@
 | **TASK-003** | Initialize git repository and `.gitignore` | **COMPLETE** | P0 | TASK-002 | `.gitignore`, `.git/` | Initialized and committed (`058e8fc`) | Verified clean git status |
 | **TASK-004** | Monorepo scaffolding & package workspace structure | **COMPLETE** | P1 | TASK-003 | `package.json`, `packages/*`, `apps/*` | npm workspaces configured, packages linked | Verified `npm run build` |
 | **TASK-005** | Define core data contracts in `packages/shared-types` | **COMPLETE** | P1 | TASK-004 | `packages/shared-types/src/*` | `SubjectModel`, `Stroke`, `StyleConfig`, etc. | Verified `npm run typecheck` (0 errors) |
-| **TASK-006** | Curate initial benchmark image dataset | **IN_PROGRESS** | P1 | TASK-005 | `tests/images/*` | 12 standard evaluation categories | Pending verification |
+| **TASK-006** | Curate initial benchmark image dataset | **COMPLETE** | P1 | TASK-005 | `tests/images/*`, `tests/images/dataset.json`, `tests/images/validate.js` | 12 standard evaluation categories, checksummed manifest, automated validator | Verified `npm run test:dataset` (12/12 pass) |
 
 ---
 

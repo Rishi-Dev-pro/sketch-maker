@@ -2,21 +2,21 @@
 
 ## Project State Snapshot
 
-* **Current Date / Time:** Session Recovery & Continuation (2026-09-16)
-* **Current Phase:** Phase 0 — Product & Technical Foundation
-* **Current Version:** v0.1.0-alpha (Foundation & Monorepo Scaffold)
-* **Current Milestone:** M0 — Project Knowledge System & Foundation Architecture
-* **Status:** IN_PROGRESS (Finalizing Phase 0: Benchmark Dataset Curation)
+* **Current Date / Time:** 2026-09-17
+* **Current Phase:** Phase 0 — Product & Technical Foundation (COMPLETE) → Transitioning to Phase 1
+* **Current Version:** v0.1.0-alpha (Foundation, Shared Contracts & Benchmark Dataset)
+* **Current Milestone:** M0 — Project Knowledge System & Foundation Architecture (COMPLETE)
+* **Status:** READY_FOR_PHASE_1
 
 ---
 
 ## 1. Where Exactly Are We Right Now?
-Phase 0 foundation is nearly complete. 
-Following recovery from a previous session interruption (BUG-001):
-1. The monorepo structure has been fully established with npm workspaces linking `packages/*` and `apps/web`.
-2. Universal data contracts (`packages/shared-types`) are fully written, exporting `SubjectModel`, `Stroke`, `StrokeModel`, `StyleConfig`, and `PipelineProgress`.
-3. The React + Vite + TypeScript client (`apps/web`) is verified: `npm run typecheck` (0 errors), `npm run build` (production assets generated), and live browser loading verified.
-4. The remaining task in Phase 0 before advancing to Phase 1 (Feasibility Prototype) is curating the standard benchmark image dataset (`tests/images/`).
+Phase 0 foundation is 100% complete:
+1. The monorepo structure is fully established with npm workspaces linking `packages/*` and `apps/web`.
+2. Universal data contracts (`packages/shared-types`) are fully written and exported (`SubjectModel`, `Stroke`, `StrokeModel`, `StyleConfig`, `PipelineProgress`).
+3. The React + Vite + TypeScript client (`apps/web`) is verified: `npm run typecheck` (0 errors), `npm run build` (production assets generated), and browser rendering verified.
+4. The 12-category standard benchmark evaluation dataset (`tests/images/`) is fully curated, checksummed in `dataset.json`, documented in `tests/images/README.md`, and verified with automated integrity tests via `npm run test:dataset` (12/12 passing).
+5. The project is fully unblocked and ready to advance to Phase 1 (Feasibility Prototype: Headless Photo → Strokes Pipeline).
 
 ---
 
@@ -24,15 +24,16 @@ Following recovery from a previous session interruption (BUG-001):
 * [x] **TASK-000:** Project Planning Specification Ingestion (100% extracted).
 * [x] **TASK-001:** Persistent Documentation Structure (`docs/*` created with 11 core documents).
 * [x] **TASK-002:** Initial Repository Audit & User Direction Alignment.
-* [x] **TASK-003:** Git repository and `.gitignore` initialized and committed (`058e8fc`). Connected to remote origin (`https://github.com/Rishi-Dev-pro/sketch-maker.git`) on `master` branch.
+* [x] **TASK-003:** Git repository and `.gitignore` initialized and committed (`058e8fc`). Connected to remote origin (`https://github.com/Rishi-Dev-pro/sketch-maker.git`). Primary development branch set to `main` (tracking `origin/main`), with historical `master` branch preserved.
 * [x] **TASK-004:** Monorepo scaffolding & package workspace structure (`packages/*`, `apps/web`, `tsconfig.base.json`, `npm install` executed, workspaces linked).
 * [x] **TASK-005:** Core data contracts defined in `packages/shared-types` (`geometry.ts`, `subject.ts`, `stroke.ts`, `style.ts`, `pipeline.ts`, `index.ts`).
+* [x] **TASK-006:** Curate initial benchmark image dataset (`tests/images/*`, `tests/images/dataset.json`, `tests/images/README.md`, automated validator `tests/images/validate.js`, `npm run test:dataset` 12/12 passing).
 * [x] **Web App Foundation Verification:** `apps/web` builds cleanly with Vite, typechecks with 0 errors, and renders verified in browser.
 
 ---
 
 ## 3. Currently Being Worked On
-* **TASK-006:** Curate initial benchmark image dataset (`tests/images/*`) covering standard portrait and subject categories defined in `docs/BENCHMARKS.md`.
+* Milestone transition: Phase 0 complete. Preparing to begin Phase 1 (`TASK-101`).
 
 ---
 
@@ -42,7 +43,7 @@ Following recovery from a previous session interruption (BUG-001):
 ---
 
 ## 5. What Is Blocked
-* None. All dependencies installed and workspaces functional.
+* None. All dependencies installed, workspaces functional, and benchmark dataset validated.
 
 ---
 
@@ -58,16 +59,15 @@ Following recovery from a previous session interruption (BUG-001):
 
 ## 8. Immediate Next Tasks
 
-### Immediate Next Task (Task ID: `TASK-006`):
-* Curate initial benchmark image dataset in `tests/images/` representing the 12 testing categories defined in `docs/BENCHMARKS.md`.
+### Immediate Next Task (Task ID: `TASK-101`):
+* `TASK-101`: Image preprocessing & normalization module (`packages/image-processing`). Implement resizing, grayscale conversion, contrast enhancement, and buffer normalization against benchmark images.
 
 ### Next Few Planned Tasks (Phase 1):
-1. `TASK-101`: Image preprocessing & normalization module (`packages/image-processing`).
-2. `TASK-102`: Initial subject segmentation / background separation (`packages/structural-analysis/segmentation.ts`).
-3. `TASK-103`: Initial facial landmark & structural contour extraction (`packages/structural-analysis/landmarks.ts`).
-4. `TASK-104`: Polyline extraction & curve simplification (`packages/stroke-engine/simplification.ts`).
-5. `TASK-105`: Semantic importance weighting & stroke sorting (`packages/stroke-engine/ordering.ts`).
-6. `TASK-106`: Headless canvas draw runner & progressive animation test (`tests/rendering/prototype_runner.html`).
+1. `TASK-102`: Initial subject segmentation / background separation (`packages/structural-analysis/segmentation.ts`).
+2. `TASK-103`: Initial facial landmark & structural contour extraction (`packages/structural-analysis/landmarks.ts`).
+3. `TASK-104`: Polyline extraction & curve simplification (`packages/stroke-engine/simplification.ts`).
+4. `TASK-105`: Semantic importance weighting & stroke sorting (`packages/stroke-engine/ordering.ts`).
+5. `TASK-106`: Headless canvas draw runner & progressive animation test (`tests/rendering/prototype_runner.html`).
 
 ---
 

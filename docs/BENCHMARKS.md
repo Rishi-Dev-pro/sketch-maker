@@ -36,20 +36,25 @@ This document tracks quantitative performance benchmarks, memory profiles, and q
 
 ## 3. Standard Benchmark Image Dataset (12 Categories)
 
-To guarantee that algorithmic improvements do not cause regressions on difficult images, every major engine release must be evaluated against standard test images stored in `tests/images/`:
+To guarantee that algorithmic improvements do not cause regressions on difficult images, every major engine release must be evaluated against the standard test images curated and stored in [`tests/images/`](file:///d:/projects%202.0/main/sketch-maker/tests/images/):
 
-1. `BM-01-FRONT-PORTRAIT`: Clean front-facing portrait, neutral studio lighting.
-2. `BM-02-SIDE-PROFILE`: Sharp 90-degree profile; tests jawline and nose silhouette fidelity.
-3. `BM-03-GLASSES`: Subject wearing wireframe or thick-rimmed glasses; tests eye occlusion handling.
-4. `BM-04-FACIAL-HAIR`: Dense beard/mustache; tests hair vs. skin boundary separation.
-5. `BM-05-HAIR-VARIETY`: Fine curly/afro/straight long hair; tests high-frequency detail noise handling.
-6. `BM-06-EXTREME-LIGHTING`: High dynamic range, deep shadows, bright backlit rim lighting.
-7. `BM-07-COMPLEX-BACKGROUND`: Busy foliage, urban street scene; tests background suppression.
-8. `BM-08-LOW-LIGHT`: Noisy low-light selfie with ISO grain.
-9. `BM-09-FULL-BODY-STANDING`: Full figure standing; tests head-to-toe pose and limb proportion.
-10. `BM-10-FULL-BODY-SITTING`: Complex occlusion with folded arms/legs.
-11. `BM-11-MULTI-PERSON`: Two or more subjects; tests multi-subject segmentation.
-12. `BM-12-HIGH-RES`: 24MP+ photo; tests memory limits and downscaling pipeline.
+| ID | Filename | Category | Dimensions | MP | Size | Evaluation Focus |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **BM-01** | `bm-01-front-portrait.jpg` | Neutral Portrait | 1024 × 1024 | 1.05 MP | 635 KB | Facial landmark symmetry & primary contour clarity |
+| **BM-02** | `bm-02-side-profile.jpg` | Side Profile | 1024 × 1024 | 1.05 MP | 577 KB | Profile jawline & nose curve silhouette fidelity |
+| **BM-03** | `bm-03-glasses.jpg` | Eyewear Occlusion | 1024 × 1024 | 1.05 MP | 708 KB | Eyeglass frame extraction vs. pupil preservation |
+| **BM-04** | `bm-04-facial-hair.jpg` | Facial Hair | 1024 × 1024 | 1.05 MP | 720 KB | Dense beard texture vs. anatomical skin boundary |
+| **BM-05** | `bm-05-hair-variety.jpg` | Textured Hair | 1024 × 1024 | 1.05 MP | 723 KB | Afro/coiled curl simplification & stroke budget |
+| **BM-06** | `bm-06-extreme-lighting.jpg`| Chiaroscuro / HDR | 1024 × 1024 | 1.05 MP | 607 KB | Backlight rim lighting & deep shadow tolerance |
+| **BM-07** | `bm-07-complex-background.jpg`| Cluttered Scene | 1024 × 1024 | 1.05 MP | 922 KB | Foreground segmentation & background suppression |
+| **BM-08** | `bm-08-low-light.jpg` | ISO Noise | 1024 × 1024 | 1.05 MP | 732 KB | Low-light sensor grain suppression & SNR filtering |
+| **BM-09** | `bm-09-full-body-standing.jpg`| Full Standing | 896 × 1200 | 1.08 MP | 560 KB | Whole-body anatomical proportions & grounding |
+| **BM-10** | `bm-10-full-body-sitting.jpg` | Complex Occlusion | 896 × 1200 | 1.08 MP | 663 KB | Cross-legged sitting pose with folded limbs |
+| **BM-11** | `bm-11-multi-person.jpg` | Multi-Subject | 1200 × 896 | 1.08 MP | 636 KB | Multi-person segmentation & touching silhouettes |
+| **BM-12** | `bm-12-high-res.jpg` | 24MP+ Master | 6000 × 4000 | 24.00 MP | 1.27 MB | High-res downscaling throughput & peak RAM limits |
+
+* Complete machine-readable metadata and verification checksums are tracked in [`tests/images/dataset.json`](file:///d:/projects%202.0/main/sketch-maker/tests/images/dataset.json).
+* Automated dataset integrity validation is executed via `npm run test:dataset` (or `node tests/images/validate.js`).
 
 ---
 
