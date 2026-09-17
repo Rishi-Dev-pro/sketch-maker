@@ -79,6 +79,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Updated `FacialFeatures` to make anatomical feature paths optional with a dedicated `featureVisibility` map, enabling legal representation of side-profile portraits (`BM-02`) and occlusions without hallucinating hidden features.
   * Added `SubjectAnalysisResult` in `packages/structural-analysis/src/types.ts` representing primary subject, multi-subject collections (`BM-11`), coordinate scaling, and structural diagnostic metrics.
   * Documented ADR-009 (Pure-TypeScript Anatomical Landmark & Structural Contour Extraction Engine) in `docs/DECISIONS.md`.
+  * Implemented Face Region Isolation & Head Pose Estimation (`packages/structural-analysis/src/face-region.ts`) providing `estimateFaceRegion` and `estimateAllFaceRegions` with evidence-driven confidence scoring over skin chrominance, vertical foreground mass profiling, bilateral symmetry, and silhouette projection asymmetry ratios.
+  * Added 10 automated unit tests (`tests/structural-analysis/face-region.test.ts`) covering bounding box containment, coordinate normalization, symmetry scoring, profile vs frontal detection, multi-person isolation, and high-resolution scaling invariance.
+  * Added visual inspection benchmark suite (`tests/structural-analysis/pose-inspector.ts`) evaluating all 12 benchmark categories with an average latency of 15.13 ms (sub-16ms CPU time).
 
 ### Fixed
 * **Session Interruption Recovery (`BUG-001`):**

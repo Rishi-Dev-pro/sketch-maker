@@ -9,3 +9,4 @@ export * from './types';
 export * from './gradient';
 export * from './saliency';
 export * from './segmentation';
+export * from './face-region';

@@ -4,9 +4,9 @@
 
 * **Current Date / Time:** 2026-09-17
 * **Current Phase:** Phase 1 — Feasibility Prototype (Headless Photo → Strokes Pipeline)
-* **Current Version:** v0.3.1-alpha (SubjectModel Contract Refinement for Landmarks)
+* **Current Version:** v0.3.2-alpha (Face Region Isolation & Head Pose Estimation)
 * **Current Milestone:** M1 — Feasibility Prototype (Headless Pipeline)
-* **Status:** IN_PROGRESS (Phase 1 Underway: TASK-103 In Progress)
+* **Status:** IN_PROGRESS (Phase 1 Underway: TASK-103 In Progress - Step 1 Complete)
 
 ---
 
@@ -14,9 +14,10 @@
 Phase 1 pipeline is advancing through structural analysis:
 1. **`packages/image-processing` (TASK-101):** Fully implemented, verified with 10 unit tests, and benchmarked across all 12 benchmark categories (68.7ms average latency; 24MP downsampling in 240.3ms).
 2. **`packages/structural-analysis` Segmentation (TASK-102):** Implemented multi-cue perceptual saliency & gradient-barrier segmentation with zero external model dependencies (`ADR-008`). Evaluated across all 12 benchmark categories with an average latency of **239.7 ms** (combined pipeline latency: **308.4 ms**, well below the 1500 ms SLA target). Peak heap RAM remained bounded at **~24.5 MB**.
-3. **TASK-103 Contract Foundation:** Refined `packages/shared-types/src/subject.ts` and `packages/structural-analysis/src/types.ts` to natively support asymmetric profile faces, occluded features, and multi-person scenes (`FeatureVisibility`, `HeadPose`, `SubjectAnalysisResult`). Recorded ADR-009.
-4. **Automated Verification:** 20/20 unit tests pass (10 preprocessing + 10 segmentation), 12/12 dataset images validate, all monorepo workspaces typecheck cleanly (0 errors), and client production build passes.
-5. **Next Step:** Proceed to incremental implementation of the anatomical landmark extraction engine (`packages/structural-analysis/landmarks.ts`).
+3. **TASK-103 Step 1 (Face Region Isolation & Head Pose Estimation):** Implemented `estimateFaceRegion` and `estimateAllFaceRegions` (`packages/structural-analysis/src/face-region.ts`). Evaluates vertical foreground mass distribution, skin chrominance distributions across Fitzpatrick types I-VI, bilateral symmetry scores, and silhouette projection asymmetry ratios.
+4. **Automated Verification:** 30/30 unit tests pass (10 preprocessing + 10 segmentation + 10 face region), 12/12 dataset images validate, all monorepo workspaces typecheck cleanly (0 errors), and client production build passes.
+5. **Benchmark & Visual Inspection:** Evaluated across all 12 benchmark categories (`tests/structural-analysis/pose-inspector.ts`) with an average latency of **15.13 ms** (well below the 150 ms target). Visual inspection report generated to `tests/artifacts/pose-report.html`.
+6. **Next Step:** Ready for Step 2 of TASK-103 (Individual facial feature landmark detectors: eyes, eyebrows, nose, mouth, jawline).
 
 ---
 

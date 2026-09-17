@@ -1,4 +1,4 @@
-import { BoundingBox, Dimensions, SubjectModel } from '@sketch-maker/shared-types';
+import { BoundingBox, Dimensions, HeadPose, Point2D, SubjectModel } from '@sketch-maker/shared-types';
 
 /**
  * A detected structural subject instance (e.g. primary person, second person in multi-person shots).
@@ -118,4 +118,55 @@ export interface SubjectAnalysisResult {
     readonly hasFace: boolean;
     readonly hasBody: boolean;
   };
+}
+
+/**
+ * Indicates which lateral side of the subject's face is visible to the camera.
+ * - 'both': Frontal or slight 3/4 angle where both eyes/cheeks are in frame.
+ * - 'left_only': Left-profile view where only the subject's left-facing side is visible.
+ * - 'right_only': Right-profile view where only the subject's right-facing side is visible.
+ * - 'neither': Face is occluded, turned away, or undetected.
+ */
+export type LateralVisibility = 'both' | 'left_only' | 'right_only' | 'neither';
+
+/**
+ * Diagnostic metrics and intermediate scores for face region and pose estimation.
+ */
+export interface FaceRegionDiagnostics {
+  /** Bilateral symmetry score [0.0 - 1.0], 1.0 = perfectly symmetric */
+  readonly symmetryScore: number;
+  /** Horizontal centroid offset relative to head center [-1.0 to 1.0] (negative = left, positive = right) */
+  readonly centroidOffset: number;
+  /** Fraction of subject instance mask area occupied by the head [0.0 - 1.0] */
+  readonly headAreaFraction: number;
+  /** Ratio of skin-tone probability pixels within face candidate region [0.0 - 1.0] */
+  readonly skinToneCoverage: number;
+  /** Average normalized Sobel edge energy in the face candidate region [0.0 - 1.0] */
+  readonly edgeEnergy: number;
+  /** Profile boundary projection asymmetry ratio [0.0 - 1.0] (0.5 = balanced) */
+  readonly profileAsymmetryRatio: number;
+}
+
+/**
+ * Bounding and orientation estimation for the head and facial feature zone of a subject.
+ */
+export interface FaceRegionEstimate {
+  /** Unique ID of the subject instance this face belongs to */
+  readonly subjectId: string;
+  /** Bounding box of the entire head (cranium, hair, jaw) in normalized [0.0 - 1.0] coordinates */
+  readonly headBoundingBox: BoundingBox;
+  /** Bounding box of the facial feature zone (brows to chin, cheek to cheek) in normalized [0.0 - 1.0] coordinates */
+  readonly faceBoundingBox: BoundingBox;
+  /** Estimated center point of the facial feature zone in normalized [0.0 - 1.0] coordinates */
+  readonly center: Point2D;
+  /** Estimated head pose orientation */
+  readonly pose: HeadPose;
+  /** Confidence of the head pose classification [0.0 - 1.0] */
+  readonly poseConfidence: number;
+  /** Overall confidence that a valid face region was identified [0.0 - 1.0] */
+  readonly confidence: number;
+  /** Which lateral side of the face is visible based on pose */
+  readonly visibleSide: LateralVisibility;
+  /** Diagnostic metrics explaining the estimation rationale */
+  readonly diagnostics: FaceRegionDiagnostics;
 }
