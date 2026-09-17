@@ -87,7 +87,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Implemented high-frequency structural edge energy centroid ($y \in [0.18, 0.78]$ of head) tracking facial landmarks (eyelids, nasal bridge, lip fissure) invariant to illumination shadows.
   * Implemented cranium-to-neck boundary isolation with an anatomical head ceiling ($H \le 1.25 \times W_{cranium}$) and shoulder expansion trigger, preventing chest and shirt contours from contaminating head silhouette geometry.
   * Replaced single-threshold classification with a multi-evidence voting model combining boundary asymmetry, centroid offset, structural energy concentration, and appearance consistency.
-  * Added `illuminationAsymmetry` and `headSilhouetteAsymmetry` diagnostic metrics to `FaceRegionDiagnostics`.
+    * Added `illuminationAsymmetry` and `headSilhouetteAsymmetry` diagnostic metrics to `FaceRegionDiagnostics`.
+* **Eye & Eyelid Landmark Detection (`TASK-103 Step 2A`):**
+  * Implemented `@sketch-maker/structural-analysis` eye detector (`packages/structural-analysis/src/eyes.ts`) with zero external ML models, operating strictly in normalized [0, 1] coordinates.
+  * Implemented multi-cue ocular search: searches within pose-conditioned anatomical ocular search bands using horizontal luminance valleys (sclera-iris-sclera contrast) and horizontal Sobel edge gradients rather than absolute darkness, ensuring robust detection across skin tones, shadows, and low-light portraits.
+  * Implemented eyelid margin tracing (`upperLid` and `lowerLid` paths) preserving continuous raw point sequences converging at medial and lateral canthi without early simplification.
+  * Implemented evidence-dependent iris and pupil center estimation conditioned on local radial contrast ($\Delta L \ge 0.05$), returning `undefined` when image evidence is insufficient or ambiguous (e.g. glasses rims).
+  * Enforced physical occlusion semantics: profile poses (e.g. `BM-02`) strictly mark the hidden eye as `visibility: 'occluded'` with confidence 0 and 0 points, never mirroring or manufacturing coordinates.
+  * Added 12 automated unit tests in `tests/structural-analysis/eyes.test.ts` (12/12 passing) verifying coordinate bounds, containment, determinism, frontal bilateral visibility, profile occlusion, chiaroscuro shadow handling, low-light contrast detection, glasses rim separation, and multi-person isolation.
+  * Added visual inspection benchmark suite (`tests/structural-analysis/eye-inspector.ts`) evaluating all 12 benchmark categories with an average extraction latency of **1.09 ms** (well below the 150 ms budget) and generating visual inspection artifact `tests/artifacts/eye-report.html`.
 
 ### Fixed
 * **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**
