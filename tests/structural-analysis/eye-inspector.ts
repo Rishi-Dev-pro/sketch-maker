@@ -36,8 +36,10 @@ export interface EyeInspectionRecord {
   rightEyeVisibility: string;
   leftEyeConf: number;
   rightEyeConf: number;
-  hasIris: boolean;
-  hasPupil: boolean;
+  hasLeftIris: boolean;
+  hasLeftPupil: boolean;
+  hasRightIris: boolean;
+  hasRightPupil: boolean;
   leftPointCount: number;
   rightPointCount: number;
   origBase64: string;
@@ -105,8 +107,10 @@ export function runEyeInspectionSuite(): EyeInspectionRecord[] {
 
     const leftPointCount = (leftEye?.upperLid.points.length ?? 0) + (leftEye?.lowerLid.points.length ?? 0);
     const rightPointCount = (rightEye?.upperLid.points.length ?? 0) + (rightEye?.lowerLid.points.length ?? 0);
-    const hasIris = Boolean(leftEye?.iris || rightEye?.iris);
-    const hasPupil = Boolean(leftEye?.pupil || rightEye?.pupil);
+    const hasLeftIris = Boolean(leftEye?.iris);
+    const hasLeftPupil = Boolean(leftEye?.pupil);
+    const hasRightIris = Boolean(rightEye?.iris);
+    const hasRightPupil = Boolean(rightEye?.pupil);
 
     records.push({
       id: item.id,
@@ -119,8 +123,10 @@ export function runEyeInspectionSuite(): EyeInspectionRecord[] {
       rightEyeVisibility: rightEye?.visibility ?? 'none',
       leftEyeConf: leftEye?.confidence ?? 0,
       rightEyeConf: rightEye?.confidence ?? 0,
-      hasIris,
-      hasPupil,
+      hasLeftIris,
+      hasLeftPupil,
+      hasRightIris,
+      hasRightPupil,
       leftPointCount,
       rightPointCount,
       origBase64: fs.readFileSync(imgPath).toString('base64'),
@@ -132,9 +138,9 @@ export function runEyeInspectionSuite(): EyeInspectionRecord[] {
     console.log(
       `[EYES] ${item.id.padEnd(23)} | ` +
       `Pose: ${(primaryEst ? primaryEst.pose : 'none').padEnd(18)} | ` +
-      `L-Eye: ${(leftEye?.visibility ?? 'none').padEnd(12)} (conf: ${(leftEye?.confidence?.toFixed(2) ?? '0.00')}, pts: ${leftPointCount}) | ` +
-      `R-Eye: ${(rightEye?.visibility ?? 'none').padEnd(12)} (conf: ${(rightEye?.confidence?.toFixed(2) ?? '0.00')}, pts: ${rightPointCount}) | ` +
-      `Iris: ${hasIris ? 'YES' : 'NO '} | Pupil: ${hasPupil ? 'YES' : 'NO '} | ` +
+      `L-Eye: ${(leftEye?.visibility ?? 'none').padEnd(10)} (c: ${(leftEye?.confidence?.toFixed(2) ?? '0.00')}, pts: ${String(leftPointCount).padStart(3)}) | ` +
+      `R-Eye: ${(rightEye?.visibility ?? 'none').padEnd(10)} (c: ${(rightEye?.confidence?.toFixed(2) ?? '0.00')}, pts: ${String(rightPointCount).padStart(3)}) | ` +
+      `Iris(L/R): ${hasLeftIris ? 'YES' : 'NO '}/${hasRightIris ? 'YES' : 'NO '} | Pupil(L/R): ${hasLeftPupil ? 'YES' : 'NO '}/${hasRightPupil ? 'YES' : 'NO '} | ` +
       `Time: ${latencyMs.toFixed(2)} ms`
     );
   }
@@ -293,8 +299,8 @@ function generateEyeHtmlReport(records: EyeInspectionRecord[], avgLatency: numbe
       <div class="label">Faces with Visible Eyes</div>
     </div>
     <div>
-      <div class="metric">${records.filter(r => r.hasIris).length} / 12</div>
-      <div class="label">Iris Resolved</div>
+      <div class="metric">${records.filter(r => r.hasLeftIris || r.hasRightIris).length} / 12</div>
+      <div class="label">Faces with Resolved Iris</div>
     </div>
   </div>
 
@@ -354,7 +360,8 @@ function generateEyeHtmlReport(records: EyeInspectionRecord[], avgLatency: numbe
         <div class="card-body">
           <div><span class="label">Left Eye Visibility:</span> <span>${r.leftEyeVisibility} (conf: ${r.leftEyeConf.toFixed(2)})</span></div>
           <div><span class="label">Right Eye Visibility:</span> <span>${r.rightEyeVisibility} (conf: ${r.rightEyeConf.toFixed(2)})</span></div>
-          <div><span class="label">Iris / Pupil:</span> <span>${r.hasIris ? 'Iris Yes' : 'No Iris'}, ${r.hasPupil ? 'Pupil Yes' : 'No Pupil'}</span></div>
+          <div><span class="label">Iris (L / R):</span> <span>${r.hasLeftIris ? 'YES' : 'NO'} / ${r.hasRightIris ? 'YES' : 'NO'}</span></div>
+          <div><span class="label">Pupil (L / R):</span> <span>${r.hasLeftPupil ? 'YES' : 'NO'} / ${r.hasRightPupil ? 'YES' : 'NO'}</span></div>
           <div><span class="label">Contour Points:</span> <span>Left: ${r.leftPointCount}, Right: ${r.rightPointCount}</span></div>
           <div><span class="label">Latency:</span> <span>${r.latencyMs} ms</span></div>
         </div>

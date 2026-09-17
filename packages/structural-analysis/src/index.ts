@@ -11,3 +11,4 @@ export * from './saliency';
 export * from './segmentation';
 export * from './face-region';
 export * from './eyes';
+export * from './eyebrows';

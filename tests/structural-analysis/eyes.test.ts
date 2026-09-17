@@ -639,4 +639,47 @@ describe('Eye + Eyelid Landmark Detection (TASK-103 Step 2A)', () => {
       `Low contrast eye confidence (${eyesLow.leftEye.confidence}) should be less than high contrast (${eyesHigh.leftEye.confidence})`
     );
   });
+
+  it('Test 13: Real benchmark BM-02 true side profile strictly suppresses hidden eye (no iris, no pupil, no eyelid points, confidence 0)', () => {
+    const imgPath = path.resolve(__dirname, '../images/bm-02-side-profile.jpg');
+    if (!fs.existsSync(imgPath)) return;
+
+    const buf = fs.readFileSync(imgPath);
+    const raw = jpeg.decode(buf, { useTArray: true, formatAsRGBA: true });
+    const pixelBuf: PixelBuffer = {
+      width: raw.width,
+      height: raw.height,
+      data: new Uint8ClampedArray(raw.data),
+    };
+
+    const normImage = preprocessPixelBuffer(pixelBuf, { targetDimension: 1024, normalizeLighting: false });
+    const segResult = segmentSubject(normImage);
+    const gradients = computeSobelGradients(normImage.luminance);
+    const faceEstimates = estimateAllFaceRegions(segResult, normImage, gradients);
+    assert(faceEstimates.length > 0, 'Face must be detected on BM-02');
+
+    const face = faceEstimates[0];
+    assert.strictEqual(face.pose, 'left_profile');
+
+    const eyes = detectEyeLandmarks(face, normImage, gradients, segResult.mask);
+    assert(eyes.leftEye !== undefined);
+    assert(eyes.rightEye !== undefined);
+
+    // Visible left eye on left_profile
+    assert.strictEqual(eyes.leftEye.visibility, 'visible');
+    assert(eyes.leftEye.confidence! > 0.35);
+    assert(eyes.leftEye.upperLid.points.length >= 5);
+    assert(eyes.leftEye.lowerLid.points.length >= 5);
+    assert(eyes.leftEye.iris !== undefined);
+    assert(eyes.leftEye.pupil !== undefined);
+
+    // Occluded right eye MUST be strictly suppressed: zero points, confidence 0, no iris, no pupil
+    assert.strictEqual(eyes.rightEye.visibility, 'occluded');
+    assert.strictEqual(eyes.rightEye.confidence, 0);
+    assert.strictEqual(eyes.rightEye.upperLid.points.length, 0);
+    assert.strictEqual(eyes.rightEye.lowerLid.points.length, 0);
+    assert.strictEqual(eyes.rightEye.iris, undefined);
+    assert.strictEqual(eyes.rightEye.pupil, undefined);
+  });
 });
+
