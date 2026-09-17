@@ -145,6 +145,10 @@ export interface FaceRegionDiagnostics {
   readonly edgeEnergy: number;
   /** Profile boundary projection asymmetry ratio [0.0 - 1.0] (0.5 = balanced) */
   readonly profileAsymmetryRatio: number;
+  /** Illumination asymmetry between left and right halves [0.0 - 1.0] (0.0 = even, 1.0 = extreme chiaroscuro) */
+  readonly illuminationAsymmetry?: number;
+  /** Head silhouette asymmetry ratio [0.0 - 1.0] (0.5 = balanced) */
+  readonly headSilhouetteAsymmetry?: number;
 }
 
 /**

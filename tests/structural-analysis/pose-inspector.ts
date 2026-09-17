@@ -126,10 +126,11 @@ export function runPoseInspectionSuite(): PoseInspectionRecord[] {
     console.log(
       `[INSPECTED] ${item.id.padEnd(23)} | ` +
       `Pose: ${(primaryEst ? primaryEst.pose : 'none').padEnd(18)} | ` +
-      `PoseConf: ${(primaryEst ? primaryEst.poseConfidence.toFixed(2) : '0.00').padStart(4)} | ` +
-      `Offset: ${(primaryEst ? primaryEst.diagnostics.centroidOffset.toFixed(2) : '0.00').padStart(5)} | ` +
-      `Asym: ${(primaryEst ? primaryEst.diagnostics.profileAsymmetryRatio.toFixed(2) : '0.00').padStart(4)} | ` +
-      `Latency: ${latencyMs.toFixed(1).padStart(5)} ms`
+      `Conf: ${(primaryEst ? primaryEst.poseConfidence.toFixed(2) : '0.00')} | ` +
+      `SilAsym: ${(primaryEst?.diagnostics.headSilhouetteAsymmetry?.toFixed(2) ?? '0.00')} | ` +
+      `SkinCov: ${(primaryEst?.diagnostics.skinToneCoverage.toFixed(3) ?? '0.000')} | ` +
+      `IllumAsym: ${(primaryEst?.diagnostics.illuminationAsymmetry?.toFixed(2) ?? '0.00')} | ` +
+      `Offset: ${(primaryEst?.diagnostics.centroidOffset.toFixed(2) ?? '0.00')}`
     );
   }
 
@@ -331,9 +332,12 @@ function generateHtmlReport(records: PoseInspectionRecord[], avgLatency: number)
         <div class="card-body">
           <div><span class="label">Pose Confidence:</span> <span>${(r.poseConfidence * 100).toFixed(1)}%</span></div>
           <div><span class="label">Visible Side:</span> <span>${r.visibleSide}</span></div>
+          <div><span class="label">Head Silhouette Asym:</span> <span>${e?.diagnostics.headSilhouetteAsymmetry?.toFixed(2) ?? 'N/A'}</span></div>
+          <div><span class="label">Structural Edge Energy:</span> <span>${e?.diagnostics.edgeEnergy?.toFixed(3) ?? 'N/A'}</span></div>
+          <div><span class="label">Skin Tone Coverage:</span> <span>${e?.diagnostics.skinToneCoverage?.toFixed(3) ?? 'N/A'}</span></div>
+          <div><span class="label">Illumination Asymmetry:</span> <span>${e?.diagnostics.illuminationAsymmetry?.toFixed(2) ?? 'N/A'}</span></div>
           <div><span class="label">Symmetry Score:</span> <span>${r.symmetryScore}</span></div>
           <div><span class="label">Centroid Offset:</span> <span>${r.centroidOffset}</span></div>
-          <div><span class="label">Face Box:</span> <span>${r.faceBox}</span></div>
           <div><span class="label">Latency:</span> <span>${r.latencyMs} ms</span></div>
         </div>
       </div>

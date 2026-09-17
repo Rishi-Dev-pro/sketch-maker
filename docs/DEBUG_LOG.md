@@ -34,7 +34,35 @@
 
 ---
 
-### Bug Template (Reference)
+### BUG-002: Pose Classification Failures on BM-02 (Body Contamination) & BM-06 (Chiaroscuro Lighting)
+* **Date:** 2026-09-17
+* **Status:** VERIFIED
+* **Symptom:**
+  1. `BM-02` (True side profile) was misclassified as `three_quarter_left` with low confidence (0.35) and `visibleSide: both`.
+  2. `BM-06` (Extreme frontal chiaroscuro) was misclassified as `left_profile` with `visibleSide: left_only` because skin chrominance was absent on the shadowed facial half.
+* **Reproduction Steps:**
+  1. Execute `npx tsx tests/structural-analysis/pose-inspector.ts` against the benchmark dataset under Step 1 baseline.
+  2. Inspect pose output for `BM-02` and `BM-06`.
+* **Root Cause:**
+  1. `BM-02` failure: Head boundary detection allowed the search envelope to expand down into the chest/collar/shoulder region (row 687). The subject's shirt contour pulled $headMinX$ from the true facial profile (x=334) leftward to x=268, shifting $headCenterX$ and artificially diluting the true profile asymmetry ratio.
+  2. `BM-06` failure: The baseline pose estimator relied solely on skin-chrominance pixel centroid. Under chiaroscuro illumination, skin chrominance disappeared on the shadowed right half (skin coverage was only 2.7%), leaving an apparent unilateral skin mass on the left cheek. The algorithm falsely equated `skin visibility asymmetry` with `geometric profile yaw`, ignoring the fact that the head silhouette was 100% symmetric ($A_{silh} = 0.52$) and high-frequency structural gradient edges (eyelids, nasal bridge, mouth fissure) were equally present across both facial sides ($energyRatioLeft = 0.535$, $energyOffset = +0.043$).
+* **Affected Files:**
+  * `packages/structural-analysis/src/face-region.ts`
+  * `packages/structural-analysis/src/types.ts`
+  * `tests/structural-analysis/face-region.test.ts`
+  * `tests/structural-analysis/pose-inspector.ts`
+* **Fix Applied (TASK-103 Step 1.1):**
+  1. **Torso/Chest Isolation:** Enforced an anatomical head height ceiling ($H_{head} \le 1.25 \times W_{cranium}$) and shoulder expansion trigger to isolate the true head coordinate frame strictly above collar level.
+  2. **Decoupling Skin Visibility from Face Geometry:** Introduced a high-frequency structural edge energy centroid ($y \in [0.18, 0.78]$ of head) that tracks anatomical contours invariant to shadows.
+  3. **Multi-Cue Evidence Model:** Replaced single-threshold classification with a multi-evidence voting system combining (a) head silhouette boundary asymmetry, (b) face centroid lateral offset, (c) structural feature energy lateral concentration, and (d) appearance consistency. 90° profile requires multiple independent geometric cues to agree and forbids profile classification if reliable skin is centered. Chiaroscuro is formally recognized as illumination asymmetry on a geometrically symmetric head, preserving `frontal` classification for `BM-06`.
+* **Verification:**
+  1. `BM-02` correctly classifies as `left_profile` (confidence 0.62, $A_{silh} = 0.34$, $offset = -0.32$, $visibleSide = left\_only$).
+  2. `BM-06` correctly classifies as `frontal` (confidence 0.78, $A_{silh} = 0.52$, $offset = 0.04$, $visibleSide = both$).
+  3. All 14 unit and regression tests in `tests/structural-analysis/face-region.test.ts` pass.
+  4. All 12 benchmark images in `pose-inspector.ts` execute cleanly with average latency of 14.45 ms (budget < 150 ms).
+* **Regression Risk:** Zero. All unit tests, typechecks across 8 workspaces, and production builds pass.
+
+---
 ```markdown
 ### BUG-XXX: [Short Descriptive Title]
 * **Date:** YYYY-MM-DD

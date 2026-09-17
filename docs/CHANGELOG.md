@@ -80,10 +80,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Added `SubjectAnalysisResult` in `packages/structural-analysis/src/types.ts` representing primary subject, multi-subject collections (`BM-11`), coordinate scaling, and structural diagnostic metrics.
   * Documented ADR-009 (Pure-TypeScript Anatomical Landmark & Structural Contour Extraction Engine) in `docs/DECISIONS.md`.
   * Implemented Face Region Isolation & Head Pose Estimation (`packages/structural-analysis/src/face-region.ts`) providing `estimateFaceRegion` and `estimateAllFaceRegions` with evidence-driven confidence scoring over skin chrominance, vertical foreground mass profiling, bilateral symmetry, and silhouette projection asymmetry ratios.
-  * Added 10 automated unit tests (`tests/structural-analysis/face-region.test.ts`) covering bounding box containment, coordinate normalization, symmetry scoring, profile vs frontal detection, multi-person isolation, and high-resolution scaling invariance.
-  * Added visual inspection benchmark suite (`tests/structural-analysis/pose-inspector.ts`) evaluating all 12 benchmark categories with an average latency of 15.13 ms (sub-16ms CPU time).
+  * Added 14 automated unit and regression tests (`tests/structural-analysis/face-region.test.ts`) covering bounding box containment, coordinate normalization, symmetry scoring, profile vs frontal detection, multi-person isolation, chiaroscuro shadow invariance, and high-resolution scaling invariance.
+  * Added visual inspection benchmark suite (`tests/structural-analysis/pose-inspector.ts`) evaluating all 12 benchmark categories with an average latency of 14.45 ms (sub-15ms CPU time).
+* **Head Pose Robustness & Multi-Cue Evidence Model (`TASK-103 Step 1.1`):**
+  * Decoupled facial geometry from skin chrominance; skin visibility asymmetry is no longer equated with geometric profile yaw.
+  * Implemented high-frequency structural edge energy centroid ($y \in [0.18, 0.78]$ of head) tracking facial landmarks (eyelids, nasal bridge, lip fissure) invariant to illumination shadows.
+  * Implemented cranium-to-neck boundary isolation with an anatomical head ceiling ($H \le 1.25 \times W_{cranium}$) and shoulder expansion trigger, preventing chest and shirt contours from contaminating head silhouette geometry.
+  * Replaced single-threshold classification with a multi-evidence voting model combining boundary asymmetry, centroid offset, structural energy concentration, and appearance consistency.
+  * Added `illuminationAsymmetry` and `headSilhouetteAsymmetry` diagnostic metrics to `FaceRegionDiagnostics`.
 
 ### Fixed
+* **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**
+  * Fixed `BM-02` true side profile misclassification: shoulder/chest geometry was pulling the search envelope downwards (row 687) and leftwards (x=268), artificially diluting profile asymmetry. Head coordinate isolation correctly restores `left_profile` classification ($A_{silh} = 0.34$, $offset = -0.32$, confidence 0.62).
+  * Fixed `BM-06` extreme chiaroscuro misclassification: shadowed right facial half previously lost skin-chrominance pixels (2.7% coverage), triggering a false `left_profile`. Geometric edge symmetry ($energyRatioLeft = 0.535$, $energyOffset = +0.043$) and silhouette symmetry ($A_{silh} = 0.52$) correctly recognize illumination asymmetry and preserve `frontal` classification with 0.78 confidence.
 * **Session Interruption Recovery (`BUG-001`):**
   * Identified root cause of prior session halt (upstream SSE connection drop).
   * Executed `npm install` across workspace tree, linking internal packages.

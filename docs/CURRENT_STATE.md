@@ -4,9 +4,9 @@
 
 * **Current Date / Time:** 2026-09-17
 * **Current Phase:** Phase 1 — Feasibility Prototype (Headless Photo → Strokes Pipeline)
-* **Current Version:** v0.3.2-alpha (Face Region Isolation & Head Pose Estimation)
+* **Current Version:** v0.3.3-alpha (Pose Robustness Correction - Step 1.1 Complete)
 * **Current Milestone:** M1 — Feasibility Prototype (Headless Pipeline)
-* **Status:** IN_PROGRESS (Phase 1 Underway: TASK-103 In Progress - Step 1 Complete)
+* **Status:** IN_PROGRESS (Phase 1 Underway: TASK-103 In Progress - Step 1.1 Complete)
 
 ---
 
@@ -14,9 +14,9 @@
 Phase 1 pipeline is advancing through structural analysis:
 1. **`packages/image-processing` (TASK-101):** Fully implemented, verified with 10 unit tests, and benchmarked across all 12 benchmark categories (68.7ms average latency; 24MP downsampling in 240.3ms).
 2. **`packages/structural-analysis` Segmentation (TASK-102):** Implemented multi-cue perceptual saliency & gradient-barrier segmentation with zero external model dependencies (`ADR-008`). Evaluated across all 12 benchmark categories with an average latency of **239.7 ms** (combined pipeline latency: **308.4 ms**, well below the 1500 ms SLA target). Peak heap RAM remained bounded at **~24.5 MB**.
-3. **TASK-103 Step 1 (Face Region Isolation & Head Pose Estimation):** Implemented `estimateFaceRegion` and `estimateAllFaceRegions` (`packages/structural-analysis/src/face-region.ts`). Evaluates vertical foreground mass distribution, skin chrominance distributions across Fitzpatrick types I-VI, bilateral symmetry scores, and silhouette projection asymmetry ratios.
-4. **Automated Verification:** 30/30 unit tests pass (10 preprocessing + 10 segmentation + 10 face region), 12/12 dataset images validate, all monorepo workspaces typecheck cleanly (0 errors), and client production build passes.
-5. **Benchmark & Visual Inspection:** Evaluated across all 12 benchmark categories (`tests/structural-analysis/pose-inspector.ts`) with an average latency of **15.13 ms** (well below the 150 ms target). Visual inspection report generated to `tests/artifacts/pose-report.html`.
+3. **TASK-103 Step 1 & Step 1.1 (Face Region Isolation & Pose Robustness Correction):** Implemented `estimateFaceRegion` and `estimateAllFaceRegions` (`packages/structural-analysis/src/face-region.ts`) with a multi-cue geometric evidence model. Decoupled facial geometry from appearance chrominance; isolated head coordinate frame from torso/chest contamination (`BM-02` true profile: `left_profile`, conf 0.62); decoupled illumination shadow from profile yaw (`BM-06` chiaroscuro: `frontal`, conf 0.78).
+4. **Automated Verification:** 34/34 unit tests pass (10 preprocessing + 10 segmentation + 14 face region & regression tests), 12/12 dataset images validate, all monorepo workspaces typecheck cleanly (0 errors), and client production build passes.
+5. **Benchmark & Visual Inspection:** Evaluated across all 12 benchmark categories (`tests/structural-analysis/pose-inspector.ts`) with an average latency of **14.45 ms** (well below the 150 ms target). Visual inspection report generated to `tests/artifacts/pose-report.html`.
 6. **Next Step:** Ready for Step 2 of TASK-103 (Individual facial feature landmark detectors: eyes, eyebrows, nose, mouth, jawline).
 
 ---
@@ -31,12 +31,14 @@ Phase 1 pipeline is advancing through structural analysis:
 * [x] **TASK-006:** Curate initial benchmark image dataset (`tests/images/*`, `tests/images/dataset.json`, `tests/images/README.md`, automated validator `tests/images/validate.js`, `npm run test:dataset` 12/12 passing).
 * [x] **TASK-101:** Image preprocessing & normalization module (`packages/image-processing/*`, `tests/image-processing/*`, 10/10 unit tests, 12/12 benchmark images evaluated, 24MP downsampling verified).
 * [x] **TASK-102:** Initial subject segmentation / background separation (`packages/structural-analysis/segmentation.ts`, `types.ts`, `gradient.ts`, `saliency.ts`, 10/10 unit tests, visual inspector on all 12 benchmark images).
+* [x] **TASK-103 Step 1 & Step 1.1:** Face region isolation & head pose estimation with illumination and torso robustness (`packages/structural-analysis/face-region.ts`, 14/14 unit & regression tests, 14.45ms average latency on benchmark suite).
 * [x] **Web App Foundation Verification:** `apps/web` builds cleanly with Vite, typechecks with 0 errors, and renders verified in browser.
 
 ---
 
 ## 3. Currently Being Worked On
-* **TASK-103 (In Progress):** Data contract foundation established (`FeatureVisibility`, `HeadPose`, `SubjectAnalysisResult`, ADR-009). Next: Landmark and structural contour extraction algorithms (`landmarks.ts`, `contours.ts`).
+* **TASK-103 (In Progress - Step 1.1 Complete):** Face region isolation and head pose estimation hardened against chiaroscuro lighting and body contamination. Ready for review before proceeding to Step 2 (individual facial feature landmark detectors: eyes, eyebrows, nose, mouth, jawline).
+
 
 ---
 

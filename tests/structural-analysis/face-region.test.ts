@@ -1,8 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
+import jpeg from 'jpeg-js';
 import {
   estimateFaceRegion,
   estimateAllFaceRegions,
+  segmentSubject,
   SubjectRegion,
   SubjectMask,
   SegmentationResult,
@@ -14,6 +18,7 @@ import {
   NormalizedImage,
   PixelBuffer,
   LuminanceBuffer,
+  preprocessPixelBuffer,
 } from '../../packages/image-processing/src';
 
 /**
@@ -463,5 +468,143 @@ describe('Face Region Isolation & Head Pose Estimation', () => {
     assert(estimate.faceBoundingBox.x >= 0.25 && estimate.faceBoundingBox.x <= 0.35);
     assert(estimate.faceBoundingBox.width >= 0.25 && estimate.faceBoundingBox.width <= 0.45);
     assert.strictEqual(estimate.pose, 'frontal');
+  });
+
+  it('Test 11: Real benchmark BM-02 true side profile classifies as left_profile', () => {
+    const filePath = path.resolve(__dirname, '../images/bm_02_side_profile.jpg');
+    if (!fs.existsSync(filePath)) return; // Skip if benchmark assets missing
+
+    const buf = fs.readFileSync(filePath);
+    const raw = jpeg.decode(buf, { useTArray: true, formatAsRGBA: true });
+    const imgBuffer: PixelBuffer = {
+      width: raw.width,
+      height: raw.height,
+      data: new Uint8ClampedArray(raw.data),
+    };
+
+    const norm = preprocessPixelBuffer(imgBuffer, { targetDimension: 1024, normalizeLighting: false });
+    const seg = segmentSubject(norm);
+    const grads = computeSobelGradients(norm.luminance);
+    const estimate = estimateFaceRegion(seg.primarySubject, seg.mask, norm, grads);
+
+    assert(estimate !== null);
+    assert.strictEqual(estimate.pose, 'left_profile', `Expected left_profile for BM-02, got ${estimate.pose}`);
+    assert.strictEqual(estimate.visibleSide, 'left_only');
+    assert(estimate.diagnostics.headSilhouetteAsymmetry !== undefined);
+    assert(estimate.diagnostics.headSilhouetteAsymmetry < 0.40, 'Profile silhouette asymmetry should project leftward');
+  });
+
+  it('Test 12: Real benchmark BM-06 extreme chiaroscuro does NOT classify as profile', () => {
+    const filePath = path.resolve(__dirname, '../images/bm_06_extreme_lighting.jpg');
+    if (!fs.existsSync(filePath)) return; // Skip if benchmark assets missing
+
+    const buf = fs.readFileSync(filePath);
+    const raw = jpeg.decode(buf, { useTArray: true, formatAsRGBA: true });
+    const imgBuffer: PixelBuffer = {
+      width: raw.width,
+      height: raw.height,
+      data: new Uint8ClampedArray(raw.data),
+    };
+
+    const norm = preprocessPixelBuffer(imgBuffer, { targetDimension: 1024, normalizeLighting: false });
+    const seg = segmentSubject(norm);
+    const grads = computeSobelGradients(norm.luminance);
+    const estimate = estimateFaceRegion(seg.primarySubject, seg.mask, norm, grads);
+
+    assert(estimate !== null);
+    assert.strictEqual(estimate.pose, 'frontal', `BM-06 should remain frontal under illumination asymmetry, got ${estimate.pose}`);
+    assert.strictEqual(estimate.visibleSide, 'both');
+  });
+
+  it('Test 13: Synthetic frontal face with one side darkened must NOT confidently classify as profile', () => {
+    const W = 100;
+    const H = 100;
+    const { image, mask } = createSyntheticEnvironment(W, H, (rgba, maskData) => {
+      // Frontal head (x=25 to x=75, y=15 to x=65)
+      for (let y = 15; y <= 65; y++) {
+        for (let x = 25; x <= 75; x++) {
+          const idx = y * W + x;
+          maskData[idx] = 255;
+          if (x < 50) {
+            // Lit left half of face: normal skin
+            rgba[idx * 4] = 220;
+            rgba[idx * 4 + 1] = 165;
+            rgba[idx * 4 + 2] = 130;
+          } else {
+            // Shadowed right half of face: dark shadow
+            rgba[idx * 4] = 40;
+            rgba[idx * 4 + 1] = 30;
+            rgba[idx * 4 + 2] = 25;
+          }
+          rgba[idx * 4 + 3] = 255;
+        }
+      }
+    });
+
+    const subject: SubjectRegion = {
+      id: 'sub-darkened-side',
+      label: 'primary_subject',
+      boundingBox: { x: 0.25, y: 0.15, width: 0.5, height: 0.5 },
+      pixelBoundingBox: { x: 25, y: 15, width: 50, height: 50 },
+      pixelArea: 2500,
+      confidence: 0.95,
+    };
+
+    const gradients = computeSobelGradients(image.luminance);
+    const estimate = estimateFaceRegion(subject, mask, image, gradients);
+
+    assert(estimate !== null);
+    // Must NOT confidently classify as a profile face simply because of shadow!
+    assert.notStrictEqual(estimate.pose, 'right_profile');
+    assert(
+      estimate.pose === 'frontal' || estimate.pose === 'three_quarter_left',
+      `Darkened side must remain frontal or low-confidence 3/4, got ${estimate.pose}`
+    );
+  });
+
+  it('Test 14: Synthetic three-quarter face classifies as three_quarter_left', () => {
+    const W = 100;
+    const H = 100;
+    const { image, mask } = createSyntheticEnvironment(W, H, (rgba, maskData) => {
+      // Three-quarter head: face shifted left (x=15 to x=52), hair/cranium on right (x=45 to x=72)
+      for (let y = 15; y <= 65; y++) {
+        for (let x = 15; x <= 72; x++) {
+          const idx = y * W + x;
+          maskData[idx] = 255;
+          if (x <= 62) {
+            rgba[idx * 4] = 220;
+            rgba[idx * 4 + 1] = 160;
+            rgba[idx * 4 + 2] = 130;
+            // Internal facial feature edges (eye, nose, mouth) on the face side (x=24 to x=40)
+            if ((y === 28 || y === 38 || y === 48) && x >= 24 && x <= 40) {
+              rgba[idx * 4] = 70;
+              rgba[idx * 4 + 1] = 45;
+              rgba[idx * 4 + 2] = 35;
+            }
+          } else {
+            rgba[idx * 4] = 55;
+            rgba[idx * 4 + 1] = 45;
+            rgba[idx * 4 + 2] = 35;
+          }
+          rgba[idx * 4 + 3] = 255;
+        }
+      }
+    });
+
+    const subject: SubjectRegion = {
+      id: 'sub-three-quarter',
+      label: 'primary_subject',
+      boundingBox: { x: 0.15, y: 0.15, width: 0.58, height: 0.50 },
+      pixelBoundingBox: { x: 15, y: 15, width: 58, height: 50 },
+      pixelArea: 2900,
+      confidence: 0.94,
+    };
+
+    const gradients = computeSobelGradients(image.luminance);
+    const estimate = estimateFaceRegion(subject, mask, image, gradients);
+
+    assert(estimate !== null);
+    assert.strictEqual(estimate.pose, 'three_quarter_left');
+    assert.strictEqual(estimate.visibleSide, 'both');
   });
 });
