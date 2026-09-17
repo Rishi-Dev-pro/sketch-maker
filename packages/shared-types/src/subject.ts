@@ -72,6 +72,7 @@ export interface FacialFeatures {
   readonly lowerLip?: ContourPath;
   readonly lipSeparation?: ContourPath;
   readonly jawline?: ContourPath;
+  readonly chin?: ContourPath;
   readonly leftEar?: ContourPath;
   readonly rightEar?: ContourPath;
   readonly featureVisibility?: Partial<
@@ -83,6 +84,7 @@ export interface FacialFeatures {
       | 'nose'
       | 'mouth'
       | 'jawline'
+      | 'chin'
       | 'leftEar'
       | 'rightEar',
       FeatureVisibility

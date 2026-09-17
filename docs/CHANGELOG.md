@@ -127,6 +127,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Eliminated glasses frame and lighting shadow false positives (`BM-03`, `BM-06`), honestly reporting `not_detected` when mouth evidence is absent or occluded.
   * Added 16 automated unit tests in `tests/structural-analysis/mouth.test.ts` (16/16 passing) verifying coordinate bounds, determinism, frontal bilateral visibility, open mouth with visible teeth, smiling/asymmetric curvature, three-quarter shifted midline, profile visibility, hidden-side suppression, mustache/beard robustness, glasses robustness, extreme chiaroscuro shadow handling, low-light contrast detection, and multi-person isolation.
   * Added visual inspection benchmark suite (`tests/structural-analysis/mouth-inspector.ts`) evaluating all 12 benchmark categories with an average extraction latency of **6.72 ms** and generating visual inspection artifact `tests/artifacts/mouth-report.html`.
+* **Jawline & Facial Contour Detection (`TASK-103 Step 2E.1`):**
+  * Implemented `@sketch-maker/structural-analysis` jawline and outer facial contour detector (`packages/structural-analysis/src/jawline.ts`) in pure TypeScript with zero external ML models, operating strictly in normalized [0, 1] coordinates.
+  * Reused existing `SubjectMask` and `SubjectRegion` to anchor outer boundary detection in silhouette geometry rather than relying solely on dark line search edges.
+  * Implemented bidirectional boundary scanning (`findMaskBoundary`) with subpixel-level local Sobel gradient edge alignment within a $\pm 4$px neighborhood around the mask boundary.
+  * Implemented mandibular inward convergence and neck/collar inflection detection: tracks jaw width $W(y) = x_{right}(y) - x_{left}(y)$ below mouth level and terminates before expanding into shirt collar or shoulder boundaries (`BM-09`, `BM-10`), eliminating clothing contamination.
+  * Implemented profile facial silhouette preservation (`BM-02`): extracts visible anterior contour (glabella $\to$ nose $\to$ lips $\to$ chin $\to$ submental line) as `leftJaw` for `left_profile` and strictly suppresses hidden-side jaw geometry (`rightJaw: undefined`), without mirroring or phantom coordinate fabrication.
+  * Implemented chin tip apex detection (gnathion/pogonion) and lower mandibular chin arc (`chin`).
+  * Implemented robust beard and hair handling: prevents beard boundaries from being forced into phantom jawlines (`BM-04` registers `uncertain`), and prevents cranium hair from being traced as cheek/jawline (`BM-05`).
+  * Updated `@sketch-maker/shared-types` with `chin?: ContourPath` in `FacialFeatures` and `'chin'` in `FeatureVisibility`.
+  * Added 16 automated unit tests in `tests/structural-analysis/jawline.test.ts` (16/16 passing) verifying normalized coordinates, determinism, frontal bilateral jaw and chin arc, asymmetric jawline, three-quarter pose, profile silhouette preservation, profile hidden-side suppression, beard robustness, hair robustness, neck/clothing robustness, complex background clutter handling, extreme chiaroscuro shadow handling, low-light contrast detection, multi-person isolation, weak-evidence confidence reduction, and real BM-02 side profile benchmark.
+  * Added visual inspection benchmark suite (`tests/structural-analysis/jawline-inspector.ts`) evaluating all 12 benchmark categories with an average extraction latency of **1.16 ms** and generating visual inspection artifact `tests/artifacts/jawline-report.html`.
 
 ### Fixed
 * **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**

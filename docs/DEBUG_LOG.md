@@ -62,6 +62,30 @@
   4. All 12 benchmark images in `pose-inspector.ts` execute cleanly with average latency of 14.45 ms (budget < 150 ms).
 * **Regression Risk:** Zero. All unit tests, typechecks across 8 workspaces, and production builds pass.
 
+### BUG-003: Truncated Lower Face Boundary Misclassified as Visible Jawline
+* **Date:** 2026-09-17
+* **Status:** VERIFIED
+* **Symptom:** In unit test 15 (weak-evidence confidence reduction), when the lower face was omitted from the subject mask, `detectJawline` reported `visibility: 'visible'` and confidence $0.767$ instead of `uncertain` or `not_detected`.
+* **Reproduction Steps:**
+  1. Generate synthetic face environment where `mask` is omitted for the lower 55% of the face (`omitJawMask: true`).
+  2. Run `detectJawline` without passing lower-face landmark constraints.
+  3. Observe that the scanning loop stops at `searchMaxY` and treats the truncation border as a converged chin.
+* **Root Cause:**
+  1. The detector calculated `coverageFraction` relative to the truncated `faceBoundingBox.height` rather than checking whether the contour converged inward to an anatomical chin apex.
+  2. When scanning reached the bottom of the truncated face box, the mandibular width remained wide ($W_{lowest} \approx fW$). A true jawline tapers inward ($W_{chin} \le 0.55 \times fW$). Because the scan reached the bottom of the search range, 100% of rows were marked as found with high gradient scores, erroneously signaling high confidence.
+* **Affected Files:**
+  * `packages/structural-analysis/src/jawline.ts`
+  * `tests/structural-analysis/jawline.test.ts`
+* **Fix Applied:**
+  1. Added chin apex convergence validation: verifies that mandibular width narrows below the mouth/cheek level. If the lowest detected width remains wide ($> 0.65 \times fW$), the contour is flagged as unconverged (`chinConverged = false`).
+  2. Anchored vertical coverage to the anatomical chin target level ($y \approx fY + 0.85 fH$).
+  3. Scaled confidence down and forced `visibility: 'uncertain'` when the contour fails to converge to an anatomical chin apex.
+* **Verification:**
+  1. Unit test 15 passes cleanly (`visibility === 'uncertain'`).
+  2. All 16 unit tests in `tests/structural-analysis/jawline.test.ts` pass cleanly.
+  3. All 116 tests across the entire monorepo pass without regression.
+* **Regression Risk:** None. Normal faces that taper toward the chin retain full confidence.
+
 ---
 ```markdown
 ### BUG-XXX: [Short Descriptive Title]

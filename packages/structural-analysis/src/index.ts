@@ -14,3 +14,4 @@ export * from './eyes';
 export * from './eyebrows';
 export * from './nose';
 export * from './mouth';
+export * from './jawline';
