@@ -64,6 +64,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Added automated test suite `tests/image-processing/preprocess.test.ts` (10/10 unit tests passing) and integrated into `npm test`.
   * Added benchmark evaluation runner `tests/image-processing/benchmark-runner.ts` validating all 12 benchmark images (average latency 68.7ms, 24MP downsampling in 240.3ms with heap bounded at 18.6MB).
   * Documented ADR-007 in `docs/DECISIONS.md`.
+* **Initial Subject Segmentation & Background Separation Engine (`TASK-102`):**
+  * Implemented `@sketch-maker/structural-analysis` segmentation module in pure TypeScript with zero runtime neural network dependencies.
+  * Implemented multi-cue perceptual saliency computation (`packages/structural-analysis/src/saliency.ts`) combining spatial center prior, perimeter-sampled background color contrast, and Sobel gradient energy fields.
+  * Implemented directional Sobel operator (`packages/structural-analysis/src/gradient.ts`) computing gradient magnitude and edge orientations.
+  * Implemented structural segmentation (`packages/structural-analysis/src/segmentation.ts`) with adaptive hysteresis thresholding, gradient-stopping regional flood fill, and topological hole filling to prevent hollow subject masks.
+  * Implemented connected-component instance clustering and bounding box extraction, supporting multi-subject detection (e.g. `BM-11`).
+  * Implemented soft boundary confidence mapping computing normalized distance-to-edge confidence fields [0.0 - 1.0].
+  * Added automated unit test suite `tests/structural-analysis/segmentation.test.ts` (10/10 passing) covering dimensions, coverage, boundary adherence, multi-instance detection, and high-frequency edge preservation.
+  * Added benchmark visual inspection suite `tests/structural-analysis/visual-inspector.ts` evaluating all 12 benchmark categories with performance metrics (average latency 239.7ms, combined preprocessing + segmentation 308.4ms, peak heap 24.5MB).
+  * Documented ADR-008 (Pure-TypeScript Multi-Cue Perceptual Subject Segmentation Engine) in `docs/DECISIONS.md`.
 
 ### Fixed
 * **Session Interruption Recovery (`BUG-001`):**

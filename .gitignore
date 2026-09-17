@@ -45,6 +45,7 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+tests/artifacts/
 
 # Large model artifacts / binary scratch files
 scratch/

@@ -1,6 +1,11 @@
 /**
  * @sketch-maker/structural-analysis
- * Platform-agnostic subject segmentation and anatomical feature landmark extraction.
+ * Platform-agnostic subject segmentation, anatomical feature landmark extraction, and contour analysis.
  */
 
 export const STRUCTURAL_ANALYSIS_VERSION = '0.1.0';
+
+export * from './types';
+export * from './gradient';
+export * from './saliency';
+export * from './segmentation';
