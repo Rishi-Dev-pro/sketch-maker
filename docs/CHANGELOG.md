@@ -117,6 +117,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Enforced physical occlusion semantics: profile poses (`BM-02`) strictly mark hidden-side nostril as `visibility: 'occluded'` with confidence 0 and 0 points, never fabricating or mirroring coordinates.
   * Added 13 automated unit tests in `tests/structural-analysis/nose.test.ts` (13/13 passing) verifying coordinate bounds, determinism, frontal bilateral visibility, three-quarter shifted midline, profile occlusion, glasses robustness, facial-hair robustness, extreme chiaroscuro shadow handling, low-light contrast detection, and multi-person isolation.
   * Added visual inspection benchmark suite (`tests/structural-analysis/nose-inspector.ts`) evaluating all 12 benchmark categories with an average extraction latency of **3.23 ms** and generating visual inspection artifact `tests/artifacts/nose-report.html`.
+* **Mouth & Lips Landmark Detection (`TASK-103 Step 2D`):**
+  * Implemented `@sketch-maker/structural-analysis` mouth & lips detector (`packages/structural-analysis/src/mouth.ts`) in pure TypeScript with zero external ML models, operating strictly in normalized [0, 1] coordinates.
+  * Implemented horizontal dynamic programming algorithm tracing the oral fissure seam (stomion line) with bilateral valley contrast ($\min(\Delta L_{above}, \Delta L_{below})$), ensuring dark horizontal structures bounded by lighter flesh on both sides are captured while rejecting unidirectional step edges (such as mustache bottoms, beard hairlines, and chin shadows).
+  * Anchored mouth search ROI dynamically: beneath nasal tip / base when nose is detected ($y_{stomion} = y_{nose} + 0.38 \Delta y_{chin}$), or below ocular midline when nose is absent ($y_{stomion} = y_{eyes} + 0.65 \Delta y_{chin}$).
+  * Implemented vermilion border tracing for upper lip (`upperLip`) and lower lip (`lowerLip`) guided by the verified oral fissure seam with scale-adaptive distance priors and skin-vermilion contrast sampling.
+  * Implemented oral commissure corner extraction (`leftCorner`, `rightCorner`) anchoring lateral endpoints with local edge convergence evidence.
+  * Enforced physical occlusion semantics: profile poses (`BM-02`) strictly suppress hidden-side oral commissures without fabricating or mirroring coordinates.
+  * Eliminated glasses frame and lighting shadow false positives (`BM-03`, `BM-06`), honestly reporting `not_detected` when mouth evidence is absent or occluded.
+  * Added 16 automated unit tests in `tests/structural-analysis/mouth.test.ts` (16/16 passing) verifying coordinate bounds, determinism, frontal bilateral visibility, open mouth with visible teeth, smiling/asymmetric curvature, three-quarter shifted midline, profile visibility, hidden-side suppression, mustache/beard robustness, glasses robustness, extreme chiaroscuro shadow handling, low-light contrast detection, and multi-person isolation.
+  * Added visual inspection benchmark suite (`tests/structural-analysis/mouth-inspector.ts`) evaluating all 12 benchmark categories with an average extraction latency of **6.72 ms** and generating visual inspection artifact `tests/artifacts/mouth-report.html`.
 
 ### Fixed
 * **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**

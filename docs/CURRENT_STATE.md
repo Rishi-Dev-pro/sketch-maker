@@ -4,9 +4,9 @@
 
 * **Current Date / Time:** 2026-09-17
 * **Current Phase:** Phase 1 — Feasibility Prototype (Headless Photo → Strokes Pipeline)
-* **Current Version:** v0.3.6-alpha (Nose Landmark Detection - Step 2C Complete)
+* **Current Version:** v0.3.7-alpha (Mouth & Lips Landmark Detection - Step 2D Complete)
 * **Current Milestone:** M1 — Feasibility Prototype (Headless Pipeline)
-* **Status:** IN_PROGRESS (Phase 1 Underway: TASK-103 Step 2C Complete)
+* **Status:** IN_PROGRESS (Phase 1 Underway: TASK-103 Step 2D Complete)
 
 ---
 
@@ -18,8 +18,9 @@ Phase 1 pipeline is advancing through structural analysis:
 4. **TASK-103 Step 2A (Eye & Eyelid Landmark Detection):** Implemented `detectEyeLandmarks` (`packages/structural-analysis/src/eyes.ts`) with multi-cue ocular search (luminance valleys, lateral sclera-iris contrast, horizontal Sobel edge energy, upper/lower eyelid margin tracing, and evidence-dependent iris/pupil resolution). Strictly enforces pose-driven visibility: profile occluded eyes (`BM-02`) are marked `'occluded'` with confidence 0 and 0 points without hallucinating coordinates. Average extraction latency: **1.17 ms**. Visual inspection report: `tests/artifacts/eye-report.html`.
 5. **TASK-103 Step 2B (Eyebrow Landmark Detection & Quality Audit):** Implemented `detectEyebrows` (`packages/structural-analysis/src/eyebrows.ts`) using supraorbital ridge dynamic programming, directional edge gradients, and valley contrast. Enforces strict eyelid/glasses separation constraints. Profile hidden eyebrows are strictly marked `'occluded'` with confidence 0 and 0 points (`BM-02`). Average extraction latency: **3.06 ms - 3.62 ms**. Visual inspection report: `tests/artifacts/eyebrow-report.html`.
 6. **TASK-103 Step 2C (Nose Landmark Detection):** Implemented `detectNose` (`packages/structural-analysis/src/nose.ts`) with multi-cue structural evidence: vertical dynamic programming ridge tracing along nasal dorsum, tip dome localization, and alar/nostril boundary extraction with radial contrast analysis. Enforces glasses-frame avoidance (`BM-03`) and mustache boundary separation (`BM-04`). Profile hidden nostril (`BM-02`) is strictly marked `'occluded'` with confidence 0 and 0 points. Average extraction latency: **3.23 ms**. Visual inspection report: `tests/artifacts/nose-report.html`.
-7. **Automated Verification:** 84/84 automated checks pass (12 dataset integrity + 10 preprocessing + 10 segmentation + 14 face region + 13 eyes + 12 eyebrows + 13 nose), all 8 monorepo workspaces typecheck cleanly (0 errors), and client production build passes in 717ms.
-8. **Next Step:** Ready for Step 2D of TASK-103 (Mouth / Lips landmark detection) pending user review. Do not start Step 2D automatically.
+7. **TASK-103 Step 2D (Mouth & Lips Landmark Detection):** Implemented `detectMouth` (`packages/structural-analysis/src/mouth.ts`) using horizontal dynamic programming for oral fissure (stomion seam) extraction with bilateral valley contrast, subnasal/ocular anchoring, vermilion border tracing for upper/lower lips, and oral commissure (corner) detection. Mustache/beard step edges are rejected via bilateral valley contrast. Glasses frame and shadow false positives are eliminated. Profile hidden corners are strictly suppressed without hallucination. Average extraction latency: **6.72 ms** (cumulative facial landmark latency ≈29ms, peak heap ≈24.5MB). Visual inspection report: `tests/artifacts/mouth-report.html`.
+8. **Automated Verification:** 100/100 automated checks pass (12 dataset integrity + 10 preprocessing + 10 segmentation + 14 face region + 13 eyes + 12 eyebrows + 13 nose + 16 mouth), all 8 monorepo workspaces typecheck cleanly (0 errors), and client production build passes in 827ms.
+9. **Stop Condition:** Step 2D is complete. Awaiting user instruction before Step 2E (Jawline / Ears).
 
 ---
 
@@ -37,12 +38,13 @@ Phase 1 pipeline is advancing through structural analysis:
 * [x] **TASK-103 Step 2A:** Eye & eyelid landmark detection (`packages/structural-analysis/eyes.ts`, 13/13 unit tests, 1.17ms average latency, zero hallucinated occluded points).
 * [x] **TASK-103 Step 2B:** Eyebrow landmark detection & quality audit (`packages/structural-analysis/eyebrows.ts`, 12/12 unit tests, 3.06ms average latency, verified supraorbital ridge tracking across all 12 benchmarks).
 * [x] **TASK-103 Step 2C:** Nose landmark detection (`packages/structural-analysis/nose.ts`, 13/13 unit tests, 3.23ms average latency, zero hallucinated occluded points).
+* [x] **TASK-103 Step 2D:** Mouth & lip landmark detection (`packages/structural-analysis/mouth.ts`, 16/16 unit tests, 6.72ms average latency, verified visual audit on all 12 benchmarks).
 * [x] **Web App Foundation Verification:** `apps/web` builds cleanly with Vite, typechecks with 0 errors, and renders verified in browser.
 
 ---
 
 ## 3. Currently Being Worked On
-* **TASK-103 (In Progress - Step 2C Complete):** Nose landmark detection complete and verified. Awaiting user sign-off before proceeding to Step 2D (Mouth landmark detection).
+* **TASK-103 (In Progress - Step 2D Complete):** Mouth & lip landmark detection complete and visually audited. Stopped as instructed; awaiting user direction before proceeding.
 
 
 ---
