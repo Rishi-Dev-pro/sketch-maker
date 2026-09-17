@@ -22,6 +22,7 @@
     "benchmark:pose": "tsx tests/structural-analysis/pose-inspector.ts",
     "benchmark:eyes": "tsx tests/structural-analysis/eye-inspector.ts",
     "benchmark:eyebrows": "tsx tests/structural-analysis/eyebrow-inspector.ts",
+    "benchmark:eyebrows:audit": "tsx tests/structural-analysis/audit-eyebrows.ts",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },

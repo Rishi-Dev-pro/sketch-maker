@@ -95,13 +95,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Implemented evidence-dependent iris and pupil center estimation conditioned on local radial contrast ($\Delta L \ge 0.05$), returning `undefined` when image evidence is insufficient or ambiguous (e.g. glasses rims).
   * Added 13 automated unit tests in `tests/structural-analysis/eyes.test.ts` (13/13 passing) verifying coordinate bounds, containment, determinism, frontal bilateral visibility, profile occlusion, chiaroscuro shadow handling, low-light contrast detection, glasses rim separation, multi-person isolation, and real BM-02 profile occlusion invariant.
   * Added visual inspection benchmark suite (`tests/structural-analysis/eye-inspector.ts`) evaluating all 12 benchmark categories with an average extraction latency of **1.17 ms** (well below the 150 ms budget) and generating visual inspection artifact `tests/artifacts/eye-report.html`.
-* **Eyebrow Landmark Detection (`TASK-103 Step 2B`):**
+* **Eyebrow Landmark Detection & Quality Audit (`TASK-103 Step 2B`):**
   * Implemented `@sketch-maker/structural-analysis` eyebrow detector (`packages/structural-analysis/src/eyebrows.ts`) in pure TypeScript with zero external ML models, operating strictly in normalized [0, 1] coordinates.
   * Implemented supraorbital ridge dynamic programming algorithm extracting smooth continuous raw polyline paths along the natural eyebrow arch while penalizing abrupt vertical discontinuities.
   * Anchored search band relative to detected eye landmarks (`EyeDetectionResult`) with strict supraorbital vertical separation constraints ($\ge 2$px above superior palpebral margin), preventing upper eyelids or spectacle rims from hijacking brow contours (`BM-03`).
   * Enforced physical occlusion semantics: profile poses (`BM-02`) strictly mark the hidden eyebrow as `visibility: 'occluded'` with confidence 0 and 0 points, never fabricating or mirroring coordinates.
   * Added 12 automated unit tests in `tests/structural-analysis/eyebrows.test.ts` (12/12 passing) verifying coordinate bounds, determinism, frontal bilateral visibility, three-quarter asymmetry, profile occlusion, glasses robustness, facial-hair robustness, hair/forehead boundary isolation, and multi-person isolation.
-  * Added visual inspection benchmark suite (`tests/structural-analysis/eyebrow-inspector.ts`) evaluating all 12 benchmark categories with an average extraction latency of **3.06 ms** and generating visual inspection artifact `tests/artifacts/eyebrow-report.html`.
+  * Added visual inspection benchmark suite (`tests/structural-analysis/eyebrow-inspector.ts`) and audit tool (`tests/structural-analysis/audit-eyebrows.ts`) evaluating all 12 benchmark categories with an average extraction latency of **3.06 ms - 3.62 ms** and generating visual inspection artifact `tests/artifacts/eyebrow-report.html`.
+  * Conducted focused Quality Audit across `BM-01` through `BM-12`:
+    * Confirmed detected eyebrow paths follow anatomical supraorbital arches (consistently 12% to 17% of face height above eye centers) rather than generic dark ridges.
+    * Confirmed `BM-03` spectacle robustness: brow paths sit at $y \in [0.037, 0.067]$, strictly above the glasses upper rims ($y \approx 0.078-0.082$).
+    * Confirmed `BM-05` hair variety robustness: brow paths sit at $y \in [0.213, 0.256]$, separated from cranium hairlines ($y \le 0.17$).
+    * Confirmed `BM-06` chiaroscuro fidelity: shadowed left brow honestly registers `not_detected` (0 pts) without hallucinating ungrounded contours.
+    * Confirmed conservative confidence calibration (0.16–0.24) is appropriate for Phase 1 feasibility without score inflation.
 
 ### Fixed
 * **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**

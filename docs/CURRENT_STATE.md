@@ -16,9 +16,9 @@ Phase 1 pipeline is advancing through structural analysis:
 2. **`packages/structural-analysis` Segmentation (TASK-102):** Implemented multi-cue perceptual saliency & gradient-barrier segmentation with zero external model dependencies (`ADR-008`). Evaluated across all 12 benchmark categories with an average latency of **239.7 ms** (combined pipeline latency: **308.4 ms**, well below the 1500 ms SLA target). Peak heap RAM remained bounded at **~24.5 MB**.
 3. **TASK-103 Step 1 & Step 1.1 (Face Region Isolation & Pose Robustness Correction):** Implemented `estimateFaceRegion` and `estimateAllFaceRegions` (`packages/structural-analysis/src/face-region.ts`) with a multi-cue geometric evidence model. Decoupled facial geometry from appearance chrominance; isolated head coordinate frame from torso/chest contamination (`BM-02` true profile: `left_profile`, conf 0.62); decoupled illumination shadow from profile yaw (`BM-06` chiaroscuro: `frontal`, conf 0.78). Average latency: 14.45 ms.
 4. **TASK-103 Step 2A (Eye & Eyelid Landmark Detection):** Implemented `detectEyeLandmarks` (`packages/structural-analysis/src/eyes.ts`) with multi-cue ocular search (luminance valleys, lateral sclera-iris contrast, horizontal Sobel edge energy, upper/lower eyelid margin tracing, and evidence-dependent iris/pupil resolution). Strictly enforces pose-driven visibility: profile occluded eyes (`BM-02`) are marked `'occluded'` with confidence 0 and 0 points without hallucinating coordinates. Average extraction latency: **1.17 ms**. Visual inspection report: `tests/artifacts/eye-report.html`.
-5. **TASK-103 Step 2B (Eyebrow Landmark Detection):** Implemented `detectEyebrows` (`packages/structural-analysis/src/eyebrows.ts`) using supraorbital ridge dynamic programming, directional edge gradients, and valley contrast. Enforces strict eyelid/glasses separation constraints. Profile hidden eyebrows are strictly marked `'occluded'` with confidence 0 and 0 points (`BM-02`). Average extraction latency: **3.06 ms**. Visual inspection report: `tests/artifacts/eyebrow-report.html`.
-6. **Automated Verification:** 71/71 automated checks pass (12 dataset integrity + 10 preprocessing + 10 segmentation + 14 face region + 13 eyes + 12 eyebrows), all 8 monorepo workspaces typecheck cleanly (0 errors), and client production build passes in 693ms.
-7. **Next Step:** Ready for Step 2C of TASK-103 (Nose landmark detection) pending user review.
+5. **TASK-103 Step 2B (Eyebrow Landmark Detection & Quality Audit):** Implemented `detectEyebrows` (`packages/structural-analysis/src/eyebrows.ts`) using supraorbital ridge dynamic programming, directional edge gradients, and valley contrast. Enforces strict eyelid/glasses separation constraints. Profile hidden eyebrows are strictly marked `'occluded'` with confidence 0 and 0 points (`BM-02`). Average extraction latency: **3.06 ms - 3.62 ms**. Visual inspection report: `tests/artifacts/eyebrow-report.html`. Quality audit confirmed eyebrow paths track true anatomical supraorbital arches (consistently 12%-17% of face height above detected upper eyelids) without hijacking spectacle rims (`BM-03`), forehead hairlines (`BM-05`), or chiaroscuro shadows (`BM-06`).
+6. **Automated Verification:** 71/71 automated checks pass (12 dataset integrity + 10 preprocessing + 10 segmentation + 14 face region + 13 eyes + 12 eyebrows), all 8 monorepo workspaces typecheck cleanly (0 errors), and client production build passes in 704ms.
+7. **Next Step:** Ready for Step 2C of TASK-103 (Nose landmark detection) pending user review. Do not start Step 2C automatically.
 
 ---
 
@@ -34,13 +34,13 @@ Phase 1 pipeline is advancing through structural analysis:
 * [x] **TASK-102:** Initial subject segmentation / background separation (`packages/structural-analysis/segmentation.ts`, `types.ts`, `gradient.ts`, `saliency.ts`, 10/10 unit tests, visual inspector on all 12 benchmark images).
 * [x] **TASK-103 Step 1 & Step 1.1:** Face region isolation & head pose estimation with illumination and torso robustness (`packages/structural-analysis/face-region.ts`, 14/14 unit & regression tests, 14.45ms average latency on benchmark suite).
 * [x] **TASK-103 Step 2A:** Eye & eyelid landmark detection (`packages/structural-analysis/eyes.ts`, 13/13 unit tests, 1.17ms average latency, zero hallucinated occluded points).
-* [x] **TASK-103 Step 2B:** Eyebrow landmark detection (`packages/structural-analysis/eyebrows.ts`, 12/12 unit tests, 3.06ms average latency, zero hallucinated occluded points).
+* [x] **TASK-103 Step 2B:** Eyebrow landmark detection & quality audit (`packages/structural-analysis/eyebrows.ts`, 12/12 unit tests, 3.06ms average latency, verified supraorbital ridge tracking across all 12 benchmarks).
 * [x] **Web App Foundation Verification:** `apps/web` builds cleanly with Vite, typechecks with 0 errors, and renders verified in browser.
 
 ---
 
 ## 3. Currently Being Worked On
-* **TASK-103 (In Progress - Step 2B Complete):** Eyebrow landmark detection complete and verified. Awaiting user review before proceeding to Step 2C (Nose landmark detection).
+* **TASK-103 (In Progress - Step 2B Audited & Complete):** Eyebrow landmark detection and focused quality audit complete and verified. Awaiting user sign-off before proceeding to Step 2C (Nose landmark detection).
 
 
 ---
