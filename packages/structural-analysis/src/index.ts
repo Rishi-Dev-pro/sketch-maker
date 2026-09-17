@@ -12,3 +12,4 @@ export * from './segmentation';
 export * from './face-region';
 export * from './eyes';
 export * from './eyebrows';
+export * from './nose';

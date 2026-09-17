@@ -108,6 +108,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     * Confirmed `BM-05` hair variety robustness: brow paths sit at $y \in [0.213, 0.256]$, separated from cranium hairlines ($y \le 0.17$).
     * Confirmed `BM-06` chiaroscuro fidelity: shadowed left brow honestly registers `not_detected` (0 pts) without hallucinating ungrounded contours.
     * Confirmed conservative confidence calibration (0.16–0.24) is appropriate for Phase 1 feasibility without score inflation.
+* **Nose Landmark Detection (`TASK-103 Step 2C`):**
+  * Implemented `@sketch-maker/structural-analysis` nose detector (`packages/structural-analysis/src/nose.ts`) in pure TypeScript with zero external ML models, operating strictly in normalized [0, 1] coordinates.
+  * Implemented multi-cue nasal dorsum vertical dynamic programming algorithm tracing continuous raw bridge paths while enforcing lateral continuity constraints ($|\Delta x| \le 2$ px per row).
+  * Implemented nasal lobule dome localization extracting raw tip arcs conditioned on downward subnasal luminance drop.
+  * Implemented alar boundary and nostril opening extraction using localized radial contrast analysis ($\Delta L \ge 0.035$).
+  * Implemented spectacle-bridge avoidance (`BM-03`) and upper lip / mustache barrier separation (`BM-04`).
+  * Enforced physical occlusion semantics: profile poses (`BM-02`) strictly mark hidden-side nostril as `visibility: 'occluded'` with confidence 0 and 0 points, never fabricating or mirroring coordinates.
+  * Added 13 automated unit tests in `tests/structural-analysis/nose.test.ts` (13/13 passing) verifying coordinate bounds, determinism, frontal bilateral visibility, three-quarter shifted midline, profile occlusion, glasses robustness, facial-hair robustness, extreme chiaroscuro shadow handling, low-light contrast detection, and multi-person isolation.
+  * Added visual inspection benchmark suite (`tests/structural-analysis/nose-inspector.ts`) evaluating all 12 benchmark categories with an average extraction latency of **3.23 ms** and generating visual inspection artifact `tests/artifacts/nose-report.html`.
 
 ### Fixed
 * **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**
