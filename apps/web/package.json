@@ -11,13 +11,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@sketch-maker/shared-types": "*",
-    "@sketch-maker/image-processing": "*",
-    "@sketch-maker/structural-analysis": "*",
-    "@sketch-maker/stroke-engine": "*",
-    "@sketch-maker/style-engine": "*",
+    "@mediapipe/tasks-vision": "^0.10.35",
     "@sketch-maker/animation-engine": "*",
     "@sketch-maker/export-engine": "*",
+    "@sketch-maker/image-processing": "*",
+    "@sketch-maker/shared-types": "*",
+    "@sketch-maker/stroke-engine": "*",
+    "@sketch-maker/structural-analysis": "*",
+    "@sketch-maker/style-engine": "*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

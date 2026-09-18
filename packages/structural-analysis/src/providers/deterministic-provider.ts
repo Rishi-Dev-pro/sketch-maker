@@ -12,7 +12,6 @@
  * - Authoritative provider for ear pinna contours and profile occluded feature suppression.
  */
 
-import { performance } from 'node:perf_hooks';
 import {
   SubjectModel,
   FacialFeatures,

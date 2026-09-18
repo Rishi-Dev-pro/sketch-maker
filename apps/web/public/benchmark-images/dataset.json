@@ -1,0 +1,272 @@
+{
+  "$schema": "./dataset.schema.json",
+  "version": "1.0.0",
+  "name": "sketch-maker-benchmarks",
+  "description": "Standard 12-category benchmark evaluation dataset for photo-to-procedural-art vectorization pipeline",
+  "categories": [
+    {
+      "id": "BM-01-FRONT-PORTRAIT",
+      "filename": "bm-01-front-portrait.jpg",
+      "title": "Clean Front-Facing Portrait",
+      "category": "portrait_neutral",
+      "dimensions": {
+        "width": 1024,
+        "height": 1024,
+        "aspectRatio": "1:1",
+        "megapixels": 1.05
+      },
+      "sizeBytes": 650393,
+      "sha256": "d2911208cd86ed4de8176d566de5063e5acbf560c34ad75f0148aed68e8ec2f0",
+      "description": "Clean front-facing portrait with neutral studio lighting and a clean plain background.",
+      "evaluationFocus": "Facial landmark detection accuracy, baseline edge noise, facial symmetry, and primary contour clarity (eyes, nose, mouth, silhouette).",
+      "challengeFactors": [
+        "Symmetric eye and eyebrow alignment",
+        "Subtle nose bridge and lip boundary capture without over-inking",
+        "Clean hair silhouette isolation"
+      ],
+      "passingCriteria": "All facial landmarks aligned within 2px; zero spurious background strokes; clean stroke hierarchy from high to low priority."
+    },
+    {
+      "id": "BM-02-SIDE-PROFILE",
+      "filename": "bm-02-side-profile.jpg",
+      "title": "Sharp Side Profile",
+      "category": "portrait_profile",
+      "dimensions": {
+        "width": 1024,
+        "height": 1024,
+        "aspectRatio": "1:1",
+        "megapixels": 1.05
+      },
+      "sizeBytes": 590843,
+      "sha256": "50b7b8c05cb2d395eaf2dfdaf07ff044b0043741c00dafbd00d672cd944af627",
+      "description": "Sharp 90-degree profile portrait against a neutral gradient backdrop.",
+      "evaluationFocus": "Profile silhouette fidelity, jawline extraction, nose tip curve accuracy, and ear structural clarity.",
+      "challengeFactors": [
+        "Unilateral facial landmark detection (partial face visibility)",
+        "Nasal bridge and jawline continuity without broken fragments",
+        "Neck and turtleneck garment contour distinction"
+      ],
+      "passingCriteria": "Continuous jawline and nose silhouette contours; absence of distorted frontal landmark illusions."
+    },
+    {
+      "id": "BM-03-GLASSES",
+      "filename": "bm-03-glasses.jpg",
+      "title": "Subject Wearing Glasses",
+      "category": "occlusion_eyewear",
+      "dimensions": {
+        "width": 1024,
+        "height": 1024,
+        "aspectRatio": "1:1",
+        "megapixels": 1.05
+      },
+      "sizeBytes": 725312,
+      "sha256": "47439e8d77bbf46936d123e3714cfcaf817a467f5c3f70a3db69f945f1f6300b",
+      "description": "Subject wearing stylish dark tortoiseshell spectacles with clear glass lenses.",
+      "evaluationFocus": "Eye occlusion handling, frame contour vectorization vs. ocular feature retention.",
+      "challengeFactors": [
+        "Eyeglass rim contours overlapping pupil/iris and eyelid edges",
+        "Lens reflection highlights without false edge artifacts",
+        "Preserving eye expression and gaze through the lenses"
+      ],
+      "passingCriteria": "Eyeglass frames clearly delineated as distinct structural contours; pupils and eye geometry preserved beneath lenses."
+    },
+    {
+      "id": "BM-04-FACIAL-HAIR",
+      "filename": "bm-04-facial-hair.jpg",
+      "title": "Dense Facial Hair (Beard & Mustache)",
+      "category": "texture_facial_hair",
+      "dimensions": {
+        "width": 1024,
+        "height": 1024,
+        "aspectRatio": "1:1",
+        "megapixels": 1.05
+      },
+      "sizeBytes": 737683,
+      "sha256": "228b70c2789a8bea14934da5ba7885faf2370a1c9897af08ba59d620fc058c5d",
+      "description": "Close portrait of a man with a dense salt-and-pepper beard and mustache.",
+      "evaluationFocus": "Hair-to-skin boundary separation, jawline inference beneath beard volume, mouth opening detection.",
+      "challengeFactors": [
+        "Extreme high-frequency hair texture threatening to explode stroke budget",
+        "Obscured lower jawline anatomical boundary",
+        "Separation of mustache from upper lip"
+      ],
+      "passingCriteria": "Beard treated as volumetric texture/hatching rather than thousands of chaotic micro-lines; mouth and facial expression retained."
+    },
+    {
+      "id": "BM-05-HAIR-VARIETY",
+      "filename": "bm-05-hair-variety.jpg",
+      "title": "Hair Texture Variety (Afro / Coiled Curls)",
+      "category": "texture_hair",
+      "dimensions": {
+        "width": 1024,
+        "height": 1024,
+        "aspectRatio": "1:1",
+        "megapixels": 1.05
+      },
+      "sizeBytes": 740750,
+      "sha256": "70f8a03e1e48e6df9e3715a2eef22d6d14205523898021ac8b6f8b41143cd576",
+      "description": "Portrait of a smiling woman with voluminous natural coiled afro-textured curls.",
+      "evaluationFocus": "High-frequency curve simplification, external silhouette boundary generation, curve budget enforcement.",
+      "challengeFactors": [
+        "Thousands of micro-coils creating potential edge detector noise",
+        "Clean outer crown silhouette without losing organic hair texture",
+        "Face-to-hair boundary contrast along hairline and temples"
+      ],
+      "passingCriteria": "Smooth outer crown silhouette with stylized representative internal curl flow; stroke count conforms to profile budget."
+    },
+    {
+      "id": "BM-06-EXTREME-LIGHTING",
+      "filename": "bm-06-extreme-lighting.jpg",
+      "title": "Extreme Lighting & Chiaroscuro",
+      "category": "lighting_hdr",
+      "dimensions": {
+        "width": 1024,
+        "height": 1024,
+        "aspectRatio": "1:1",
+        "megapixels": 1.05
+      },
+      "sizeBytes": 621047,
+      "sha256": "38b043444137e9f18b16f070343ded34e76fe2bd4231176b0251446d9dfe5e87",
+      "description": "Dramatic cinematic chiaroscuro with intense backlight rim and deep shadow on the shadowed side.",
+      "evaluationFocus": "Dynamic range robustness, shadow edge filtering, backlight silhouette preservation, low-contrast feature recovery.",
+      "challengeFactors": [
+        "Deep shadows obscuring facial features on the shadow side",
+        "Blown-out rim light creating stark white edges",
+        "Avoiding spurious shadow-line borders across the cheek and forehead"
+      ],
+      "passingCriteria": "Preserves recognizable facial structure even in shadow; ignores harsh shadow demarcation lines that do not represent anatomical geometry."
+    },
+    {
+      "id": "BM-07-COMPLEX-BACKGROUND",
+      "filename": "bm-07-complex-background.jpg",
+      "title": "Complex Urban Background with Crowds & Foliage",
+      "category": "segmentation_clutter",
+      "dimensions": {
+        "width": 1024,
+        "height": 1024,
+        "aspectRatio": "1:1",
+        "megapixels": 1.05
+      },
+      "sizeBytes": 944314,
+      "sha256": "ba18675013bd3ede6cb62faf490b4ab5a141bb420a2f78facb4f4d1f18c1e5d9",
+      "description": "Subject smiling in a crowded, visually dense street market filled with shoppers, storefronts, and signage.",
+      "evaluationFocus": "Foreground subject segmentation, background suppression, clutter rejection, depth-aware masking.",
+      "challengeFactors": [
+        "Dense background clutter with dozens of pedestrians and signs",
+        "Color overlap between foreground clothing and background market stalls",
+        "Maintaining crisp hair and shoulder boundaries against chaotic backdrop"
+      ],
+      "passingCriteria": "Foreground subject completely isolated from background; background clutter suppressed according to active suppression mode."
+    },
+    {
+      "id": "BM-08-LOW-LIGHT",
+      "filename": "bm-08-low-light.jpg",
+      "title": "Noisy Low-Light Night Selfie",
+      "category": "noise_low_light",
+      "dimensions": {
+        "width": 1024,
+        "height": 1024,
+        "aspectRatio": "1:1",
+        "megapixels": 1.05
+      },
+      "sizeBytes": 749423,
+      "sha256": "7fb0b487be5176349be22769696f8c4693214926fadf594b892916f4e2761b99",
+      "description": "Authentic night selfie illuminated by ambient street lamp with visible camera sensor ISO grain.",
+      "evaluationFocus": "Noise filter resilience, high-ISO grain suppression, edge confidence thresholding under poor SNR.",
+      "challengeFactors": [
+        "Heavy sensor ISO noise generating false micro-edges across skin",
+        "Warm monochromatic color cast",
+        "Low contrast between face and night background"
+      ],
+      "passingCriteria": "Gaussian/bilateral smoothing eliminates grain artifacts; no speckled or jittery micro-strokes across skin."
+    },
+    {
+      "id": "BM-09-FULL-BODY-STANDING",
+      "filename": "bm-09-full-body-standing.jpg",
+      "title": "Full Body Standing Pose",
+      "category": "pose_full_standing",
+      "dimensions": {
+        "width": 896,
+        "height": 1200,
+        "aspectRatio": "3:4",
+        "megapixels": 1.08
+      },
+      "sizeBytes": 573832,
+      "sha256": "353e702d9f6ba549f827af5b6caae0981336c908d7bbc79ecd08add026f14aa9",
+      "description": "Full-length portrait of a person standing upright against a studio backdrop.",
+      "evaluationFocus": "Whole-body anatomical proportion, limb continuity, clothing folds vs. structural silhouette, feet/shoes grounding.",
+      "challengeFactors": [
+        "Small relative face scale within whole-body frame",
+        "Maintaining limb continuity through jeans and sweater wrinkles",
+        "Clean separation between shoe soles and ground floor"
+      ],
+      "passingCriteria": "Head-to-toe anatomical hierarchy preserved; face features rendered at reduced resolution without grotesque distortion."
+    },
+    {
+      "id": "BM-10-FULL-BODY-SITTING",
+      "filename": "bm-10-full-body-sitting.jpg",
+      "title": "Full Body Sitting Pose with Limb Occlusion",
+      "category": "pose_full_sitting",
+      "dimensions": {
+        "width": 896,
+        "height": 1200,
+        "aspectRatio": "3:4",
+        "megapixels": 1.08
+      },
+      "sizeBytes": 678987,
+      "sha256": "56b04ce9642f37ae8c4f5c1a3b676c1b5b3ab94d08b953774bcae20a34b050f4",
+      "description": "Subject sitting on a wooden stool with crossed knees, folded arms, and beanie hat.",
+      "evaluationFocus": "Complex limb occlusion, joint hierarchy, self-overlapping contours, furniture separation.",
+      "challengeFactors": [
+        "Arms folded across chest creating overlapping forearm and torso edges",
+        "Legs tucked upward creating knee-over-shin occlusions",
+        "Stool legs intersecting with subject footwear"
+      ],
+      "passingCriteria": "Occlusion ordering properly layered; folded limbs remain distinct and anatomically readable."
+    },
+    {
+      "id": "BM-11-MULTI-PERSON",
+      "filename": "bm-11-multi-person.jpg",
+      "title": "Multi-Person Group Portrait",
+      "category": "multi_subject",
+      "dimensions": {
+        "width": 1200,
+        "height": 896,
+        "aspectRatio": "4:3",
+        "megapixels": 1.08
+      },
+      "sizeBytes": 650945,
+      "sha256": "1296512f4ff5f5882eb81c1ac69a18abfdc2b43e55471341441415577c2483a2",
+      "description": "Two people standing side-by-side with touching shoulders and diverse appearances.",
+      "evaluationFocus": "Multi-subject instance segmentation, inter-subject boundary disambiguation, multi-face landmark tracking.",
+      "challengeFactors": [
+        "Overlapping shoulders and touching silhouettes",
+        "Simultaneous landmark tracking across two faces with different skin tones and hair textures",
+        "Balanced stroke allocation between both subjects"
+      ],
+      "passingCriteria": "Both subjects recognized with independent landmark sets; boundary between subjects cleanly distinguished without merge artifacts."
+    },
+    {
+      "id": "BM-12-HIGH-RES",
+      "filename": "bm-12-high-res.jpg",
+      "title": "Ultra High-Resolution 24MP+ Master",
+      "category": "performance_scale_24mp",
+      "dimensions": {
+        "width": 6000,
+        "height": 4000,
+        "aspectRatio": "3:2",
+        "megapixels": 24.0
+      },
+      "sizeBytes": 1297599,
+      "sha256": "44c13a8d56c2cf863bfee4ea9cbf9c69b3607984bdb7cea6402125bd0c7d85de",
+      "description": "24-megapixel (6000x4000) portrait of an elderly person with intricate facial wrinkles, character lines, and fine silver hair.",
+      "evaluationFocus": "Memory limits, progressive downscaling pipeline, peak RAM monitoring, large buffer processing without browser tab crash.",
+      "challengeFactors": [
+        "24,000,000 pixel raw buffer (96MB uncompressed RGBA in memory)",
+        "Downscaling performance without aliasing or moiré patterns",
+        "Wrinkle contour filtering (preserving character lines without over-inking)"
+      ],
+      "passingCriteria": "Downscaling pipeline successfully scales image to profile maximum (<1500ms); peak memory stays under 250MB; character lines preserved elegantly."
+    }
+  ]
+}

@@ -1,4 +1,3 @@
-import { performance } from 'node:perf_hooks';
 import { NormalizedImage } from '@sketch-maker/image-processing';
 import { BoundingBox, Dimensions } from '@sketch-maker/shared-types';
 import {

@@ -167,7 +167,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Implemented `MediaPipeVisionProvider` architectural stub with honest availability probing, `MediaPipeUnavailableError`, and pluggable `MediaPipeRuntimeDelegate` interface, without adding `@mediapipe/tasks-vision` or model binaries to production bundles.
   * Implemented `VisionCoordinator` managing execution modes (`'deterministic'`, `'ml'`, `'auto'`, `'hybrid'`). In `'auto'` mode, automatically executes deterministic fallback when ML is unavailable without throwing errors. In `'hybrid'` mode, reconciles dense ML facial landmarks with deterministic ear pinna geometry and silhouette-anchored hair contours.
   * Added 14 automated unit tests in `tests/structural-analysis/vision-provider.test.ts` (14/14 passing) verifying provider contract satisfaction, canonical `SubjectModel` mapping, normalized [0, 1] coordinates, bounded [0, 1] confidence scores, visibility semantics preservation, multi-person group representation, metadata & execution audit trail preservation, zero-ML deterministic operation, honest headless ML unavailability probing, deterministic provider selection, auto mode fallback, hybrid reconciliation with ear pinna preservation, mock ML delegate execution, and zero DOM/window API pollution in core packages.
-  * Added `test:provider` npm script to root `package.json` and integrated it into the root `npm test` gate.
+* **MediaPipe Face Landmarker Integration (`TASK-103.7`):**
+  * Installed `@mediapipe/tasks-vision` exclusively in `apps/web/package.json`, keeping `packages/structural-analysis` 100% pure TypeScript with zero DOM/window/WASM dependencies.
+  * Configured lazy Vite bundle chunking (`manualChunks: { vision_bundle: [...] }`), resulting in a distinct `dist/assets/vision_bundle-*.js` chunk (136.2 kB, gzip 40.8 kB) and keeping the initial application bundle lightweight (239.4 kB, gzip 75.6 kB).
+  * Implemented `MediaPipeWebDelegate` in `apps/web/src/vision/mediapipe/mediapipe-delegate.ts` conforming to the `MediaPipeRuntimeDelegate` interface, with dynamic lazy loading, FilesetResolver initialization, ImageData conversion, and graceful lifecycle cleanup.
+  * Implemented canonical 478-landmark mapper (`apps/web/src/vision/mediapipe/landmark-mapper.ts`):
+    * Strictly clamps all normalized coordinates to `[0.0, 1.0]`.
+    * Maps facial contours, iris centers, eyelids, nasal dorsum/nostrils, vermilion lip borders, and mandibular jawlines to `FacialFeatures` and `SubjectModel`.
+    * Derives head pose (`frontal`, `three_quarter`, `profile`) and enforces strict occlusion tagging on the hidden side of profile faces (`BM-02`), preventing landmark hallucinations.
+    * Explicitly reports ears as `not_detected` to prevent false ear pinna synthesis.
+  * Enhanced `VisionCoordinator` (`packages/structural-analysis/src/providers/coordinator.ts`) to reconcile ear pinna visibility semantics alongside ear contour geometry in hybrid mode.
+  * Replaced `node:perf_hooks` with universal `globalThis.performance.now()` across `packages/structural-analysis` and `apps/web` to guarantee seamless browser bundling.
+  * Added rich interactive UI in `apps/web/src/App.tsx`: execution mode selector, 12-category benchmark selector, dual-layer interactive canvas, visual layer toggles (Face Mesh, Ear Pinna, Hair, Contours), live latency & provenance indicators, occlusion audit table, and batch runner ("Evaluate All 12").
+  * Added 7 automated unit tests in `tests/structural-analysis/mediapipe-landmark-mapper.test.ts` (7/7 passing) verifying coordinate bounds clamping, frontal feature mapping, ear absence, profile occlusion semantics (`BM-02`), multi-person face mapping (`BM-11`), delegate state machine, and disposal.
+  * Added `test:mediapipe:mapper` script and integrated into root `npm test` gate (100% pass across 162+ monorepo tests).
+  * Documented architectural details, bundle footprint, and benchmark measurements in `docs/MEDIAPIPE_FACE_LANDMARKER.md`.
 
 ### Fixed
 * **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**

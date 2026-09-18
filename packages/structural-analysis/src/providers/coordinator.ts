@@ -8,7 +8,6 @@
  * deterministic fallback when ML runtimes are offline or unavailable.
  */
 
-import { performance } from 'node:perf_hooks';
 import {
   VisionProvider,
   VisionProviderMetadata,
@@ -302,6 +301,11 @@ export class VisionCoordinator {
               // Crucial architectural reconciliation: Retain deterministic ear pinna
               leftEar: detSub.face?.leftEar ?? mlSub.face.leftEar,
               rightEar: detSub.face?.rightEar ?? mlSub.face.rightEar,
+              featureVisibility: {
+                ...mlSub.face.featureVisibility,
+                leftEar: detSub.face?.featureVisibility?.leftEar ?? mlSub.face.featureVisibility?.leftEar ?? 'not_detected',
+                rightEar: detSub.face?.featureVisibility?.rightEar ?? mlSub.face.featureVisibility?.rightEar ?? 'not_detected',
+              },
             }
           : detSub.face,
         // Sourced from ML body pose

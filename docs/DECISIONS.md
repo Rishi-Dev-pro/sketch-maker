@@ -145,6 +145,13 @@ This document serves as the permanent record of major architectural and technica
   5. *Evidence-Aware Hybrid Reconciliation:* In `hybrid` mode, dense facial landmarks from ML are merged with deterministic ear pinna contours and edge-guided hair boundaries, preserving the unique geometric fidelity of both worlds.
   6. *Platform Portability (Web vs. Mobile):* Core structural packages (`@sketch-maker/structural-analysis`) contain zero DOM (`document`/`window`) or native platform dependencies. Future web delegates load WebAssembly/WebGPU modules in `apps/web`; future React Native delegates load native mobile modules in `apps/mobile`; both produce identical canonical `SubjectModel` payloads.
 * **Consequences:** Clean architectural boundary protects downstream stroke generation from perception volatility; tests pass reliably in headless Node CI; zero bundle increase for production web builds until ML packages are selectively introduced in future tasks.
+* **TASK-103.7 Addendum (MediaPipe Face Landmarker Web Integration):**
+  1. `@mediapipe/tasks-vision` dependency is installed strictly in `apps/web/package.json`. Core packages remain 100% pure TypeScript.
+  2. MediaPipe modules are lazily chunked into `dist/assets/vision_bundle-*.js` (136 kB, gzip 40 kB), keeping initial web bundle size at 239 kB.
+  3. `MediaPipeWebDelegate` converts `NormalizedImage` to `ImageData`, runs `faceLandmarker.detect()`, and maps 478 landmarks to canonical `SubjectModel`.
+  4. Profile occlusion guarantee (`BM-02`): Feature visibility on the occluded side of true profiles is tagged `'occluded'` with 0 confidence, preventing hallucinated geometry.
+  5. Zero ear pinna fabrication: MediaPipe explicitly reports no ear detection; `VisionCoordinator` in `'hybrid'` mode reconciles and preserves deterministic ear geometry alongside MediaPipe facial features.
+
 
 
 
