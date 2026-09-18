@@ -149,6 +149,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Added 16 automated unit tests in `tests/structural-analysis/ears.test.ts` (16/16 passing) verifying normalized coordinates, determinism, frontal bilateral visibility, independent left/right detection, three-quarter pose, profile visibility, profile hidden-side suppression, hair robustness, glasses/accessory robustness, beard robustness, complex background clutter handling, extreme chiaroscuro shadow handling, low-light contrast detection, multi-person isolation, weak-evidence confidence reduction, and real BM-02 side profile benchmark.
   * Added visual inspection benchmark suite (`tests/structural-analysis/ear-inspector.ts`) evaluating all 12 benchmark categories with an average extraction latency of **2.85 ms** and generating visual inspection artifact `tests/artifacts/ear-report.html`.
 
+* **Pretrained Vision Backend Evaluation (`TASK-103.5`):**
+  * Conducted an architectural and empirical evaluation comparing the pure-TypeScript deterministic perception pipeline against pretrained computer-vision backends (MediaPipe Tasks Vision and ONNX Runtime Web).
+  * Evaluated candidates across Face Landmarks (MediaPipe 478-pt FaceMesh), Body Pose (33-pt BlazePose skeleton), and Semantic Segmentation (Selfie Multiclass Segmenter) against the 12 canonical benchmark categories (`BM-01` to `BM-12`).
+  * Established empirical performance metrics: deterministic facial landmarks run in an average of **26.5 ms** and total pipeline in **457.9 ms** (with segmentation at **256.1 ms** being the primary CPU phase), while MediaPipe FaceMesh runs in **18–30 ms** on GPU with a 3.7 MB payload.
+  * Discovered key structural trade-offs: MediaPipe Face Landmarker completely omits the external ear pinna (helix rim/concha) and struggles on 90° profile yaw (`BM-02`), whereas our deterministic detector provides authoritative ear pinna geometry and clean occluded feature suppression.
+  * Evaluated body pose: MediaPipe Pose Landmarker completely solves 33-point skeletal articulation for standing and sitting subjects (`BM-09`, `BM-10`), avoiding thousands of lines of fragile handcrafted heuristics.
+  * Created experimental prototype adapter in `tests/vision-backends/adapter-prototype.ts` mapping MediaPipe 478-point mesh and 33-point pose to canonical `SubjectModel` (`FacialFeatures`, `BodyFeatures`).
+  * Created benchmark runner in `tests/vision-backends/benchmark-runner.ts` and interactive visual evaluation report in `tests/artifacts/vision-backend-evaluation.html`.
+  * Produced comprehensive evaluation document in `docs/VISION_BACKEND_EVALUATION.md`.
+  * Recommended **Option C (Hybrid Architecture)**: Retain the deterministic engine as the zero-download, offline core; introduce an optional client-side ML enhancement layer in `apps/web` for dense 3D facial mesh and full-body skeletal pose.
+
 ### Fixed
 * **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**
   * Fixed `BM-02` true side profile misclassification: shoulder/chest geometry was pulling the search envelope downwards (row 687) and leftwards (x=268), artificially diluting profile asymmetry. Head coordinate isolation correctly restores `left_profile` classification ($A_{silh} = 0.34$, $offset = -0.32$, confidence 0.62).

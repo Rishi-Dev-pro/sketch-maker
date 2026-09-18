@@ -309,3 +309,34 @@ Every evaluation run grades outputs across 7 dimensions on a 1–10 scale:
   * **`BM-05` Textured Hair & `BM-09` Standing Pose:** Distinguishes dense afro curls from exposed pinna; partially visible near ears register honest `uncertain` visibility with proportionally calibrated confidence.
   * **`BM-11` Multi-Person Isolation:** Subjects are analyzed independently with zero cross-instance contour bleeding.
   * **Cumulative Facial Analysis Latency (Face Region + Eyes + Brows + Nose + Mouth + Jawline + Ears):** $\approx 33 \text{ ms}$, comfortably below the structural-analysis SLA budget of 150 ms. Peak heap memory remains bounded at $\approx 24.5 \text{ MB}$.
+
+---
+
+### Run 2026-09-18 — TASK-103.5 Pretrained Vision Backend Comparative Evaluation
+* **Hardware Environment:** Node.js v24.16.0, Windows x64 CPU.
+* **Test Command:** `npx tsx tests/vision-backends/benchmark-runner.ts`
+* **Artifact Generated:** `tests/artifacts/vision-backend-evaluation.html`
+* **Scope:** All 12 canonical benchmark categories (`BM-01` through `BM-12`).
+
+| Benchmark ID | Deterministic Preprocessing | Deterministic Segmentation | Face Estimation | Facial Landmarks | Hair Detection | Deterministic Total Latency |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `BM-01-FRONT-PORTRAIT` | 65.1 ms | 282.6 ms | 40.0 ms | 82.2 ms | 16.2 ms | **577.7 ms** |
+| `BM-02-SIDE-PROFILE` | 60.0 ms | 328.1 ms | 35.4 ms | 40.0 ms | 27.6 ms | **598.7 ms** |
+| `BM-03-GLASSES` | 54.4 ms | 437.8 ms | 54.3 ms | 16.3 ms | 5.4 ms | **651.4 ms** |
+| `BM-04-FACIAL-HAIR` | 54.9 ms | 293.1 ms | 14.7 ms | 38.5 ms | 10.6 ms | **484.5 ms** |
+| `BM-05-HAIR-VARIETY` | 22.3 ms | 186.7 ms | 22.8 ms | 14.8 ms | 5.5 ms | **317.8 ms** |
+| `BM-06-EXTREME-LIGHTING` | 15.4 ms | 257.1 ms | 4.6 ms | 19.3 ms | 6.5 ms | **369.3 ms** |
+| `BM-07-COMPLEX-BACKGROUND`| 21.2 ms | 165.5 ms | 41.4 ms | 42.5 ms | 5.0 ms | **339.4 ms** |
+| `BM-08-LOW-LIGHT` | 46.2 ms | 275.1 ms | 47.0 ms | 12.2 ms | 2.7 ms | **443.6 ms** |
+| `BM-09-FULL-BODY-STANDING`| 169.5 ms | 320.0 ms | 8.4 ms | 6.7 ms | 2.2 ms | **550.0 ms** |
+| `BM-10-FULL-BODY-SITTING` | 88.6 ms | 179.2 ms | 5.2 ms | 5.2 ms | 1.2 ms | **321.7 ms** |
+| `BM-11-MULTI-PERSON` | 73.1 ms | 151.3 ms | 3.1 ms | 6.8 ms | 1.0 ms | **280.7 ms** |
+| `BM-12-HIGH-RES` | 269.2 ms | 196.1 ms | 7.3 ms | 34.1 ms | 3.7 ms | **560.3 ms** |
+| **AVERAGE** | **78.3 ms** | **256.1 ms (56%)** | **23.7 ms (5%)** | **26.5 ms (6%)** | **7.3 ms (2%)** | **457.9 ms** |
+
+* **Empirical Comparison Highlights:**
+  * **Facial Landmarks Bottleneck Disproven:** Deterministic facial landmark detection is already fast (**26.5 ms avg**), refuting the concern that handcrafted landmarking consumes excessive CPU.
+  * **Segmentation is the Primary CPU Cost:** Pure-TypeScript spatial segmentation accounts for **56% of total CPU time (256.1 ms)**. A lightweight GPU multiclass segmenter (MediaPipe 1.2 MB) can reduce this to **18–35 ms** on devices where WebGL/WebGPU is present.
+  * **External Ear Pinna Omission:** MediaPipe FaceMesh completely omits the external ear pinna (helix rim, conchal hollow). Our deterministic ear detector remains mandatory for procedural portrait drawing.
+  * **Body Pose Skeleton Opportunity:** MediaPipe Pose Landmarker (BlazePose, 33 3D skeletal landmarks) solves whole-body joint articulation in ~22–38 ms GPU, eliminating the need to handcraft complex full-body skeleton parsers.
+  * **Recommended Architecture:** **Option C (Hybrid Architecture)**, detailed in [`docs/VISION_BACKEND_EVALUATION.md`](file:///d:/projects%202.0/main/sketch-maker/docs/VISION_BACKEND_EVALUATION.md).
