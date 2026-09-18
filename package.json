@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
     "build": "npm run build --workspaces --if-present",
-    "test": "npm run test:dataset && npm run test:preprocess && npm run test:segmentation && npm run test:face-region && npm run test:eyes && npm run test:eyebrows && npm run test:nose && npm run test:mouth && npm run test:jawline && npm run test:ears && npm run test --workspaces --if-present",
+    "test": "npm run test:dataset && npm run test:preprocess && npm run test:segmentation && npm run test:face-region && npm run test:eyes && npm run test:eyebrows && npm run test:nose && npm run test:mouth && npm run test:jawline && npm run test:ears && npm run test:hair && npm run test --workspaces --if-present",
     "test:dataset": "node tests/images/validate.js",
     "test:preprocess": "tsx tests/image-processing/preprocess.test.ts",
     "test:segmentation": "tsx tests/structural-analysis/segmentation.test.ts",
@@ -21,6 +21,7 @@
     "test:mouth": "tsx tests/structural-analysis/mouth.test.ts",
     "test:jawline": "tsx tests/structural-analysis/jawline.test.ts",
     "test:ears": "tsx tests/structural-analysis/ears.test.ts",
+    "test:hair": "tsx tests/structural-analysis/hair.test.ts",
     "benchmark:image-processing": "tsx tests/image-processing/benchmark-runner.ts",
     "benchmark:segmentation": "tsx tests/structural-analysis/visual-inspector.ts",
     "benchmark:pose": "tsx tests/structural-analysis/pose-inspector.ts",
@@ -31,6 +32,7 @@
     "benchmark:mouth": "tsx tests/structural-analysis/mouth-inspector.ts",
     "benchmark:jawline": "tsx tests/structural-analysis/jawline-inspector.ts",
     "benchmark:ears": "tsx tests/structural-analysis/ear-inspector.ts",
+    "benchmark:hair": "tsx tests/structural-analysis/hair-inspector.ts",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },

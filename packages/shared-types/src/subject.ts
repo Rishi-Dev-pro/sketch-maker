@@ -11,6 +11,7 @@ export type SemanticRegion =
   | 'face_contour'
   | 'jawline'
   | 'ears'
+  | 'hair'
   | 'hair_boundary'
   | 'body_outline'
   | 'shoulders'
