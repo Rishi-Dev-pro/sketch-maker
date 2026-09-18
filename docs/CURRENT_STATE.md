@@ -2,11 +2,11 @@
 
 ## Project State Snapshot
 
-* **Current Date / Time:** 2026-09-17
+* **Current Date / Time:** 2026-09-18
 * **Current Phase:** Phase 1 — Feasibility Prototype (Headless Photo → Strokes Pipeline)
-* **Current Version:** v0.3.8-alpha (Jawline & Facial Contour Detection - Step 2E.1 Complete)
+* **Current Version:** v0.3.9-alpha (Ear Detection - Step 2E.2 Complete)
 * **Current Milestone:** M1 — Feasibility Prototype (Headless Pipeline)
-* **Status:** IN_PROGRESS (Phase 1 Underway: TASK-103 Step 2E.1 Complete)
+* **Status:** IN_PROGRESS (Phase 1 Underway: TASK-103 Step 2E.2 Complete)
 
 ---
 
@@ -19,9 +19,10 @@ Phase 1 pipeline is advancing through structural analysis:
 5. **TASK-103 Step 2B (Eyebrow Landmark Detection & Quality Audit):** Implemented `detectEyebrows` (`packages/structural-analysis/src/eyebrows.ts`) using supraorbital ridge dynamic programming, directional edge gradients, and valley contrast. Enforces strict eyelid/glasses separation constraints. Profile hidden eyebrows are strictly marked `'occluded'` with confidence 0 and 0 points (`BM-02`). Average extraction latency: **3.06 ms - 3.62 ms**. Visual inspection report: `tests/artifacts/eyebrow-report.html`.
 6. **TASK-103 Step 2C (Nose Landmark Detection):** Implemented `detectNose` (`packages/structural-analysis/src/nose.ts`) with multi-cue structural evidence: vertical dynamic programming ridge tracing along nasal dorsum, tip dome localization, and alar/nostril boundary extraction with radial contrast analysis. Enforces glasses-frame avoidance (`BM-03`) and mustache boundary separation (`BM-04`). Profile hidden nostril (`BM-02`) is strictly marked `'occluded'` with confidence 0 and 0 points. Average extraction latency: **3.23 ms**. Visual inspection report: `tests/artifacts/nose-report.html`.
 7. **TASK-103 Step 2D (Mouth & Lips Landmark Detection):** Implemented `detectMouth` (`packages/structural-analysis/src/mouth.ts`) using horizontal dynamic programming for oral fissure (stomion seam) extraction with bilateral valley contrast, subnasal/ocular anchoring, vermilion border tracing for upper/lower lips, and oral commissure (corner) detection. Mustache/beard step edges are rejected via bilateral valley contrast. Glasses frame and shadow false positives are eliminated. Profile hidden corners are strictly suppressed without hallucination. Average extraction latency: **6.72 ms** (cumulative facial landmark latency ≈29ms, peak heap ≈24.5MB). Visual inspection report: `tests/artifacts/mouth-report.html`.
-8. **TASK-103 Step 2E.1 (Jawline & Outer Facial Contour Detection):** Implemented `detectJawline` (`packages/structural-analysis/src/jawline.ts`) deriving outer facial geometry from subject silhouette (`SubjectMask`) and face region geometry with local Sobel gradient edge alignment. In frontal/three-quarter poses, tracks mandibular convergence toward the chin apex and detects shoulder/neck expansion to terminate before clothing collars (`BM-09`, `BM-10`). In profile poses (`BM-02`), preserves visible anterior facial contour (glabella $\to$ nose $\to$ lips $\to$ chin $\to$ submental line) and strictly suppresses occluded hidden-side jaw geometry. In heavy beards (`BM-04`), signals `uncertain` without hallucinating phantom bone lines. Average extraction latency: **1.16 ms** (cumulative facial analysis latency ≈30ms, peak heap ≈24.5MB). Visual inspection report: `tests/artifacts/jawline-report.html`.
-9. **Automated Verification:** 116/116 automated checks pass (12 dataset integrity + 10 preprocessing + 10 segmentation + 14 face region + 13 eyes + 12 eyebrows + 13 nose + 16 mouth + 16 jawline), all 8 monorepo workspaces typecheck cleanly (0 errors), and client production build passes in 704ms.
-10. **Stop Condition:** Step 2E.1 is complete. Ears (Step 2E.2), hair, body, and TASK-104 remain deferred. Awaiting user direction before proceeding.
+8. **TASK-103 Step 2E.1 (Jawline & Outer Facial Contour Detection):** Implemented `detectJawline` (`packages/structural-analysis/src/jawline.ts`) deriving outer facial geometry from subject silhouette (`SubjectMask`) and face region geometry with local Sobel gradient edge alignment. In frontal/three-quarter poses, tracks mandibular convergence toward the chin apex and detects shoulder/neck expansion to terminate before clothing collars (`BM-09`, `BM-10`). In profile poses (`BM-02`), preserves visible anterior facial contour (glabella $\to$ nose $\to$ lips $\to$ chin $\to$ submental line) and strictly suppresses occluded hidden-side jaw geometry. In heavy beards (`BM-04`), signals `uncertain` without hallucinating phantom bone lines. Average extraction latency: **1.16 ms**. Visual inspection report: `tests/artifacts/jawline-report.html`.
+9. **TASK-103 Step 2E.2 (Ear Landmark & Contour Detection):** Implemented `detectEars` (`packages/structural-analysis/src/ears.ts`) detecting visible anatomical ear structure (helix rim, conchal hollow contrast) and pose-conditioned visibility. For frontal and three-quarter faces, evaluates left and right ears independently; strictly rejects hair curls, glasses temples, and straight silhouette edges via sustained protrusion, curvature analysis, and hair luminance profiling. In side profiles (`BM-02`), detects the visible posterior pinna and strictly suppresses the hidden far-side ear without fabricating mirrored geometry. Average extraction latency: **2.85 ms** (cumulative facial analysis latency ≈33ms, peak heap ≈24.5MB). Visual inspection report: `tests/artifacts/ear-report.html`.
+10. **Automated Verification:** 132/132 automated checks pass (12 dataset integrity + 10 preprocessing + 10 segmentation + 14 face region + 13 eyes + 12 eyebrows + 13 nose + 16 mouth + 16 jawline + 16 ears), all 8 monorepo workspaces typecheck cleanly (0 errors), and client production build passes in 1.08s.
+11. **Stop Condition:** Step 2E.2 is complete and verified. Hair, body, clothing, unified subject model, and TASK-104 remain deferred. Awaiting user direction before proceeding.
 
 ---
 
@@ -41,12 +42,13 @@ Phase 1 pipeline is advancing through structural analysis:
 * [x] **TASK-103 Step 2C:** Nose landmark detection (`packages/structural-analysis/nose.ts`, 13/13 unit tests, 3.23ms average latency, zero hallucinated occluded points).
 * [x] **TASK-103 Step 2D:** Mouth & lip landmark detection (`packages/structural-analysis/mouth.ts`, 16/16 unit tests, 6.72ms average latency, verified visual audit on all 12 benchmarks).
 * [x] **TASK-103 Step 2E.1:** Jawline & outer facial contour detection (`packages/structural-analysis/jawline.ts`, 16/16 unit tests, 1.16ms average latency, verified visual audit on all 12 benchmarks).
+* [x] **TASK-103 Step 2E.2:** Ear landmark & contour detection (`packages/structural-analysis/ears.ts`, 16/16 unit tests, 2.85ms average latency, verified visual audit on all 12 benchmarks).
 * [x] **Web App Foundation Verification:** `apps/web` builds cleanly with Vite, typechecks with 0 errors, and renders verified in browser.
 
 ---
 
 ## 3. Currently Being Worked On
-* **TASK-103 (In Progress - Step 2E.1 Complete):** Jawline & facial contour detection complete and visually audited. Stopped as instructed; awaiting user direction before Step 2E.2 (Ears).
+* **TASK-103 (In Progress - Step 2E.2 Complete):** Ear landmark and contour detection complete and visually audited. Stopped as instructed; awaiting user direction before subsequent steps.
 
 
 ---

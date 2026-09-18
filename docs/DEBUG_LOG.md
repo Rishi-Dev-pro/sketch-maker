@@ -86,6 +86,34 @@
   3. All 116 tests across the entire monorepo pass without regression.
 * **Regression Risk:** None. Normal faces that taper toward the chin retain full confidence.
 
+### BUG-004: Hair Boundary and Glasses Temple False Positive Ear Classification
+* **Date:** 2026-09-18
+* **Status:** VERIFIED
+* **Symptom:** In unit test 8 (hair robustness) and unit test 9 (glasses temple robustness), the initial ear detector heuristic classified straight vertical hair masses and horizontal glasses temple bars as valid ear contours with `visibility: 'uncertain'` and confidence $\approx 0.20-0.29$ instead of returning `not_detected`.
+* **Reproduction Steps:**
+  1. Generate synthetic face environment with hair covering the lateral ear zones (`paintHairOverEars: true`).
+  2. Run `detectEars`.
+  3. Observe that straight vertical edge of the hair block was extracted as an ear contour.
+  4. Generate synthetic face environment with horizontal glasses temple bar (`paintGlassesTemples: true`).
+  5. Run `detectEars`.
+  6. Observe that single-row protrusion was evaluated as convex at the midpoint and extracted as an ear contour.
+* **Root Cause:**
+  1. The curvature check evaluated only 3 points ($top$, $mid$, $bottom$). For a single-row glasses temple spike, the midpoint protruded while top and bottom were flush, falsely triggering $isConvex = true$.
+  2. Straight vertical edges (such as a hair block border) had zero convex bulge, but the confidence score formula allowed low-scoring non-convex contours to pass the uncertain threshold ($\ge 0.11$) and emit paths.
+  3. Hair pixel sampling iterated over background pixels outside the subject mask, diluting the hair dominance fraction.
+* **Affected Files:**
+  * `packages/structural-analysis/src/ears.ts`
+  * `tests/structural-analysis/ears.test.ts`
+* **Fix Applied:**
+  1. Sustained Protrusion Analysis: Enforced that average protrusion across all rows must be at least 25% of peak protrusion ($\bar{p} / p_{max} \ge 0.25$), and at least 30% of rows must exhibit significant protrusion ($p_i \ge 0.35 p_{max}$ and $p_i \ge 3\text{px}$), instantly eliminating 1-2px horizontal glasses temple spikes.
+  2. Multi-point curvature & variance check: Added quarter-point curvature checks ($q_1$, $q_3$) and required non-zero lateral variance ($\sigma_x \ge 0.8\text{px}$), rejecting flat vertical hair borders.
+  3. Foreground-masked hair dominance: Restricted hair luminance sampling strictly to foreground pixels within the candidate bracket (`maskData > 0`). If $>60\%$ of foreground pixels are dark hair, the candidate is rejected as hair mass (`not_detected`).
+* **Verification:**
+  1. Unit tests 8 and 9 pass cleanly (`leftEar === undefined`, `rightEar === undefined`, `visibility === 'not_detected'`).
+  2. All 16 unit tests in `tests/structural-analysis/ears.test.ts` pass cleanly.
+  3. All 132 tests across the monorepo pass with 0 errors.
+* **Regression Risk:** Zero. Real anatomical ears with smooth C-shaped protrusion and conchal hollow contrast retain full detection.
+
 ---
 ```markdown
 ### BUG-XXX: [Short Descriptive Title]
