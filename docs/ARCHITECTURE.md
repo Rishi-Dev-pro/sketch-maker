@@ -187,6 +187,79 @@ graph TD
 
 ---
 
+---
+
 ## 6. Development & Verification Environment
 * **Platform:** Windows 10/11 x64, Node.js runtime, PowerShell terminal.
 * **Target Host:** Vercel serverless / static asset hosting.
+
+---
+
+## 7. Vision Provider Architecture (TASK-103.6)
+
+Following the evaluation in `docs/VISION_BACKEND_EVALUATION.md` and `ADR-010`, perception is abstracted through a decoupled provider boundary. Downstream procedural art engines depend strictly on the Universal Intermediate Representation (`SubjectModel`) and never communicate directly with computer vision algorithms or neural network libraries.
+
+### 7.1 Architectural Overview
+
+```text
+                    INPUT IMAGE (NormalizedImage)
+                                 │
+                                 ▼
+                         VisionCoordinator
+                                 │
+              ┌──────────────────┴──────────────────┐
+              │                                     │
+              ▼                                     ▼
+   DeterministicVisionProvider             MediaPipeVisionProvider
+   (Pure TypeScript, 0-dep)                (Optional ML runtime)
+              │                                     │
+              └──────────────────┬──────────────────┘
+                                 ▼
+                     Evidence-Aware Reconciliation
+                     (Hybrid Merge / Fallback)
+                                 │
+                                 ▼
+                           VisionResult
+                                 │
+                     ┌───────────┴───────────┐
+                     ▼                       ▼
+               SubjectModel          VisionExecutionPlan
+                     │                 (Audit & Metadata)
+                     ▼
+          Procedural Art Engine
+          (Stroke & Style Pipelines)
+```
+
+### 7.2 Core Contracts (`packages/structural-analysis/src/providers/types.ts`)
+
+* **`VisionProvider`**: Minimal asynchronous perception contract:
+  ```typescript
+  export interface VisionProvider {
+    readonly metadata: VisionProviderMetadata;
+    isAvailable(): boolean;
+    analyze(input: VisionInput): Promise<VisionResult>;
+  }
+  ```
+* **`VisionInput`**: Preprocessed image luminance buffer (`NormalizedImage`), original image dimensions, and optional execution options.
+* **`VisionResult`**: Contains `primarySubject: SubjectModel`, `allSubjects: SubjectModel[]`, `scale`, processing `metrics` (latencies, counts), provider `metadata`, and an execution audit trail `plan`.
+* **`VisionCoordinator`**: High-level orchestrator supporting execution modes:
+  * `'deterministic'`: Guarantees 100% pure TypeScript execution with zero external network requests.
+  * `'ml'`: Uses pretrained ML models (throws structured error if unavailable).
+  * `'auto'`: Attempts ML acceleration; falls back automatically and seamlessly to deterministic execution if ML is unavailable or fails.
+  * `'hybrid'`: Concurrently executes both pipelines and merges dense ML facial landmarks with deterministic ear pinna geometry and silhouette-anchored hair contours.
+
+### 7.3 Evidence-Aware Hybrid Reconciliation
+
+Pretrained neural networks (like MediaPipe FaceLandmarker) provide dense 468-point meshes but lack external ear pinna geometry and produce over-smoothed silhouette hair boundaries. The hybrid merge layer enforces the following reconciliation rules:
+1. **Internal Facial Features:** Dense eye contours, lip contours, and nasal landmarks are accepted from the ML provider when confidence exceeds 0.50.
+2. **Ear Pinna Preservation:** External helix and lobule contours from `DeterministicVisionProvider` are strictly preserved into the final `SubjectModel`, preventing ear omission in art rendering.
+3. **Silhouette & Hair Contours:** Gradient edge-aligned hair and silhouette paths from deterministic analysis are preserved alongside ML facial landmarks.
+4. **Visibility Semantics:** Occlusion classifications (`'occluded'`, `'uncertain'`, `'visible'`, `'not_detected'`) are strictly preserved across both backends.
+
+### 7.4 Web vs. Mobile Separation
+
+* **Platform Neutrality:** Core packages (`@sketch-maker/structural-analysis`, `@sketch-maker/shared-types`) contain no browser-only (`window`, `document`) or Node-only APIs.
+* **Web Runtime:** In the web client (`apps/web`), `MediaPipeVisionProvider` can be instantiated with a WebAssembly/WebGPU browser delegate.
+* **Mobile Runtime:** In a future React Native client (`apps/mobile`), the same provider interface accepts native iOS/Android bridge delegates.
+* **Headless CI / Testing:** Automated test suites run in pure Node.js using `DeterministicVisionProvider` without WebGL or canvas polyfills.
+

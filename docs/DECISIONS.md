@@ -124,5 +124,28 @@ This document serves as the permanent record of major architectural and technica
 * **Step 1.1 Addendum (Pose Robustness):** Pose estimation decouples facial geometry from skin chrominance. Bilateral structural edge energy distribution and head-local silhouette projection strictly take precedence over skin tone coverage, eliminating false profile misclassification under extreme chiaroscuro lighting (`BM-06`) and isolating cranium/facial boundaries from shoulder/torso contamination (`BM-02`).
 * **Step 2E.1 Addendum (Silhouette-Driven Outer Facial Contour & Mandibular Convergence):** Outer facial boundary extraction is anchored directly to the segmented subject silhouette (`SubjectMask` and `SubjectRegion`) with sub-pixel gradient edge alignment, rather than internal edge detection. In profile poses (`BM-02`), the visible anterior silhouette (glabella $\to$ nose $\to$ lips $\to$ chin $\to$ submental line) is preserved without mirroring, while the occluded side is strictly suppressed. In frontal/three-quarter poses, mandibular inward convergence is tracked down to the chin apex; detection terminates upon detecting neck/collar expansion ($> 1.20\times$), isolating the facial contour from shirts and shoulders (`BM-09`, `BM-10`). In heavy beards (`BM-04`), the system signals `uncertain` rather than inventing underlying phantom bone lines.
 
+---
+
+### ADR-010: Vision Provider Architecture & Hybrid Perception Strategy
+* **Date:** 2026-09-18
+* **Status:** ACCEPTED
+* **Decision:** Introduce a formal, decoupled Vision Provider abstraction (`VisionProvider`, `VisionCoordinator`, `DeterministicVisionProvider`, `MediaPipeVisionProvider`, `VisionResult`) with the Universal Intermediate Representation (`SubjectModel`) as the strict, sole contract between perception backends and downstream procedural art engines. Adopt **Option C (Hybrid Vision Architecture)** as established by the comprehensive evaluation in `docs/VISION_BACKEND_EVALUATION.md`.
+* **Context:** TASK-103.5 evaluated pure-TypeScript deterministic vision against pretrained ML models (MediaPipe FaceLandmarker, PoseLandmarker, SelfieSegmentation) across the 12-category benchmark suite. Findings confirmed:
+  1. Pretrained ML excels at dense internal facial geometry (478 landmarks), sub-20ms inference with WebGPU, and 33-joint skeletal pose tracking.
+  2. Pure-TypeScript deterministic vision retains critical structural advantages: zero download/zero bundle penalty (0 KB vs. 15.2 MB), instantaneous startup (1.8ms vs. 2,100ms model warm-up), superior anatomical ear pinna tracing (which MediaPipe completely lacks), and robust offline execution in headless Node.js CI test environments and Web Workers.
+  Directly binding the procedural art engine to MediaPipe would violate platform independence, break offline execution, increase initial page weight, and create vendor lock-in.
+* **Alternatives Considered:**
+  1. *Option A — Pure Handcrafted CV Only:* (Rejected: scaling manual mathematical modeling to 33-point body skeletons, complex foreshortening, and hands would exhaust engineering bandwidth).
+  2. *Option B — Complete ML Replacement:* (Rejected: imposes mandatory 15MB model downloads, eliminates zero-download instant rendering, loses ear pinna geometry, and breaks headless Node.js test suites).
+* **Architecture & Boundary Rules:**
+  1. *Common Intermediate Representation:* The procedural engine receives exclusively `SubjectModel` and canonical shared types. It never accesses backend-specific APIs or models.
+  2. *Deterministic Provider:* `DeterministicVisionProvider` wraps existing segmentation, face region, eyes, eyebrows, nose, mouth, jawline, ears, and hair detectors. It operates with 0 dependencies, 100% offline, in any JavaScript/TypeScript runtime.
+  3. *ML Provider Boundary:* `MediaPipeVisionProvider` is designed with a pluggable `MediaPipeRuntimeDelegate` interface. It remains stubbed/experimental without adding production dependencies until explicitly activated in downstream client tasks.
+  4. *VisionCoordinator & Fallback Guarantee:* The coordinator exposes execution modes (`deterministic`, `ml`, `auto`, `hybrid`). In `auto` mode, it uses ML when available and automatically falls back to deterministic analysis with zero thrown errors if ML is uninitialized, missing, or unsupported.
+  5. *Evidence-Aware Hybrid Reconciliation:* In `hybrid` mode, dense facial landmarks from ML are merged with deterministic ear pinna contours and edge-guided hair boundaries, preserving the unique geometric fidelity of both worlds.
+  6. *Platform Portability (Web vs. Mobile):* Core structural packages (`@sketch-maker/structural-analysis`) contain zero DOM (`document`/`window`) or native platform dependencies. Future web delegates load WebAssembly/WebGPU modules in `apps/web`; future React Native delegates load native mobile modules in `apps/mobile`; both produce identical canonical `SubjectModel` payloads.
+* **Consequences:** Clean architectural boundary protects downstream stroke generation from perception volatility; tests pass reliably in headless Node CI; zero bundle increase for production web builds until ML packages are selectively introduced in future tasks.
+
+
 
 

@@ -17,3 +17,4 @@ export * from './mouth';
 export * from './jawline';
 export * from './ears';
 export * from './hair';
+export * from './providers';

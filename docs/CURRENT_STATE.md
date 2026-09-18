@@ -4,9 +4,9 @@
 
 * **Current Date / Time:** 2026-09-18
 * **Current Phase:** Phase 1 — Feasibility Prototype (Headless Photo → Strokes Pipeline)
-* **Current Version:** v0.3.10-alpha (TASK-103.5 Pretrained Vision Backend Evaluation Complete)
+* **Current Version:** v0.3.11-alpha (TASK-103.6 Vision Provider Architecture Complete)
 * **Current Milestone:** M1 — Feasibility Prototype (Headless Pipeline)
-* **Status:** IN_PROGRESS (TASK-103.5 Pretrained Vision Backend Evaluation Complete)
+* **Status:** IN_PROGRESS (TASK-103.6 Vision Provider Architecture Complete)
 
 ---
 
@@ -21,9 +21,11 @@ Phase 1 pipeline is advancing through structural analysis:
 7. **TASK-103 Step 2D (Mouth & Lips Landmark Detection):** Implemented `detectMouth` (`packages/structural-analysis/src/mouth.ts`) using horizontal dynamic programming for oral fissure (stomion seam) extraction with bilateral valley contrast, subnasal/ocular anchoring, vermilion border tracing for upper/lower lips, and oral commissure (corner) detection. Mustache/beard step edges are rejected via bilateral valley contrast. Glasses frame and shadow false positives are eliminated. Profile hidden corners are strictly suppressed without hallucination. Average extraction latency: **6.72 ms** (cumulative facial landmark latency ≈29ms, peak heap ≈24.5MB). Visual inspection report: `tests/artifacts/mouth-report.html`.
 8. **TASK-103 Step 2E.1 (Jawline & Outer Facial Contour Detection):** Implemented `detectJawline` (`packages/structural-analysis/src/jawline.ts`) deriving outer facial geometry from subject silhouette (`SubjectMask`) and face region geometry with local Sobel gradient edge alignment. In frontal/three-quarter poses, tracks mandibular convergence toward the chin apex and detects shoulder/neck expansion to terminate before clothing collars (`BM-09`, `BM-10`). In profile poses (`BM-02`), preserves visible anterior facial contour (glabella $\to$ nose $\to$ lips $\to$ chin $\to$ submental line) and strictly suppresses occluded hidden-side jaw geometry. In heavy beards (`BM-04`), signals `uncertain` without hallucinating phantom bone lines. Average extraction latency: **1.16 ms**. Visual inspection report: `tests/artifacts/jawline-report.html`.
 9. **TASK-103 Step 2E.2 (Ear Landmark & Contour Detection):** Implemented `detectEars` (`packages/structural-analysis/src/ears.ts`) detecting visible anatomical ear structure (helix rim, conchal hollow contrast) and pose-conditioned visibility. For frontal and three-quarter faces, evaluates left and right ears independently; strictly rejects hair curls, glasses temples, and straight silhouette edges via sustained protrusion, curvature analysis, and hair luminance profiling. In side profiles (`BM-02`), detects the visible posterior pinna and strictly suppresses the hidden far-side ear without fabricating mirrored geometry. Average extraction latency: **2.85 ms** (cumulative facial analysis latency ≈33ms, peak heap ≈24.5MB). Visual inspection report: `tests/artifacts/ear-report.html`.
-10. **TASK-103.5 (Pretrained Vision Backend Evaluation):** Conducted empirical and architectural assessment of pretrained vision models (MediaPipe Tasks Vision vs. ONNX Runtime Web vs. deterministic baseline). Evaluated Face Landmarker (478-pt 3D mesh), Pose Landmarker (33-pt BlazePose skeleton), and Multiclass Image Segmenter across cold-start overhead, inference latency, memory, licensing, offline PWA viability, and structural usefulness. Generated comprehensive decision report in `docs/VISION_BACKEND_EVALUATION.md`, prototype IR adapter in `tests/vision-backends/adapter-prototype.ts`, and interactive visual evaluation report in `tests/artifacts/vision-backend-evaluation.html`. Recommended Architecture: **Option C (Hybrid Architecture)**.
-11. **Automated Verification:** All automated checks pass cleanly, all 8 monorepo workspaces typecheck with 0 errors, and client production build succeeds in 1.08s.
-12. **Stop Condition:** TASK-103.5 evaluation is complete. Awaiting user direction on the recommended architecture before implementing ML or continuing with subsequent tasks.
+10. **TASK-103 Step 2F (Hair Structure Detection):** Implemented `detectHair` (`packages/structural-analysis/src/hair.ts`) extracting outer hair silhouette and hairline boundary. Average extraction latency: **4.1ms**.
+11. **TASK-103.5 (Pretrained Vision Backend Evaluation):** Evaluated MediaPipe Tasks Vision vs. ONNX Runtime Web vs. deterministic baseline. Decision report in `docs/VISION_BACKEND_EVALUATION.md`. Recommended Architecture: **Option C (Hybrid Architecture)**.
+12. **TASK-103.6 (Vision Provider Architecture):** Designed and implemented the decoupled provider abstraction (`VisionProvider`, `VisionCoordinator`, `DeterministicVisionProvider`, `MediaPipeVisionProvider`, `VisionResult`). Guarantees zero-download offline fallback, preserves Universal `SubjectModel` as the common IR, and establishes evidence-aware hybrid merge rules. 14/14 automated unit tests pass.
+13. **Automated Verification:** All test suites pass (14/14 provider tests, 100+ total monorepo tests), all 8 monorepo workspaces typecheck cleanly with 0 errors, and client production build succeeds in 1.10s.
+14. **Stop Condition:** TASK-103.6 complete. Awaiting user direction before next task.
 
 ---
 
@@ -44,12 +46,15 @@ Phase 1 pipeline is advancing through structural analysis:
 * [x] **TASK-103 Step 2D:** Mouth & lip landmark detection (`packages/structural-analysis/mouth.ts`, 16/16 unit tests, 6.72ms average latency, verified visual audit on all 12 benchmarks).
 * [x] **TASK-103 Step 2E.1:** Jawline & outer facial contour detection (`packages/structural-analysis/jawline.ts`, 16/16 unit tests, 1.16ms average latency, verified visual audit on all 12 benchmarks).
 * [x] **TASK-103 Step 2E.2:** Ear landmark & contour detection (`packages/structural-analysis/ears.ts`, 16/16 unit tests, 2.85ms average latency, verified visual audit on all 12 benchmarks).
+* [x] **TASK-103 Step 2F:** Hair structure detection (`packages/structural-analysis/hair.ts`, 16/16 unit tests, 4.1ms average latency).
+* [x] **TASK-103.5:** Pretrained vision backend evaluation (`docs/VISION_BACKEND_EVALUATION.md`, visual evaluation report).
+* [x] **TASK-103.6:** Vision provider architecture (`packages/structural-analysis/src/providers/*`, 14/14 unit tests, `ADR-010`).
 * [x] **Web App Foundation Verification:** `apps/web` builds cleanly with Vite, typechecks with 0 errors, and renders verified in browser.
 
 ---
 
 ## 3. Currently Being Worked On
-* **TASK-103 (In Progress - Step 2E.2 Complete):** Ear landmark and contour detection complete and visually audited. Stopped as instructed; awaiting user direction before subsequent steps.
+* **TASK-103.6 (Complete):** Vision provider architecture established and verified. Stopped as instructed; awaiting next user instruction.
 
 
 ---

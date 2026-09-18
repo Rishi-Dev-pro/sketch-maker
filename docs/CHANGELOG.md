@@ -160,6 +160,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Produced comprehensive evaluation document in `docs/VISION_BACKEND_EVALUATION.md`.
   * Recommended **Option C (Hybrid Architecture)**: Retain the deterministic engine as the zero-download, offline core; introduce an optional client-side ML enhancement layer in `apps/web` for dense 3D facial mesh and full-body skeletal pose.
 
+* **Vision Provider Architecture & Decoupled Perception (`TASK-103.6`):**
+  * Introduced a formal, decoupled vision provider abstraction (`VisionProvider`, `VisionCoordinator`, `DeterministicVisionProvider`, `MediaPipeVisionProvider`, `VisionResult`) in `packages/structural-analysis/src/providers/`.
+  * Preserved the Universal Intermediate Representation (`SubjectModel`) as the strict, single contract between perception and downstream procedural art engines (`ADR-010`), ensuring the procedural engine never depends directly on vision algorithms or neural network packages.
+  * Implemented `DeterministicVisionProvider` orchestrating pure-TypeScript segmentation, face region estimation, eyes, eyebrows, nose, mouth, jawline, ears, and hair detectors into canonical `SubjectModel` representations with 100% offline execution and 0 external dependencies.
+  * Implemented `MediaPipeVisionProvider` architectural stub with honest availability probing, `MediaPipeUnavailableError`, and pluggable `MediaPipeRuntimeDelegate` interface, without adding `@mediapipe/tasks-vision` or model binaries to production bundles.
+  * Implemented `VisionCoordinator` managing execution modes (`'deterministic'`, `'ml'`, `'auto'`, `'hybrid'`). In `'auto'` mode, automatically executes deterministic fallback when ML is unavailable without throwing errors. In `'hybrid'` mode, reconciles dense ML facial landmarks with deterministic ear pinna geometry and silhouette-anchored hair contours.
+  * Added 14 automated unit tests in `tests/structural-analysis/vision-provider.test.ts` (14/14 passing) verifying provider contract satisfaction, canonical `SubjectModel` mapping, normalized [0, 1] coordinates, bounded [0, 1] confidence scores, visibility semantics preservation, multi-person group representation, metadata & execution audit trail preservation, zero-ML deterministic operation, honest headless ML unavailability probing, deterministic provider selection, auto mode fallback, hybrid reconciliation with ear pinna preservation, mock ML delegate execution, and zero DOM/window API pollution in core packages.
+  * Added `test:provider` npm script to root `package.json` and integrated it into the root `npm test` gate.
+
 ### Fixed
 * **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**
   * Fixed `BM-02` true side profile misclassification: shoulder/chest geometry was pulling the search envelope downwards (row 687) and leftwards (x=268), artificially diluting profile asymmetry. Head coordinate isolation correctly restores `left_profile` classification ($A_{silh} = 0.34$, $offset = -0.32$, confidence 0.62).
