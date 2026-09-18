@@ -150,6 +150,47 @@ export interface BodyFeatures {
 }
 
 /**
+ * Canonical semantic segmentation classes.
+ * Mapped from model-specific categories (e.g. MediaPipe Selfie Multiclass).
+ */
+export type SemanticCategory =
+  | 'background'
+  | 'hair'
+  | 'body_skin'
+  | 'face_skin'
+  | 'clothing'
+  | 'accessories'
+  | 'unknown';
+
+/**
+ * Dense binary and soft confidence mask for a discrete semantic category.
+ */
+export interface SemanticMask {
+  readonly category: SemanticCategory;
+  readonly confidence: number;
+  readonly width: number;
+  readonly height: number;
+  /** Binary mask where 255 = present in this category, 0 = absent */
+  readonly data: Uint8Array;
+  /** Soft continuous probability map [0.0 - 1.0] for boundary anti-aliasing */
+  readonly confidenceMap?: Float32Array;
+  /** Bounding box of this semantic region in normalized [0.0 - 1.0] space */
+  readonly boundingBox?: BoundingBox;
+  /** Pixel area of this semantic class */
+  readonly pixelArea: number;
+}
+
+/**
+ * Complete semantic segmentation result containing multi-class category masks.
+ */
+export interface SemanticSegmentation {
+  readonly categories: SemanticCategory[];
+  readonly masks: SemanticMask[];
+  readonly confidence: number;
+  readonly provider: 'deterministic' | 'mediapipe' | 'hybrid';
+}
+
+/**
  * Universal SubjectModel
  * The architectural bridge between image analysis and procedural rendering.
  * Pure data object, platform-independent, cacheable across styles.
@@ -166,6 +207,8 @@ export interface SubjectModel {
   readonly clothing?: ContourPath[];
   readonly accessories?: ContourPath[];
   readonly backgroundContours?: ContourPath[];
+  readonly semanticSegmentation?: SemanticSegmentation;
   readonly globalConfidence: number;
   readonly timestamp: number;
 }
+

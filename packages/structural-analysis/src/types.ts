@@ -1,4 +1,4 @@
-import { BoundingBox, Dimensions, HeadPose, Point2D, SubjectModel } from '@sketch-maker/shared-types';
+import { BoundingBox, Dimensions, HeadPose, Point2D, SubjectModel, SemanticSegmentation } from '@sketch-maker/shared-types';
 
 /**
  * A detected structural subject instance (e.g. primary person, second person in multi-person shots).
@@ -59,6 +59,8 @@ export interface SegmentationResult {
   /** Source and processing dimensions */
   readonly originalDimensions: Dimensions;
   readonly processingDimensions: Dimensions;
+  /** Optional multi-class semantic segmentation masks (e.g. from MediaPipe Selfie Multiclass) */
+  readonly semanticSegmentation?: SemanticSegmentation;
   /** Performance and diagnostic metrics */
   readonly metrics: {
     readonly latencyMs: number;

@@ -29,6 +29,8 @@ interface BenchmarkRunResult {
   poseJointCount: number;
   pose: string;
   earCount: number;
+  segmentationDetected: boolean;
+  segmentationCategories: number;
   fallback: boolean;
 }
 
@@ -36,7 +38,7 @@ export const App: React.FC = () => {
   const [benchmarks, setBenchmarks] = useState<BenchmarkItem[]>([]);
   const [selectedBenchmarkId, setSelectedBenchmarkId] = useState<string>('bm-01');
   const [mode, setMode] = useState<VisionExecutionMode>('hybrid');
-  const [perceptionScope, setPerceptionScope] = useState<'all' | 'face_only' | 'pose_only'>('all');
+  const [perceptionScope, setPerceptionScope] = useState<'all' | 'face_only' | 'pose_only' | 'segment_only'>('all');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [currentResult, setCurrentResult] = useState<VisionResult | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>('Ready for analysis');
@@ -49,6 +51,10 @@ export const App: React.FC = () => {
   const [showFacialContours, setShowFacialContours] = useState<boolean>(true);
   const [showPoseSkeleton, setShowPoseSkeleton] = useState<boolean>(true);
   const [showPoseLandmarks, setShowPoseLandmarks] = useState<boolean>(true);
+  const [showSemanticMasks, setShowSemanticMasks] = useState<boolean>(true);
+  const [showSemanticHair, setShowSemanticHair] = useState<boolean>(true);
+  const [showSemanticSkin, setShowSemanticSkin] = useState<boolean>(true);
+  const [showSemanticClothing, setShowSemanticClothing] = useState<boolean>(true);
 
   // Batch benchmark results
   const [batchResults, setBatchResults] = useState<BenchmarkRunResult[]>([]);
@@ -122,6 +128,53 @@ export const App: React.FC = () => {
     // Dim background slightly to enhance vector visibility
     ctx.fillStyle = 'rgba(10, 11, 16, 0.35)';
     ctx.fillRect(0, 0, W, H);
+
+    // 0. Draw Semantic Segmentation Masks (Alpha Blend Overlay)
+    if (showSemanticMasks && subject.semanticSegmentation?.masks) {
+      const masks = subject.semanticSegmentation.masks;
+      const maskCanvas = document.createElement('canvas');
+      maskCanvas.width = W;
+      maskCanvas.height = H;
+      const mCtx = maskCanvas.getContext('2d');
+
+      if (mCtx) {
+        const mImgData = mCtx.createImageData(W, H);
+        const mPixels = mImgData.data;
+
+        for (const sMask of masks) {
+          if (sMask.category === 'background') continue;
+          if (sMask.category === 'hair' && !showSemanticHair) continue;
+          if ((sMask.category === 'face_skin' || sMask.category === 'body_skin') && !showSemanticSkin) continue;
+          if (sMask.category === 'clothing' && !showSemanticClothing) continue;
+
+          let r = 255, g = 255, b = 255, a = 110;
+          if (sMask.category === 'hair') { r = 168; g = 85; b = 247; a = 115; }
+          else if (sMask.category === 'face_skin') { r = 251; g = 146; b = 60; a = 95; }
+          else if (sMask.category === 'body_skin') { r = 245; g = 158; b = 11; a = 95; }
+          else if (sMask.category === 'clothing') { r = 6; g = 182; b = 212; a = 105; }
+          else if (sMask.category === 'accessories') { r = 16; g = 185; b = 129; a = 110; }
+
+          const maskData = sMask.data;
+          const maskW = sMask.width;
+          const maskH = sMask.height;
+
+          if (maskW === W && maskH === H) {
+            for (let i = 0; i < maskData.length; i++) {
+              if (maskData[i] > 0) {
+                const pIdx = i * 4;
+                mPixels[pIdx] = r;
+                mPixels[pIdx + 1] = g;
+                mPixels[pIdx + 2] = b;
+                mPixels[pIdx + 3] = a;
+              }
+            }
+          }
+        }
+
+        mCtx.putImageData(mImgData, 0, 0);
+        ctx.drawImage(maskCanvas, 0, 0);
+      }
+    }
 
     // 1. Draw Hair & Silhouette Contours
     if (showHair && subject.hair) {
@@ -302,7 +355,19 @@ export const App: React.FC = () => {
         }
       }
     }
-  }, [currentResult, showFaceMesh, showEarPinna, showHair, showFacialContours, showPoseSkeleton, showPoseLandmarks]);
+  }, [
+    currentResult,
+    showFaceMesh,
+    showEarPinna,
+    showHair,
+    showFacialContours,
+    showPoseSkeleton,
+    showPoseLandmarks,
+    showSemanticMasks,
+    showSemanticHair,
+    showSemanticSkin,
+    showSemanticClothing,
+  ]);
 
   // Execute perception analysis on the active image
   const analyzeActiveImage = async () => {
@@ -339,10 +404,27 @@ export const App: React.FC = () => {
         sourceDimensions: { width: W, height: H },
         options: {
           mode,
-          includeFacialLandmarks: perceptionScope !== 'pose_only',
-          includeBodyPose: perceptionScope !== 'face_only',
+          includeFacialLandmarks: perceptionScope !== 'pose_only' && perceptionScope !== 'segment_only',
+          includeBodyPose: perceptionScope !== 'face_only' && perceptionScope !== 'segment_only',
         },
       });
+
+      // If in ML or Hybrid mode and segmentation requested, run MediaPipe Image Segmenter
+      if (
+        (mode === 'hybrid' || mode === 'ml') &&
+        perceptionScope !== 'face_only' &&
+        perceptionScope !== 'pose_only' &&
+        delegateRef.current
+      ) {
+        const segOutput = await delegateRef.current.segmentImage({
+          image: normalized,
+          sourceDimensions: { width: W, height: H },
+        });
+
+        if (segOutput && res.primarySubject) {
+          (res.primarySubject as any).semanticSegmentation = segOutput.semanticSegmentation;
+        }
+      }
 
       setCurrentResult(res);
       setStatusMessage(
@@ -397,10 +479,23 @@ export const App: React.FC = () => {
           sourceDimensions: { width: W, height: H },
           options: {
             mode,
-            includeFacialLandmarks: perceptionScope !== 'pose_only',
-            includeBodyPose: perceptionScope !== 'face_only',
+            includeFacialLandmarks: perceptionScope !== 'pose_only' && perceptionScope !== 'segment_only',
+            includeBodyPose: perceptionScope !== 'face_only' && perceptionScope !== 'segment_only',
           },
         });
+
+        let segCategories = 0;
+        let segDetected = false;
+        if ((mode === 'hybrid' || mode === 'ml') && delegateRef.current) {
+          const segOutput = await delegateRef.current.segmentImage({
+            image: normalized,
+            sourceDimensions: { width: W, height: H },
+          });
+          if (segOutput) {
+            segDetected = true;
+            segCategories = segOutput.semanticSegmentation.categories.length;
+          }
+        }
 
         const subject = res.primarySubject;
         let earCount = 0;
@@ -421,6 +516,8 @@ export const App: React.FC = () => {
           poseJointCount,
           pose: subject?.face?.pose ?? (poseDetected ? 'body_detected' : 'unknown'),
           earCount,
+          segmentationDetected: segDetected,
+          segmentationCategories: segCategories,
           fallback: !!res.executionPlan?.fallbackOccurred,
         });
 
@@ -437,6 +534,8 @@ export const App: React.FC = () => {
           poseJointCount: 0,
           pose: 'error',
           earCount: 0,
+          segmentationDetected: false,
+          segmentationCategories: 0,
           fallback: true,
         });
         setBatchResults([...runs]);
@@ -454,7 +553,7 @@ export const App: React.FC = () => {
       <header>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div className="logo-badge">Photo-to-Procedural-Art</div>
-          <span className="phase-pill">TASK-103.7 MediaPipe Integration</span>
+          <span className="phase-pill">TASK-103.9 MediaPipe Integration</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.82rem' }}>
           <span style={{ color: 'var(--text-secondary)' }}>MediaPipe Runtime:</span>
@@ -540,7 +639,7 @@ export const App: React.FC = () => {
               Perception Targets
             </label>
             <div style={{ display: 'flex', gap: '0.3rem', background: 'var(--bg-primary)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-              {(['all', 'face_only', 'pose_only'] as const).map((s) => (
+              {(['all', 'face_only', 'pose_only', 'segment_only'] as const).map((s) => (
                 <button
                   key={s}
                   onClick={() => setPerceptionScope(s)}
@@ -556,7 +655,7 @@ export const App: React.FC = () => {
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  {s === 'all' ? 'Face + Pose' : s === 'face_only' ? 'Face Only' : 'Pose Only'}
+                  {s === 'all' ? 'All (Face+Pose+Seg)' : s === 'face_only' ? 'Face Only' : s === 'pose_only' ? 'Pose Only' : 'Segment Only'}
                 </button>
               ))}
             </div>
@@ -727,6 +826,44 @@ export const App: React.FC = () => {
                 />
                 <span style={{ color: '#38bdf8' }}>●</span> Pose Joints (33)
               </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={showSemanticMasks}
+                  onChange={(e) => setShowSemanticMasks(e.target.checked)}
+                />
+                <span style={{ color: '#ec4899' }}>■</span> Semantic Masks
+              </label>
+
+              {showSemanticMasks && (
+                <>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showSemanticHair}
+                      onChange={(e) => setShowSemanticHair(e.target.checked)}
+                    />
+                    <span style={{ color: '#a855f7' }}>■</span> Hair
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showSemanticSkin}
+                      onChange={(e) => setShowSemanticSkin(e.target.checked)}
+                    />
+                    <span style={{ color: '#fb923c' }}>■</span> Skin
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showSemanticClothing}
+                      onChange={(e) => setShowSemanticClothing(e.target.checked)}
+                    />
+                    <span style={{ color: '#06b6d4' }}>■</span> Clothes
+                  </label>
+                </>
+              )}
             </div>
 
             {/* Viewport Canvas */}
@@ -881,6 +1018,29 @@ export const App: React.FC = () => {
                   padding: '1rem',
                 }}
               >
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Semantic Segmentation</div>
+                <div
+                  style={{
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    color: currentResult?.primarySubject?.semanticSegmentation ? '#ec4899' : 'var(--text-muted)',
+                    marginTop: '0.3rem',
+                  }}
+                >
+                  {currentResult?.primarySubject?.semanticSegmentation
+                    ? `✓ ${currentResult.primarySubject.semanticSegmentation.categories.length} Classes`
+                    : 'None'}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem',
+                }}
+              >
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Subject Count</div>
                 <div
                   style={{
@@ -894,6 +1054,68 @@ export const App: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Semantic Segmentation Audit Card */}
+            {currentResult?.primarySubject?.semanticSegmentation && (
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                <h3 style={{ fontSize: '0.95rem', marginBottom: '0.75rem', fontWeight: 600, color: '#ec4899' }}>
+                  ✓ Semantic Segmentation (Selfie Multiclass)
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Categories: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>
+                      {currentResult.primarySubject.semanticSegmentation.categories.join(', ')}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Confidence: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#10b981' }}>
+                      {(currentResult.primarySubject.semanticSegmentation.confidence * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Mask Count: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>
+                      {currentResult.primarySubject.semanticSegmentation.masks.length} discrete masks
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Provider: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+                      {currentResult.primarySubject.semanticSegmentation.provider}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {currentResult.primarySubject.semanticSegmentation.masks.map((m) => (
+                    <span
+                      key={m.category}
+                      style={{
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.72rem',
+                        fontFamily: 'var(--font-mono)',
+                        background: 'rgba(236, 72, 153, 0.15)',
+                        border: '1px solid rgba(236, 72, 153, 0.3)',
+                        color: '#f472b6',
+                      }}
+                    >
+                      {m.category}: {m.pixelArea}px ({(m.confidence * 100).toFixed(0)}%)
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Detailed Structural Audit Card */}
             {currentResult?.primarySubject?.face && (
@@ -1041,6 +1263,7 @@ export const App: React.FC = () => {
                     <th style={{ padding: '0.6rem' }}>Latency (ms)</th>
                     <th style={{ padding: '0.6rem' }}>Face Pose</th>
                     <th style={{ padding: '0.6rem' }}>Body Pose</th>
+                    <th style={{ padding: '0.6rem' }}>Semantic Seg</th>
                     <th style={{ padding: '0.6rem' }}>Ears Preserved</th>
                     <th style={{ padding: '0.6rem' }}>Status</th>
                   </tr>
@@ -1060,12 +1283,15 @@ export const App: React.FC = () => {
                       <td style={{ padding: '0.6rem', color: r.poseDetected ? '#10b981' : 'var(--text-muted)' }}>
                         {r.poseDetected ? `✓ ${r.poseJointCount} joints` : '--'}
                       </td>
+                      <td style={{ padding: '0.6rem', color: r.segmentationDetected ? '#ec4899' : 'var(--text-muted)' }}>
+                        {r.segmentationDetected ? `✓ ${r.segmentationCategories} classes` : '--'}
+                      </td>
                       <td style={{ padding: '0.6rem', color: r.earCount > 0 ? '#fbbf24' : 'var(--text-muted)' }}>
                         {r.earCount} ear(s)
                       </td>
                       <td style={{ padding: '0.6rem' }}>
                         <span style={{ color: r.faceDetected ? '#10b981' : r.poseDetected ? '#38bdf8' : '#f59e0b' }}>
-                          {r.faceDetected ? '✓ Face' : ''} {r.poseDetected ? '✓ Pose' : ''} {!r.faceDetected && !r.poseDetected ? 'None' : ''}
+                          {r.faceDetected ? '✓ Face' : ''} {r.poseDetected ? '✓ Pose' : ''} {r.segmentationDetected ? '✓ Seg' : ''} {!r.faceDetected && !r.poseDetected && !r.segmentationDetected ? 'None' : ''}
                         </span>
                       </td>
                     </tr>

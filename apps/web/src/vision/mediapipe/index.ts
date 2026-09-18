@@ -14,6 +14,8 @@ export * from './model-config';
 export * from './landmark-mapper';
 export * from './pose-mapper';
 export * from './face-pose-associator';
+export * from './segmenter-mapper';
+export * from './segmentation-reconciler';
 export * from './mediapipe-delegate';
 
 /**

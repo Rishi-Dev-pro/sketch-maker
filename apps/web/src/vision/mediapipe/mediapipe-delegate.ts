@@ -23,6 +23,13 @@ import {
 import {
   associateFacesAndPoses,
 } from './face-pose-associator';
+import {
+  mapMediaPipeSegmenterResult,
+  MappedSegmentationOutput,
+} from './segmenter-mapper';
+import {
+  reconcileHybridSegmentation,
+} from './segmentation-reconciler';
 
 export type DelegateLifecycleState = 'uninitialized' | 'loading' | 'ready' | 'error';
 
@@ -30,9 +37,11 @@ export interface DelegateMetrics {
   coldStartDurationMs: number;
   faceColdStartDurationMs: number;
   poseColdStartDurationMs: number;
+  segmenterColdStartDurationMs: number;
   lastWarmInferenceDurationMs: number;
   lastFaceInferenceDurationMs: number;
   lastPoseInferenceDurationMs: number;
+  lastSegmenterInferenceDurationMs: number;
   totalInferences: number;
   errorCount: number;
   lastError?: string;
@@ -45,20 +54,24 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
   // Model instances
   private faceLandmarkerInstance: any = null;
   private poseLandmarkerInstance: any = null;
+  private segmenterInstance: any = null;
 
   // Shared WASM fileset
   private wasmFileset: any = null;
   private filesetPromise: Promise<any> | null = null;
   private faceInitPromise: Promise<void> | null = null;
   private poseInitPromise: Promise<void> | null = null;
+  private segmenterInitPromise: Promise<void> | null = null;
 
   private metrics: DelegateMetrics = {
     coldStartDurationMs: 0,
     faceColdStartDurationMs: 0,
     poseColdStartDurationMs: 0,
+    segmenterColdStartDurationMs: 0,
     lastWarmInferenceDurationMs: 0,
     lastFaceInferenceDurationMs: 0,
     lastPoseInferenceDurationMs: 0,
+    lastSegmenterInferenceDurationMs: 0,
     totalInferences: 0,
     errorCount: 0,
   };
@@ -87,10 +100,16 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
   /**
    * Determines whether the MediaPipe runtime is loaded and ready.
    */
-  isReady(feature?: 'face' | 'pose'): boolean {
+  isReady(feature?: 'face' | 'pose' | 'segmenter'): boolean {
     if (feature === 'face') return this.faceLandmarkerInstance !== null;
     if (feature === 'pose') return this.poseLandmarkerInstance !== null;
-    return this.state === 'ready' && (this.faceLandmarkerInstance !== null || this.poseLandmarkerInstance !== null);
+    if (feature === 'segmenter') return this.segmenterInstance !== null;
+    return (
+      this.state === 'ready' &&
+      (this.faceLandmarkerInstance !== null ||
+        this.poseLandmarkerInstance !== null ||
+        this.segmenterInstance !== null)
+    );
   }
 
   /**
@@ -197,10 +216,75 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
   }
 
   /**
-   * Initializes both models (or whatever is requested).
+   * Lazily loads and initializes ImageSegmenter (Selfie Multiclass 256x256).
+   */
+  async initializeSegmenter(): Promise<void> {
+    if (this.segmenterInstance) return;
+    if (this.segmenterInitPromise) return this.segmenterInitPromise;
+
+    this.state = 'loading';
+    const t0 = performance.now();
+
+    this.segmenterInitPromise = (async () => {
+      try {
+        const fileset = await this.getFileset();
+        const { ImageSegmenter } = await import('@mediapipe/tasks-vision');
+
+        this.segmenterInstance = await ImageSegmenter.createFromOptions(fileset, {
+          baseOptions: {
+            modelAssetPath: this.config.segmenterModelAssetPath,
+            delegate: this.config.delegate,
+          },
+          runningMode: 'IMAGE',
+          outputCategoryMask: true,
+          outputConfidenceMasks: true,
+        });
+
+        this.state = 'ready';
+        this.metrics.segmenterColdStartDurationMs = performance.now() - t0;
+        this.metrics.coldStartDurationMs += this.metrics.segmenterColdStartDurationMs;
+      } catch (err: any) {
+        this.state = 'error';
+        this.metrics.errorCount++;
+        this.metrics.lastError = err?.message ?? 'Failed to initialize ImageSegmenter';
+        this.segmenterInitPromise = null;
+        throw new Error(`MediaPipe Segmenter initialization failed: ${this.metrics.lastError}`);
+      }
+    })();
+
+    return this.segmenterInitPromise;
+  }
+
+  /**
+   * Initializes all models.
    */
   async initialize(): Promise<void> {
-    await Promise.all([this.initializeFace(), this.initializePose()]);
+    await Promise.all([this.initializeFace(), this.initializePose(), this.initializeSegmenter()]);
+  }
+
+  /**
+   * Performs semantic segmentation using MediaPipe ImageSegmenter.
+   */
+  async segmentImage(input: VisionInput): Promise<MappedSegmentationOutput | null> {
+    if (!this.segmenterInstance) {
+      await this.initializeSegmenter();
+    }
+
+    const { image } = input;
+    const width = image.processingDimensions.width;
+    const height = image.processingDimensions.height;
+    const imageSource = this.createImageSource(image.rgba.data, width, height);
+
+    const ts0 = performance.now();
+    try {
+      const rawResult = this.segmenterInstance.segment(imageSource);
+      this.metrics.lastSegmenterInferenceDurationMs = performance.now() - ts0;
+      return mapMediaPipeSegmenterResult(rawResult, width, height, this.config.minSegmentationConfidence);
+    } catch (err: any) {
+      this.metrics.errorCount++;
+      this.metrics.lastError = err?.message ?? 'Image segmentation exception';
+      return null;
+    }
   }
 
   /**
@@ -208,15 +292,21 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
    */
   async process(input: VisionInput): Promise<{
     subjects: SubjectModel[];
+    segmentation?: MappedSegmentationOutput | null;
     latencyMs: number;
   }> {
     const needFace = input.options?.includeFacialLandmarks !== false;
     const needPose = input.options?.includeBodyPose !== false;
+    const needSegmenter = Boolean(
+      (input.options as any)?.includeSegmentation ||
+      input.options?.segmentationOptions
+    );
 
     // Lazily load only the requested models
     const initTasks: Promise<void>[] = [];
     if (needFace && !this.faceLandmarkerInstance) initTasks.push(this.initializeFace());
     if (needPose && !this.poseLandmarkerInstance) initTasks.push(this.initializePose());
+    if (needSegmenter && !this.segmenterInstance) initTasks.push(this.initializeSegmenter());
     if (initTasks.length > 0) {
       await Promise.all(initTasks);
     }
@@ -234,6 +324,7 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
 
     let rawFaces: MediaPipeLandmark3D[][] = [];
     let rawPoses: RawPoseLandmark[][] = [];
+    let segmentationOutput: MappedSegmentationOutput | null = null;
 
     // 1. Detect Face Landmarks if requested
     if (needFace && this.faceLandmarkerInstance) {
@@ -261,16 +352,38 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
       }
     }
 
+    // 3. Segment image if requested
+    if (needSegmenter && this.segmenterInstance) {
+      const ts0 = performance.now();
+      try {
+        const segRes = this.segmenterInstance.segment(imageSource);
+        this.metrics.lastSegmenterInferenceDurationMs = performance.now() - ts0;
+        segmentationOutput = mapMediaPipeSegmenterResult(segRes, width, height, this.config.minSegmentationConfidence);
+      } catch (err: any) {
+        this.metrics.errorCount++;
+        this.metrics.lastError = err?.message ?? 'Segmenter detection exception';
+      }
+    }
+
     const latencyMs = performance.now() - t0;
     this.metrics.lastWarmInferenceDurationMs = latencyMs;
     this.metrics.totalInferences++;
 
-    // 3. Map faces and associate with poses
+    // 4. Map faces and associate with poses
     const faceSubjects = mapMediaPipeFacesToSubjectModels(rawFaces, dims, 0.92);
-    const unifiedSubjects = associateFacesAndPoses(faceSubjects, rawPoses, dims);
+    let unifiedSubjects = associateFacesAndPoses(faceSubjects, rawPoses, dims);
+
+    // Attach semantic segmentation if computed
+    if (segmentationOutput && unifiedSubjects.length > 0) {
+      unifiedSubjects = unifiedSubjects.map((sub, idx) => ({
+        ...sub,
+        semanticSegmentation: idx === 0 ? segmentationOutput!.semanticSegmentation : undefined,
+      }));
+    }
 
     return {
       subjects: unifiedSubjects,
+      segmentation: segmentationOutput,
       latencyMs,
     };
   }
@@ -334,13 +447,23 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
         // Ignore disposal error
       }
     }
+    if (this.segmenterInstance && typeof this.segmenterInstance.close === 'function') {
+      try {
+        this.segmenterInstance.close();
+      } catch {
+        // Ignore disposal error
+      }
+    }
     this.faceLandmarkerInstance = null;
     this.poseLandmarkerInstance = null;
+    this.segmenterInstance = null;
     this.offscreenCanvas = null;
     this.faceInitPromise = null;
     this.poseInitPromise = null;
+    this.segmenterInitPromise = null;
     this.filesetPromise = null;
     this.wasmFileset = null;
     this.state = 'uninitialized';
   }
 }
+

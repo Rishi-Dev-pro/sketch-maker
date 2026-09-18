@@ -202,6 +202,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Added 12 automated unit tests in `tests/structural-analysis/mediapipe-pose-mapper.test.ts` (12/12 passing) verifying coordinate clamping, canonical mapping, neck synthesis, connections, standing, sitting, visibility thresholds, contour paths, multi-person separation, face+pose association, and disposal.
   * Added `test:mediapipe:pose` script and integrated into root `npm test` gate (100% pass across 174+ monorepo tests).
   * Documented full architectural details, topology, bundle impact, benchmark results, and limitations in `docs/MEDIAPIPE_POSE_LANDMARKER.md`.
+* **MediaPipe Image Segmenter Integration (`TASK-103.9`):**
+  * Extended canonical data contracts in `packages/shared-types/src/subject.ts`: added `SemanticCategory` (`'background' | 'hair' | 'body-skin' | 'face-skin' | 'clothes' | 'others'`), `SemanticMask`, `SemanticSegmentation`, and extended `SubjectModel` with optional `semanticSegmentation?: SemanticSegmentation`. Exported via `packages/shared-types/src/index.ts`.
+  * Extended `SegmentationResult` in `packages/structural-analysis/src/types.ts` with optional `semanticSegmentation?: SemanticSegmentation`.
+  * Configured official MediaPipe Image Segmenter model asset path (`selfie_multiclass_256x256.tflite`, 16.37 MB) in `apps/web/src/vision/mediapipe/model-config.ts`.
+  * Generalized `MediaPipeWebDelegate` in `apps/web/src/vision/mediapipe/mediapipe-delegate.ts` to share the cached `FilesetResolver` promise across `FaceLandmarker`, `PoseLandmarker`, and `ImageSegmenter`, lazily instantiating `ImageSegmenter` on demand with zero startup penalty.
+  * Implemented canonical 6-class discrete mapper (`apps/web/src/vision/mediapipe/segmenter-mapper.ts`):
+    * Maps discrete model output indices (0: background, 1: hair, 2: body-skin, 3: face-skin, 4: clothes, 5: others) to canonical semantic categories.
+    * Resamples category masks strictly using nearest-neighbor interpolation to prevent illegal synthetic category index generation.
+    * Computes continuous confidence maps using bilinear interpolation to maintain smooth, anti-aliased probabilities $[0.0, 1.0]$.
+    * Normalizes category-specific bounding boxes and computes overall foreground `SubjectMask`.
+  * Implemented evidence-aware hybrid segmentation reconciler (`apps/web/src/vision/mediapipe/segmentation-reconciler.ts`):
+    * Reconciles ML semantic masks with TASK-102 deterministic masks.
+    * Retains high-confidence consensus foreground regions.
+    * Applies ML semantic override when deterministic contrast is low, eliminating background clutter (`BM-07`) and recovering deep chiaroscuro torso/face regions (`BM-06`).
+    * Preserves deterministic high-gradient Sobel edge barriers, protecting fine hairline wisps and clothing seam contours (`BM-05`).
+  * Updated `VisionCoordinator` (`packages/structural-analysis/src/providers/coordinator.ts`) to merge reconciled semantic segmentation into primary and hybrid subjects.
+  * Preserved bundle isolation in `apps/web/vite.config.ts`: isolated all vision ML code into `vision_bundle` (226.18 kB, gzip 68.01 kB), keeping initial page bundle lightweight at 177.93 kB (gzip 55.21 kB).
+  * Enhanced interactive web UI in `apps/web/src/App.tsx`: perception scope selector (`All`, `Face Only`, `Pose Only`, `Segment Only`), visualization toggles (`Semantic Masks`, `Hair`, `Skin`, `Clothes`), multi-color alpha-blended canvas overlay rendering, telemetry card for Semantic Segmentation, and added `Semantic Seg` column to 12-category batch benchmark table.
+  * Added 12 automated unit tests in `tests/structural-analysis/mediapipe-segmenter-mapper.test.ts` (12/12 passing) verifying category mapping, unknown handling, nearest-neighbor resampling, bilinear confidence interpolation, canonical mapping, bounding box normalization, hybrid agreement, ML override, gradient barrier preservation, multi-person semantic vs instance verification, delegate lifecycle, and disposal.
+  * Added `test:mediapipe:segmenter` script and integrated into root `npm test` gate (100% pass across 186+ monorepo tests).
+  * Documented full architectural details, model specifications, 6 classes, resolution resampling, hybrid reconciliation, multi-person limitation, benchmark results, and bundle impact in `docs/MEDIAPIPE_IMAGE_SEGMENTER.md`.
 
 ### Fixed
 * **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**

@@ -277,5 +277,14 @@ Pretrained neural networks (like MediaPipe FaceLandmarker) provide dense 468-poi
 * **Posture Robustness:** Accurately distinguishes standing (`BM-09`) and seated flexed postures (`BM-10`) without imposing rigid vertical priors.
 * **Face + Pose Spatial Association:** The `associateFacesAndPoses` engine matches detected facial meshes with corresponding body skeletons using head-anchor proximity, producing unified multi-person instances (`BM-11`) while preserving single-person cohesion.
 
+### 7.7 MediaPipe Image Segmenter Web Integration (TASK-103.9)
+
+* **Shared WASM Fileset & Lazy Model Loading:** `MediaPipeWebDelegate` extends the existing shared `FilesetResolver` to lazily instantiate `ImageSegmenter` using `selfie_multiclass_256x256.tflite` (16.37 MB) only when semantic segmentation is requested.
+* **6-Class Semantic Representation:** Discrete model outputs (`0: background`, `1: hair`, `2: body-skin`, `3: face-skin`, `4: clothes`, `5: others`) map cleanly to canonical `SemanticCategory` and `SemanticSegmentation` data contracts in `@sketch-maker/shared-types`.
+* **Nearest-Neighbor Category Resampling & Bilinear Confidence Interpolation:** Discrete category index masks are resampled strictly via nearest-neighbor to prevent invalid synthetic category indices, while continuous confidence maps use bilinear interpolation to generate smooth, anti-aliased probabilities $[0.0, 1.0]$.
+* **Evidence-Aware Mask Reconciliation:** Blends ML semantic classification with deterministic luminance/Sobel edge segmentation. The consensus core is retained, ML semantic classification overrides deterministic false positives in complex backgrounds (`BM-07`) and deep chiaroscuro shadows (`BM-06`), while high-gradient Sobel edge barriers from deterministic analysis are preserved to maintain sharp, hairline/contour boundaries (`BM-05`).
+* **Semantic vs. Instance Disambiguation:** MediaPipe multiclass is class-level semantic segmentation (no instance separation). The architecture preserves deterministic connected-component clustering (`instances: SubjectRegion[]`) for multi-subject isolation (`BM-11`).
+
+
 
 

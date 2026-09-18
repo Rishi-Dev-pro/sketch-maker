@@ -312,6 +312,8 @@ export class VisionCoordinator {
         body: mlSub.body ?? detSub.body,
         // Sourced from deterministic hair detector
         hair: detSub.hair ?? mlSub.hair,
+        // Sourced from ML semantic segmentation when available
+        semanticSegmentation: mlSub.semanticSegmentation ?? detSub.semanticSegmentation,
       };
     });
 

@@ -35,6 +35,10 @@ export interface MediaPipeModelConfig {
   readonly minPosePresenceConfidence: number;
   /** Minimum pose tracking confidence threshold [0.0 - 1.0] */
   readonly minPoseTrackingConfidence: number;
+  /** URL or relative path to selfie_multiclass_256x256.tflite model binary */
+  readonly segmenterModelAssetPath: string;
+  /** Minimum confidence threshold for semantic mask classification [0.0 - 1.0] */
+  readonly minSegmentationConfidence: number;
 }
 
 /**
@@ -46,6 +50,8 @@ export const DEFAULT_MEDIAPIPE_CONFIG: MediaPipeModelConfig = {
     'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
   poseModelAssetPath:
     'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+  segmenterModelAssetPath:
+    'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite',
   wasmRootPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm',
   delegate: 'GPU',
   maxFaces: 4,
@@ -58,4 +64,6 @@ export const DEFAULT_MEDIAPIPE_CONFIG: MediaPipeModelConfig = {
   minPoseDetectionConfidence: 0.5,
   minPosePresenceConfidence: 0.5,
   minPoseTrackingConfidence: 0.5,
+  minSegmentationConfidence: 0.5,
 };
+
