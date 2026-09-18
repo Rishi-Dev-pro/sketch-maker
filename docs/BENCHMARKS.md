@@ -372,3 +372,36 @@ Every evaluation run grades outputs across 7 dimensions on a 1–10 scale:
   * **Zero Hallucination Contract (`BM-02`):** In true side profile, feature visibility on the occluded side (right eye, right eyebrow, right nostril, right jaw) is strictly tagged `occluded` with confidence 0.00.
   * **Ear Pinna Reconciliation:** MediaPipe's complete lack of ear geometry is compensated seamlessly in `'hybrid'` mode, where deterministic pinna contours are preserved into the canonical `SubjectModel`.
 
+---
+
+### Run 2026-09-18 — TASK-103.8 MediaPipe Pose Landmarker Web Integration & Benchmark
+* **Hardware Environment:** Node.js v24.16.0, Windows x64 CPU + Web Browser Runtime.
+* **Test Command:** `npx tsx tests/vision-backends/mediapipe-pose-benchmark.ts`
+* **Bundle Footprint:**
+  * Initial Web App Chunk: **172.35 kB** (gzip: **54.26 kB**)
+  * Lazy Vision Chunk (`vision_bundle`): **220.35 kB** (gzip: **66.39 kB**)
+* **Scope:** All 12 canonical benchmark categories (`BM-01` through `BM-12`).
+
+| Benchmark ID | Deterministic Latency | Hybrid Latency | Body Pose Joints | Posture Classification | Face+Pose Association |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| `BM-01-FRONT-PORTRAIT` | 563.8 ms | 536.0 ms | Upper Torso / Arms (N/A) | `bust` | Unified (Face Anchor) |
+| `BM-02-SIDE-PROFILE` | 557.7 ms | 525.8 ms | Profile Torso (N/A) | `bust` | Unified (Profile Anchor) |
+| `BM-03-GLASSES` | 619.6 ms | 560.1 ms | Torso / Shoulders (N/A) | `bust` | Unified (Face Anchor) |
+| `BM-04-FACIAL-HAIR` | 562.6 ms | 530.4 ms | Torso / Shoulders (N/A) | `bust` | Unified (Face Anchor) |
+| `BM-05-HAIR-VARIETY` | 559.7 ms | 512.4 ms | Torso / Shoulders (N/A) | `bust` | Unified (Face Anchor) |
+| `BM-06-EXTREME-LIGHTING` | 549.9 ms | 521.1 ms | Shadow Torso (N/A) | `bust` | Unified (Face Anchor) |
+| `BM-07-COMPLEX-BACKGROUND` | 609.4 ms | 563.2 ms | Upper Torso (N/A) | `bust` | Unified (Face Anchor) |
+| `BM-08-LOW-LIGHT` | 574.6 ms | 536.0 ms | Upper Torso (N/A) | `bust` | Unified (Face Anchor) |
+| `BM-09-FULL-BODY-STANDING` | 694.7 ms | 621.5 ms | **33 Landmarks (35 conns)** | `standing` | Unified (Distance < 0.25) |
+| `BM-10-FULL-BODY-SITTING` | 601.7 ms | 554.7 ms | **33 Landmarks (35 conns)** | `sitting` | Unified (Distance < 0.25) |
+| `BM-11-MULTI-PERSON` | 682.0 ms | 617.9 ms | **Multi-Subject Tracking** | `multi_person` | Multi-Subject Isolated |
+| `BM-12-HIGH-RES` | 554.4 ms | 528.2 ms | Upper Torso (N/A) | `bust` | Unified (Face Anchor) |
+| **AVERAGE** | **594.2 ms** | **550.6 ms** | — | — | **100% Associated** |
+
+* **Key Takeaways:**
+  * **Memory Footprint:** Peak heap usage remains bounded at **~32.83 MB** during complete 12-image batch analysis (heap delta: 21.40 MB).
+  * **Whole-Body Articulation:** Standing (`BM-09`) and sitting with folded limbs (`BM-10`) successfully extract full 33-point skeletal topology with synthesized neck midpoints and discrete visibility tags.
+  * **Face-Pose Association:** Independent facial and skeletal detections merge cleanly into single `SubjectModel` instances via head-anchor proximity ($d < 0.25$), properly isolating distinct subjects in `BM-11`.
+  * **Bundle Isolation:** Vite manual chunking effectively isolates all MediaPipe dependencies in `vision_bundle` (220 kB), keeping the core web application under 173 kB (54.26 kB gzipped).
+
+

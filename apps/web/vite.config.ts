@@ -19,4 +19,15 @@ export default defineConfig({
     port: 3000,
     open: false,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('@mediapipe/tasks-vision') || id.includes('/src/vision/mediapipe/')) {
+            return 'vision_bundle';
+          }
+        },
+      },
+    },
+  },
 });

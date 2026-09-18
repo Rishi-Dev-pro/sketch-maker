@@ -289,7 +289,7 @@ export class VisionCoordinator {
     deterministicSubjects: SubjectModel[],
     mlSubjects: SubjectModel[]
   ): SubjectModel[] {
-    return deterministicSubjects.map((detSub, idx) => {
+    const reconciled: SubjectModel[] = deterministicSubjects.map((detSub, idx) => {
       const mlSub = mlSubjects[idx];
       if (!mlSub) return detSub;
 
@@ -314,5 +314,14 @@ export class VisionCoordinator {
         hair: detSub.hair ?? mlSub.hair,
       };
     });
+
+    // If ML detected additional subjects (e.g. multi-person BM-11), retain them
+    if (mlSubjects.length > deterministicSubjects.length) {
+      for (let i = deterministicSubjects.length; i < mlSubjects.length; i++) {
+        reconciled.push(mlSubjects[i]);
+      }
+    }
+
+    return reconciled;
   }
 }

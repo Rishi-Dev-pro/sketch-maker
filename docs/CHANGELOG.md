@@ -182,6 +182,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Added 7 automated unit tests in `tests/structural-analysis/mediapipe-landmark-mapper.test.ts` (7/7 passing) verifying coordinate bounds clamping, frontal feature mapping, ear absence, profile occlusion semantics (`BM-02`), multi-person face mapping (`BM-11`), delegate state machine, and disposal.
   * Added `test:mediapipe:mapper` script and integrated into root `npm test` gate (100% pass across 162+ monorepo tests).
   * Documented architectural details, bundle footprint, and benchmark measurements in `docs/MEDIAPIPE_FACE_LANDMARKER.md`.
+* **MediaPipe Pose Landmarker Integration (`TASK-103.8`):**
+  * Extended canonical data contracts in `packages/shared-types/src/subject.ts`: added `PoseLandmark`, `PoseConnection`, `BodyPose`, and extended `BodyFeatures` with optional `pose?: BodyPose`.
+  * Configured official MediaPipe Pose Landmarker Lite model asset path (`pose_landmarker_lite.task`, 5.77 MB) in `apps/web/src/vision/mediapipe/model-config.ts`.
+  * Generalized `MediaPipeWebDelegate` in `apps/web/src/vision/mediapipe/mediapipe-delegate.ts` to share a single cached `FilesetResolver` promise across both `FaceLandmarker` and `PoseLandmarker`, eliminating redundant WASM runtime loads.
+  * Implemented canonical 33-point BlazePose mapper (`apps/web/src/vision/mediapipe/pose-mapper.ts`):
+    * Clamps all normalized coordinates strictly to `[0.0, 1.0]`.
+    * Synthesizes anatomical neck midpoint from left/right shoulders.
+    * Generates standard skeletal connections with connection-level confidence based on endpoint visibility.
+    * Categorizes landmark visibility into discrete thresholds (`visible` $\ge 0.65$, `uncertain` $0.35 \le v < 0.65$, `occluded` $< 0.35$).
+    * Emits upper-body and lower-body contour paths for downstream vectorization.
+  * Implemented Face + Pose associator (`apps/web/src/vision/mediapipe/face-pose-associator.ts`) using Euclidean spatial proximity ($d < 0.25$) between pose nose/neck anchors and face bounding boxes:
+    * Unifies independently detected face and pose outputs into coherent `SubjectModel` instances.
+    * Reliably handles single individuals, standing (`BM-09`), sitting (`BM-10`), and multi-person isolation (`BM-11`).
+    * Gracefully handles isolated faces without poses and headless bodies without faces.
+  * Updated `VisionCoordinator` (`packages/structural-analysis/src/providers/coordinator.ts`) to retain additional ML-detected subjects in hybrid mode and reconcile body pose alongside face and ear pinna contours.
+  * Preserved bundle isolation in `apps/web/vite.config.ts`: isolated all vision ML code into `vision_bundle` (220.35 kB, gzip 66.39 kB), reducing initial page bundle to 172.35 kB (gzip 54.26 kB).
+  * Enhanced interactive web UI in `apps/web/src/App.tsx`: perception scope selector (`All`, `Face Only`, `Pose Only`), visualization toggles (`Pose Skeleton`, `Pose Joints`), glowing bone/joint canvas rendering, telemetry card for Body Pose, and Body Pose column in batch evaluation table.
+  * Added 12 automated unit tests in `tests/structural-analysis/mediapipe-pose-mapper.test.ts` (12/12 passing) verifying coordinate clamping, canonical mapping, neck synthesis, connections, standing, sitting, visibility thresholds, contour paths, multi-person separation, face+pose association, and disposal.
+  * Added `test:mediapipe:pose` script and integrated into root `npm test` gate (100% pass across 174+ monorepo tests).
+  * Documented full architectural details, topology, bundle impact, benchmark results, and limitations in `docs/MEDIAPIPE_POSE_LANDMARKER.md`.
 
 ### Fixed
 * **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**

@@ -12,6 +12,8 @@ import { MediaPipeModelConfig, DEFAULT_MEDIAPIPE_CONFIG } from './model-config';
 
 export * from './model-config';
 export * from './landmark-mapper';
+export * from './pose-mapper';
+export * from './face-pose-associator';
 export * from './mediapipe-delegate';
 
 /**

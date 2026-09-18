@@ -25,6 +25,8 @@ interface BenchmarkRunResult {
   providerId: string;
   durationMs: number;
   faceDetected: boolean;
+  poseDetected: boolean;
+  poseJointCount: number;
   pose: string;
   earCount: number;
   fallback: boolean;
@@ -34,6 +36,7 @@ export const App: React.FC = () => {
   const [benchmarks, setBenchmarks] = useState<BenchmarkItem[]>([]);
   const [selectedBenchmarkId, setSelectedBenchmarkId] = useState<string>('bm-01');
   const [mode, setMode] = useState<VisionExecutionMode>('hybrid');
+  const [perceptionScope, setPerceptionScope] = useState<'all' | 'face_only' | 'pose_only'>('all');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [currentResult, setCurrentResult] = useState<VisionResult | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>('Ready for analysis');
@@ -44,6 +47,8 @@ export const App: React.FC = () => {
   const [showEarPinna, setShowEarPinna] = useState<boolean>(true);
   const [showHair, setShowHair] = useState<boolean>(true);
   const [showFacialContours, setShowFacialContours] = useState<boolean>(true);
+  const [showPoseSkeleton, setShowPoseSkeleton] = useState<boolean>(true);
+  const [showPoseLandmarks, setShowPoseLandmarks] = useState<boolean>(true);
 
   // Batch benchmark results
   const [batchResults, setBatchResults] = useState<BenchmarkRunResult[]>([]);
@@ -255,7 +260,49 @@ export const App: React.FC = () => {
         }
       }
     }
-  }, [currentResult, showFaceMesh, showEarPinna, showHair, showFacialContours]);
+
+    // 4. Draw Body Pose Skeleton & Articulated Joints
+    if (subject.body?.pose) {
+      const pose = subject.body.pose;
+
+      // Draw Skeletal Bones
+      if (showPoseSkeleton && pose.connections) {
+        ctx.lineWidth = 3.5;
+        for (const conn of pose.connections) {
+          ctx.beginPath();
+          ctx.moveTo(conn.from.x * W, conn.from.y * H);
+          ctx.lineTo(conn.to.x * W, conn.to.y * H);
+
+          if (conn.name.includes('arm')) {
+            ctx.strokeStyle = '#38bdf8'; // Sky Blue for arms
+          } else if (conn.name.includes('leg') || conn.name.includes('thigh') || conn.name.includes('shin')) {
+            ctx.strokeStyle = '#fbbf24'; // Amber for legs
+          } else if (conn.name.includes('torso') || conn.name.includes('pelvis') || conn.name === 'shoulders') {
+            ctx.strokeStyle = '#a855f7'; // Purple for torso
+          } else {
+            ctx.strokeStyle = '#10b981'; // Emerald for spine/head
+          }
+          ctx.stroke();
+        }
+      }
+
+      // Draw Joint Keypoints
+      if (showPoseLandmarks && pose.landmarks) {
+        for (const lm of pose.landmarks) {
+          if (lm.visibility === 'occluded') continue;
+          ctx.beginPath();
+          const isMajor = lm.id.includes('shoulder') || lm.id.includes('hip') || lm.id === 'neck';
+          const radius = isMajor ? 6.0 : 4.0;
+          ctx.arc(lm.point.x * W, lm.point.y * H, radius, 0, Math.PI * 2);
+          ctx.fillStyle = lm.visibility === 'visible' ? '#ffffff' : '#f59e0b';
+          ctx.fill();
+          ctx.lineWidth = 2.0;
+          ctx.strokeStyle = '#00f0ff';
+          ctx.stroke();
+        }
+      }
+    }
+  }, [currentResult, showFaceMesh, showEarPinna, showHair, showFacialContours, showPoseSkeleton, showPoseLandmarks]);
 
   // Execute perception analysis on the active image
   const analyzeActiveImage = async () => {
@@ -290,7 +337,11 @@ export const App: React.FC = () => {
       const res = await coordinatorRef.current.analyze({
         image: normalized,
         sourceDimensions: { width: W, height: H },
-        options: { mode },
+        options: {
+          mode,
+          includeFacialLandmarks: perceptionScope !== 'pose_only',
+          includeBodyPose: perceptionScope !== 'face_only',
+        },
       });
 
       setCurrentResult(res);
@@ -344,13 +395,20 @@ export const App: React.FC = () => {
         const res = await coordinatorRef.current.analyze({
           image: normalized,
           sourceDimensions: { width: W, height: H },
-          options: { mode },
+          options: {
+            mode,
+            includeFacialLandmarks: perceptionScope !== 'pose_only',
+            includeBodyPose: perceptionScope !== 'face_only',
+          },
         });
 
         const subject = res.primarySubject;
         let earCount = 0;
         if (subject?.face?.leftEar) earCount++;
         if (subject?.face?.rightEar) earCount++;
+
+        const poseDetected = !!subject?.body?.pose;
+        const poseJointCount = subject?.body?.pose?.landmarks.length ?? 0;
 
         runs.push({
           id: bm.id,
@@ -359,7 +417,9 @@ export const App: React.FC = () => {
           providerId: res.executionPlan?.resolvedProviderId ?? res.provider.id,
           durationMs: Number(res.metrics.latencyMs.toFixed(1)),
           faceDetected: !!subject?.face,
-          pose: subject?.face?.pose ?? 'unknown',
+          poseDetected,
+          poseJointCount,
+          pose: subject?.face?.pose ?? (poseDetected ? 'body_detected' : 'unknown'),
           earCount,
           fallback: !!res.executionPlan?.fallbackOccurred,
         });
@@ -373,6 +433,8 @@ export const App: React.FC = () => {
           providerId: 'error',
           durationMs: 0,
           faceDetected: false,
+          poseDetected: false,
+          poseJointCount: 0,
           pose: 'error',
           earCount: 0,
           fallback: true,
@@ -467,6 +529,34 @@ export const App: React.FC = () => {
                   }}
                 >
                   {m === 'ml' ? 'MediaPipe ML' : m === 'deterministic' ? 'Deterministic CV' : m === 'auto' ? 'Auto Fallback' : 'Hybrid (Reconciled)'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Perception Scope */}
+          <div>
+            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Perception Targets
+            </label>
+            <div style={{ display: 'flex', gap: '0.3rem', background: 'var(--bg-primary)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+              {(['all', 'face_only', 'pose_only'] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setPerceptionScope(s)}
+                  style={{
+                    padding: '0.4rem 0.65rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: 'none',
+                    fontSize: '0.78rem',
+                    fontWeight: perceptionScope === s ? 600 : 400,
+                    cursor: 'pointer',
+                    background: perceptionScope === s ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
+                    color: perceptionScope === s ? '#38bdf8' : 'var(--text-secondary)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {s === 'all' ? 'Face + Pose' : s === 'face_only' ? 'Face Only' : 'Pose Only'}
                 </button>
               ))}
             </div>
@@ -619,6 +709,24 @@ export const App: React.FC = () => {
                 />
                 <span style={{ color: '#c084fc' }}>●</span> Hair Silhouette
               </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={showPoseSkeleton}
+                  onChange={(e) => setShowPoseSkeleton(e.target.checked)}
+                />
+                <span style={{ color: '#10b981' }}>●</span> Pose Skeleton
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={showPoseLandmarks}
+                  onChange={(e) => setShowPoseLandmarks(e.target.checked)}
+                />
+                <span style={{ color: '#38bdf8' }}>●</span> Pose Joints (33)
+              </label>
             </div>
 
             {/* Viewport Canvas */}
@@ -741,6 +849,50 @@ export const App: React.FC = () => {
                   {currentResult?.executionPlan?.fallbackOccurred ? 'Fallback Used' : 'Direct Target'}
                 </div>
               </div>
+
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Body Pose (BlazePose)</div>
+                <div
+                  style={{
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    color: currentResult?.primarySubject?.body?.pose ? '#10b981' : 'var(--text-muted)',
+                    marginTop: '0.3rem',
+                  }}
+                >
+                  {currentResult?.primarySubject?.body?.pose
+                    ? `✓ ${currentResult.primarySubject.body.pose.landmarks.length} Joints`
+                    : 'None'}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Subject Count</div>
+                <div
+                  style={{
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginTop: '0.3rem',
+                  }}
+                >
+                  {currentResult ? `${currentResult.subjects.length} Subject(s)` : '--'}
+                </div>
+              </div>
             </div>
 
             {/* Detailed Structural Audit Card */}
@@ -751,6 +903,7 @@ export const App: React.FC = () => {
                   border: '1px solid var(--border-subtle)',
                   borderRadius: 'var(--radius-md)',
                   padding: '1.25rem',
+                  marginBottom: '1rem',
                 }}
               >
                 <h3 style={{ fontSize: '0.95rem', marginBottom: '0.75rem', fontWeight: 600 }}>
@@ -815,6 +968,52 @@ export const App: React.FC = () => {
                 )}
               </div>
             )}
+
+            {/* Body Pose Skeleton Audit Card */}
+            {currentResult?.primarySubject?.body?.pose && (
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                }}
+              >
+                <h3 style={{ fontSize: '0.95rem', marginBottom: '0.75rem', fontWeight: 600, color: '#10b981' }}>
+                  ✓ Body Pose Articulation (BlazePose 33 Joints)
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', fontSize: '0.8rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Shoulder Span: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>
+                      {currentResult.primarySubject.body.pose.leftShoulder && currentResult.primarySubject.body.pose.rightShoulder
+                        ? `${Math.abs(currentResult.primarySubject.body.pose.rightShoulder.point.x - currentResult.primarySubject.body.pose.leftShoulder.point.x).toFixed(3)} screen width`
+                        : '--'}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Neck Midpoint: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>
+                      {currentResult.primarySubject.body.pose.neck
+                        ? `(${currentResult.primarySubject.body.pose.neck.point.x.toFixed(2)}, ${currentResult.primarySubject.body.pose.neck.point.y.toFixed(2)})`
+                        : '--'}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Skeletal Links: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>
+                      {currentResult.primarySubject.body.pose.connections.length} bones
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Pose Confidence: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#10b981' }}>
+                      {(currentResult.primarySubject.body.pose.confidence * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -840,7 +1039,8 @@ export const App: React.FC = () => {
                     <th style={{ padding: '0.6rem' }}>Benchmark Name</th>
                     <th style={{ padding: '0.6rem' }}>Resolved Provider</th>
                     <th style={{ padding: '0.6rem' }}>Latency (ms)</th>
-                    <th style={{ padding: '0.6rem' }}>Pose</th>
+                    <th style={{ padding: '0.6rem' }}>Face Pose</th>
+                    <th style={{ padding: '0.6rem' }}>Body Pose</th>
                     <th style={{ padding: '0.6rem' }}>Ears Preserved</th>
                     <th style={{ padding: '0.6rem' }}>Status</th>
                   </tr>
@@ -857,12 +1057,15 @@ export const App: React.FC = () => {
                       </td>
                       <td style={{ padding: '0.6rem', fontWeight: 600 }}>{r.durationMs} ms</td>
                       <td style={{ padding: '0.6rem' }}>{r.pose}</td>
+                      <td style={{ padding: '0.6rem', color: r.poseDetected ? '#10b981' : 'var(--text-muted)' }}>
+                        {r.poseDetected ? `✓ ${r.poseJointCount} joints` : '--'}
+                      </td>
                       <td style={{ padding: '0.6rem', color: r.earCount > 0 ? '#fbbf24' : 'var(--text-muted)' }}>
                         {r.earCount} ear(s)
                       </td>
                       <td style={{ padding: '0.6rem' }}>
-                        <span style={{ color: r.faceDetected ? '#10b981' : '#f59e0b' }}>
-                          {r.faceDetected ? '✓ Detected' : 'No Face'}
+                        <span style={{ color: r.faceDetected ? '#10b981' : r.poseDetected ? '#38bdf8' : '#f59e0b' }}>
+                          {r.faceDetected ? '✓ Face' : ''} {r.poseDetected ? '✓ Pose' : ''} {!r.faceDetected && !r.poseDetected ? 'None' : ''}
                         </span>
                       </td>
                     </tr>

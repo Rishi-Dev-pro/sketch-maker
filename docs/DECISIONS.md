@@ -151,6 +151,14 @@ This document serves as the permanent record of major architectural and technica
   3. `MediaPipeWebDelegate` converts `NormalizedImage` to `ImageData`, runs `faceLandmarker.detect()`, and maps 478 landmarks to canonical `SubjectModel`.
   4. Profile occlusion guarantee (`BM-02`): Feature visibility on the occluded side of true profiles is tagged `'occluded'` with 0 confidence, preventing hallucinated geometry.
   5. Zero ear pinna fabrication: MediaPipe explicitly reports no ear detection; `VisionCoordinator` in `'hybrid'` mode reconciles and preserves deterministic ear geometry alongside MediaPipe facial features.
+* **TASK-103.8 Addendum (MediaPipe Pose Landmarker Web Integration):**
+  1. *Canonical Body Pose Representation:* Added `PoseLandmark`, `PoseConnection`, and `BodyPose` contracts to `packages/shared-types`, extending `BodyFeatures.pose` without modifying downstream stroke or vectorization consumers.
+  2. *Shared Web WASM Fileset:* `MediaPipeWebDelegate` lazily initializes a single `FilesetResolver` promise shared across both `FaceLandmarker` and `PoseLandmarker`, eliminating redundant WASM runtime downloads and memory allocations.
+  3. *Pose Topology & Normalization:* 33 BlazePose skeletal landmarks are clamped strictly to $[0.0, 1.0]$, visibility is classified into categorical thresholds (`visible`, `uncertain`, `occluded`), and anatomical neck midpoint is deterministically synthesized from left/right shoulder landmarks.
+  4. *Face + Pose Association:* Euclidean spatial proximity between pose nose/neck anchor and face bounding box centers (threshold $d < 0.25$) links independently detected faces and poses into unified `SubjectModel` instances. Supports single individuals, standing (`BM-09`), sitting (`BM-10`), multi-subject separation (`BM-11`), isolated faces, and headless bodies.
+  5. *Zero Fabrication Fallback:* Handcrafted deterministic pipeline does not fabricate 33-point skeletons; when running under deterministic mode, `bodyFeatures.pose` remains undefined with zero errors. In hybrid mode, `VisionCoordinator` merges deterministic ear pinna and hair boundaries with ML pose landmarks.
+  6. *Bundle Isolation:* Vite `manualChunks` keeps `@mediapipe/tasks-vision` isolated within `vision_bundle` (220 kB, gzip 66 kB). Initial page load bundle is reduced to 172 kB (gzip 54 kB).
+
 
 
 

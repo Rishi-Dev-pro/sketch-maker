@@ -265,9 +265,17 @@ Pretrained neural networks (like MediaPipe FaceLandmarker) provide dense 468-poi
 
 ### 7.5 MediaPipe Face Landmarker Web Integration (TASK-103.7)
 
-* **Isolated Bundle Chunk:** MediaPipe tasks are isolated in a lazy-loaded Vite chunk (`vision_bundle-*.js`), keeping the initial application bundle lightweight (~239 kB).
+* **Isolated Bundle Chunk:** MediaPipe tasks are isolated in a lazy-loaded Vite chunk (`vision_bundle-*.js`), keeping the initial application bundle lightweight (~172 kB).
 * **478-Landmark Mapping:** Maps dense 3D points to canonical `SubjectModel` features (iris centers, palpebral fissures, nasal apex, lips, mandibular contour) while clamping all normalized coordinates to `[0.0, 1.0]`.
 * **Profile Occlusion Enforcement (`BM-02`):** MediaPipe's complete face projections are audited against derived head pose; features on the hidden side of true profiles are tagged `'occluded'` with 0 confidence to prevent hallucination.
 * **Zero Ear Fabrication:** MediaPipe's lack of pinna geometry is respected; ears are left undefined or sourced authoritatively from the deterministic pipeline via the `reconcileHybridSubjects` reconciler.
+
+### 7.6 MediaPipe Pose Landmarker Web Integration (TASK-103.8)
+
+* **Shared WASM Fileset:** `MediaPipeWebDelegate` manages a single, shared `FilesetResolver` that on-demand instantiates `FaceLandmarker` (3.7 MB) and `PoseLandmarker` (5.6 MB), avoiding redundant WASM initialization and unnecessary model downloads.
+* **33-Point Skeletal Body Representation:** Canonical `BodyPose` data contracts in `@sketch-maker/shared-types` represent articulated landmarks (`point`, `z`, `visibility`, `presence`, `confidence`), synthesized neck midpoint, and skeletal connection links.
+* **Posture Robustness:** Accurately distinguishes standing (`BM-09`) and seated flexed postures (`BM-10`) without imposing rigid vertical priors.
+* **Face + Pose Spatial Association:** The `associateFacesAndPoses` engine matches detected facial meshes with corresponding body skeletons using head-anchor proximity, producing unified multi-person instances (`BM-11`) while preserving single-person cohesion.
+
 
 

@@ -1,13 +1,13 @@
 /**
  * MediaPipe Web Runtime Delegate
- * TASK-103.7 MediaPipe Integration
+ * TASK-103.7 & TASK-103.8 MediaPipe Integration
  *
  * Implements MediaPipeRuntimeDelegate from @sketch-maker/structural-analysis.
- * Lazily loads @mediapipe/tasks-vision and its WebAssembly runtime strictly on demand.
+ * Lazily loads @mediapipe/tasks-vision, manages shared WASM fileset, and initializes
+ * FaceLandmarker and PoseLandmarker models strictly on demand.
  */
 
-import { VisionInput } from '@sketch-maker/structural-analysis';
-import { MediaPipeRuntimeDelegate } from '@sketch-maker/structural-analysis';
+import { VisionInput, MediaPipeRuntimeDelegate } from '@sketch-maker/structural-analysis';
 import { SubjectModel, Dimensions } from '@sketch-maker/shared-types';
 import {
   MediaPipeModelConfig,
@@ -17,12 +17,22 @@ import {
   mapMediaPipeFacesToSubjectModels,
   MediaPipeLandmark3D,
 } from './landmark-mapper';
+import {
+  RawPoseLandmark,
+} from './pose-mapper';
+import {
+  associateFacesAndPoses,
+} from './face-pose-associator';
 
 export type DelegateLifecycleState = 'uninitialized' | 'loading' | 'ready' | 'error';
 
 export interface DelegateMetrics {
   coldStartDurationMs: number;
+  faceColdStartDurationMs: number;
+  poseColdStartDurationMs: number;
   lastWarmInferenceDurationMs: number;
+  lastFaceInferenceDurationMs: number;
+  lastPoseInferenceDurationMs: number;
   totalInferences: number;
   errorCount: number;
   lastError?: string;
@@ -31,11 +41,24 @@ export interface DelegateMetrics {
 export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
   private state: DelegateLifecycleState = 'uninitialized';
   private config: MediaPipeModelConfig;
-  private landmarkerInstance: any = null;
-  private initPromise: Promise<void> | null = null;
+
+  // Model instances
+  private faceLandmarkerInstance: any = null;
+  private poseLandmarkerInstance: any = null;
+
+  // Shared WASM fileset
+  private wasmFileset: any = null;
+  private filesetPromise: Promise<any> | null = null;
+  private faceInitPromise: Promise<void> | null = null;
+  private poseInitPromise: Promise<void> | null = null;
+
   private metrics: DelegateMetrics = {
     coldStartDurationMs: 0,
+    faceColdStartDurationMs: 0,
+    poseColdStartDurationMs: 0,
     lastWarmInferenceDurationMs: 0,
+    lastFaceInferenceDurationMs: 0,
+    lastPoseInferenceDurationMs: 0,
     totalInferences: 0,
     errorCount: 0,
   };
@@ -62,32 +85,47 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
   }
 
   /**
-   * Determines whether the MediaPipe runtime is loaded, initialized, and ready.
+   * Determines whether the MediaPipe runtime is loaded and ready.
    */
-  isReady(): boolean {
-    return this.state === 'ready' && this.landmarkerInstance !== null;
+  isReady(feature?: 'face' | 'pose'): boolean {
+    if (feature === 'face') return this.faceLandmarkerInstance !== null;
+    if (feature === 'pose') return this.poseLandmarkerInstance !== null;
+    return this.state === 'ready' && (this.faceLandmarkerInstance !== null || this.poseLandmarkerInstance !== null);
   }
 
   /**
-   * Lazily loads the MediaPipe Tasks Vision WebAssembly bundle and FaceLandmarker model.
-   * Multiple concurrent calls resolve against the same initialization promise.
+   * Loads the shared MediaPipe WASM fileset (once per session).
    */
-  async initialize(): Promise<void> {
-    if (this.state === 'ready') return;
-    if (this.initPromise) return this.initPromise;
+  private async getFileset(): Promise<any> {
+    if (this.wasmFileset) return this.wasmFileset;
+    if (this.filesetPromise) return this.filesetPromise;
+
+    this.filesetPromise = (async () => {
+      const visionModule = await import('@mediapipe/tasks-vision');
+      const { FilesetResolver } = visionModule;
+      this.wasmFileset = await FilesetResolver.forVisionTasks(this.config.wasmRootPath);
+      return this.wasmFileset;
+    })();
+
+    return this.filesetPromise;
+  }
+
+  /**
+   * Lazily loads and initializes FaceLandmarker.
+   */
+  async initializeFace(): Promise<void> {
+    if (this.faceLandmarkerInstance) return;
+    if (this.faceInitPromise) return this.faceInitPromise;
 
     this.state = 'loading';
     const t0 = performance.now();
 
-    this.initPromise = (async () => {
+    this.faceInitPromise = (async () => {
       try {
-        // Dynamic import strictly isolates @mediapipe/tasks-vision from the initial bundle
-        const visionModule = await import('@mediapipe/tasks-vision');
-        const { FilesetResolver, FaceLandmarker } = visionModule;
+        const fileset = await this.getFileset();
+        const { FaceLandmarker } = await import('@mediapipe/tasks-vision');
 
-        const fileset = await FilesetResolver.forVisionTasks(this.config.wasmRootPath);
-
-        this.landmarkerInstance = await FaceLandmarker.createFromOptions(fileset, {
+        this.faceLandmarkerInstance = await FaceLandmarker.createFromOptions(fileset, {
           baseOptions: {
             modelAssetPath: this.config.modelAssetPath,
             delegate: this.config.delegate,
@@ -102,64 +140,137 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
         });
 
         this.state = 'ready';
-        this.metrics.coldStartDurationMs = performance.now() - t0;
+        this.metrics.faceColdStartDurationMs = performance.now() - t0;
+        this.metrics.coldStartDurationMs += this.metrics.faceColdStartDurationMs;
       } catch (err: any) {
         this.state = 'error';
         this.metrics.errorCount++;
-        this.metrics.lastError = err?.message ?? 'Failed to initialize MediaPipe FaceLandmarker';
-        this.initPromise = null;
-        throw new Error(`MediaPipe initialization failed: ${this.metrics.lastError}`);
+        this.metrics.lastError = err?.message ?? 'Failed to initialize FaceLandmarker';
+        this.faceInitPromise = null;
+        throw new Error(`MediaPipe Face initialization failed: ${this.metrics.lastError}`);
       }
     })();
 
-    return this.initPromise;
+    return this.faceInitPromise;
   }
 
   /**
-   * Processes a preprocessed image buffer through the MediaPipe Face Landmarker.
+   * Lazily loads and initializes PoseLandmarker.
+   */
+  async initializePose(): Promise<void> {
+    if (this.poseLandmarkerInstance) return;
+    if (this.poseInitPromise) return this.poseInitPromise;
+
+    this.state = 'loading';
+    const t0 = performance.now();
+
+    this.poseInitPromise = (async () => {
+      try {
+        const fileset = await this.getFileset();
+        const { PoseLandmarker } = await import('@mediapipe/tasks-vision');
+
+        this.poseLandmarkerInstance = await PoseLandmarker.createFromOptions(fileset, {
+          baseOptions: {
+            modelAssetPath: this.config.poseModelAssetPath,
+            delegate: this.config.delegate,
+          },
+          runningMode: 'IMAGE',
+          numPoses: this.config.maxPoses,
+          minPoseDetectionConfidence: this.config.minPoseDetectionConfidence,
+          minPosePresenceConfidence: this.config.minPosePresenceConfidence,
+          minTrackingConfidence: this.config.minPoseTrackingConfidence,
+        });
+
+        this.state = 'ready';
+        this.metrics.poseColdStartDurationMs = performance.now() - t0;
+        this.metrics.coldStartDurationMs += this.metrics.poseColdStartDurationMs;
+      } catch (err: any) {
+        this.state = 'error';
+        this.metrics.errorCount++;
+        this.metrics.lastError = err?.message ?? 'Failed to initialize PoseLandmarker';
+        this.poseInitPromise = null;
+        throw new Error(`MediaPipe Pose initialization failed: ${this.metrics.lastError}`);
+      }
+    })();
+
+    return this.poseInitPromise;
+  }
+
+  /**
+   * Initializes both models (or whatever is requested).
+   */
+  async initialize(): Promise<void> {
+    await Promise.all([this.initializeFace(), this.initializePose()]);
+  }
+
+  /**
+   * Processes a preprocessed image buffer through MediaPipe Tasks Vision.
    */
   async process(input: VisionInput): Promise<{
     subjects: SubjectModel[];
     latencyMs: number;
   }> {
-    if (!this.isReady()) {
-      await this.initialize();
-    }
+    const needFace = input.options?.includeFacialLandmarks !== false;
+    const needPose = input.options?.includeBodyPose !== false;
 
-    if (!this.landmarkerInstance) {
-      throw new Error('MediaPipe FaceLandmarker instance is unavailable.');
+    // Lazily load only the requested models
+    const initTasks: Promise<void>[] = [];
+    if (needFace && !this.faceLandmarkerInstance) initTasks.push(this.initializeFace());
+    if (needPose && !this.poseLandmarkerInstance) initTasks.push(this.initializePose());
+    if (initTasks.length > 0) {
+      await Promise.all(initTasks);
     }
 
     const t0 = performance.now();
     const { image, sourceDimensions } = input;
     const width = image.processingDimensions.width;
     const height = image.processingDimensions.height;
+    const dims: Dimensions = sourceDimensions
+      ? { width: sourceDimensions.width, height: sourceDimensions.height }
+      : { width, height };
 
-    // Convert NormalizedImage RGBA buffer to browser-compatible Canvas or ImageData
+    // Convert NormalizedImage RGBA buffer to browser-compatible Canvas or ImageData once
     const imageSource = this.createImageSource(image.rgba.data, width, height);
 
-    let result: any;
-    try {
-      result = this.landmarkerInstance.detect(imageSource);
-    } catch (err: any) {
-      this.metrics.errorCount++;
-      this.metrics.lastError = err?.message ?? 'MediaPipe inference exception';
-      throw new Error(`MediaPipe inference failed: ${this.metrics.lastError}`);
+    let rawFaces: MediaPipeLandmark3D[][] = [];
+    let rawPoses: RawPoseLandmark[][] = [];
+
+    // 1. Detect Face Landmarks if requested
+    if (needFace && this.faceLandmarkerInstance) {
+      const tf0 = performance.now();
+      try {
+        const faceRes = this.faceLandmarkerInstance.detect(imageSource);
+        rawFaces = faceRes.faceLandmarks ?? [];
+        this.metrics.lastFaceInferenceDurationMs = performance.now() - tf0;
+      } catch (err: any) {
+        this.metrics.errorCount++;
+        this.metrics.lastError = err?.message ?? 'Face detection exception';
+      }
+    }
+
+    // 2. Detect Pose Landmarks if requested
+    if (needPose && this.poseLandmarkerInstance) {
+      const tp0 = performance.now();
+      try {
+        const poseRes = this.poseLandmarkerInstance.detect(imageSource);
+        rawPoses = poseRes.landmarks ?? [];
+        this.metrics.lastPoseInferenceDurationMs = performance.now() - tp0;
+      } catch (err: any) {
+        this.metrics.errorCount++;
+        this.metrics.lastError = err?.message ?? 'Pose detection exception';
+      }
     }
 
     const latencyMs = performance.now() - t0;
     this.metrics.lastWarmInferenceDurationMs = latencyMs;
     this.metrics.totalInferences++;
 
-    const rawFaces: MediaPipeLandmark3D[][] = result.faceLandmarks ?? [];
-    const dims: Dimensions = sourceDimensions
-      ? { width: sourceDimensions.width, height: sourceDimensions.height }
-      : { width, height };
-
-    const subjects = mapMediaPipeFacesToSubjectModels(rawFaces, dims, 0.92);
+    // 3. Map faces and associate with poses
+    const faceSubjects = mapMediaPipeFacesToSubjectModels(rawFaces, dims, 0.92);
+    const unifiedSubjects = associateFacesAndPoses(faceSubjects, rawPoses, dims);
 
     return {
-      subjects,
+      subjects: unifiedSubjects,
       latencyMs,
     };
   }
@@ -172,7 +283,6 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
     width: number,
     height: number
   ): any {
-    // In standard browser environment:
     if (typeof document !== 'undefined') {
       if (!this.offscreenCanvas) {
         this.offscreenCanvas = document.createElement('canvas');
@@ -189,7 +299,6 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
       }
     }
 
-    // In environments with OffscreenCanvas support (Workers):
     if (typeof OffscreenCanvas !== 'undefined') {
       const offscreen = new OffscreenCanvas(width, height);
       const ctx = offscreen.getContext('2d') as any;
@@ -200,7 +309,6 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
       }
     }
 
-    // Fallback ImageData object:
     if (typeof ImageData !== 'undefined') {
       return new ImageData(new Uint8ClampedArray(rgba), width, height);
     }
@@ -212,16 +320,27 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
    * Releases allocated MediaPipe resources, WASM memory, and offscreen canvases.
    */
   dispose(): void {
-    if (this.landmarkerInstance && typeof this.landmarkerInstance.close === 'function') {
+    if (this.faceLandmarkerInstance && typeof this.faceLandmarkerInstance.close === 'function') {
       try {
-        this.landmarkerInstance.close();
+        this.faceLandmarkerInstance.close();
       } catch {
         // Ignore disposal error
       }
     }
-    this.landmarkerInstance = null;
+    if (this.poseLandmarkerInstance && typeof this.poseLandmarkerInstance.close === 'function') {
+      try {
+        this.poseLandmarkerInstance.close();
+      } catch {
+        // Ignore disposal error
+      }
+    }
+    this.faceLandmarkerInstance = null;
+    this.poseLandmarkerInstance = null;
     this.offscreenCanvas = null;
-    this.initPromise = null;
+    this.faceInitPromise = null;
+    this.poseInitPromise = null;
+    this.filesetPromise = null;
+    this.wasmFileset = null;
     this.state = 'uninitialized';
   }
 }

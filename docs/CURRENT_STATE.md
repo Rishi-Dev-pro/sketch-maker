@@ -4,9 +4,9 @@
 
 * **Current Date / Time:** 2026-09-18
 * **Current Phase:** Phase 1 — Feasibility Prototype (Headless Photo → Strokes Pipeline)
-* **Current Version:** v0.3.12-alpha (TASK-103.7 MediaPipe Face Landmarker Integration Complete)
+* **Current Version:** v0.3.13-alpha (TASK-103.8 MediaPipe Pose Landmarker Integration Complete)
 * **Current Milestone:** M1 — Feasibility Prototype (Headless Pipeline)
-* **Status:** IN_PROGRESS (TASK-103.7 MediaPipe Face Landmarker Integration Complete)
+* **Status:** IN_PROGRESS (TASK-103.8 MediaPipe Pose Landmarker Integration Complete)
 
 ---
 
@@ -25,8 +25,9 @@ Phase 1 pipeline is advancing through structural analysis:
 11. **TASK-103.5 (Pretrained Vision Backend Evaluation):** Evaluated MediaPipe Tasks Vision vs. ONNX Runtime Web vs. deterministic baseline. Decision report in `docs/VISION_BACKEND_EVALUATION.md`. Recommended Architecture: **Option C (Hybrid Architecture)**.
 12. **TASK-103.6 (Vision Provider Architecture):** Designed and implemented the decoupled provider abstraction (`VisionProvider`, `VisionCoordinator`, `DeterministicVisionProvider`, `MediaPipeVisionProvider`, `VisionResult`). Guarantees zero-download offline fallback, preserves Universal `SubjectModel` as the common IR, and establishes evidence-aware hybrid merge rules. 14/14 automated unit tests pass.
 13. **TASK-103.7 (MediaPipe Face Landmarker Integration):** Implemented `MediaPipeWebDelegate` in `apps/web/src/vision/mediapipe/`, isolated via Vite lazy chunking (`dist/assets/vision_bundle-*.js`, 136 kB). Canonical 478-landmark mapper clamps coordinates to `[0.0, 1.0]`, enforces strict profile occlusion (`BM-02`), and prevents ear fabrication. In hybrid mode, `VisionCoordinator` reconciles MediaPipe facial landmarks with deterministic ear pinna and hair contours. 7/7 mapper tests pass; monorepo builds and typechecks cleanly with 0 errors.
-14. **Automated Verification:** All test suites pass (162+ monorepo tests), all 8 monorepo workspaces typecheck cleanly with 0 errors, and client production build succeeds in 2.12s.
-15. **Stop Condition:** TASK-103.7 complete. Awaiting user direction before next task.
+14. **TASK-103.8 (MediaPipe Pose Landmarker Integration):** Extended canonical contracts in `packages/shared-types` (`PoseLandmark`, `PoseConnection`, `BodyPose`, `BodyFeatures.pose`). Implemented `pose-mapper.ts` (33-point BlazePose normalized mapping, synthesized neck midpoint, skeletal connections, visibility classification) and `face-pose-associator.ts` (spatial proximity matching $d < 0.25$ for unified `SubjectModel`s, multi-subject handling for `BM-11`). Generalized `MediaPipeWebDelegate` with shared `FilesetResolver`. Vite chunking keeps ML isolated in `vision_bundle` (220 kB), initial page bundle reduced to 172 kB. 12/12 pose mapper unit tests pass; monorepo tests pass (174+ tests); 0 TypeScript errors across 8 workspaces.
+15. **Automated Verification:** All test suites pass (174+ monorepo tests), all 8 monorepo workspaces typecheck cleanly with 0 errors, and client production build succeeds in 2.22s.
+16. **Stop Condition:** TASK-103.8 complete. Awaiting user direction before next task.
 
 ---
 
@@ -51,12 +52,13 @@ Phase 1 pipeline is advancing through structural analysis:
 * [x] **TASK-103.5:** Pretrained vision backend evaluation (`docs/VISION_BACKEND_EVALUATION.md`, visual evaluation report).
 * [x] **TASK-103.6:** Vision provider architecture (`packages/structural-analysis/src/providers/*`, 14/14 unit tests, `ADR-010`).
 * [x] **TASK-103.7:** MediaPipe Face Landmarker integration (`apps/web/src/vision/mediapipe/*`, `docs/MEDIAPIPE_FACE_LANDMARKER.md`, 7/7 mapper tests, interactive web UI inspector, lazy chunk splitting verified).
+* [x] **TASK-103.8:** MediaPipe Pose Landmarker integration (`apps/web/src/vision/mediapipe/*`, `docs/MEDIAPIPE_POSE_LANDMARKER.md`, 12/12 mapper tests, interactive web UI inspector with skeleton/joint overlays, lazy chunk splitting verified).
 * [x] **Web App Foundation Verification:** `apps/web` builds cleanly with Vite, typechecks with 0 errors, and renders verified in browser.
 
 ---
 
 ## 3. Currently Being Worked On
-* **TASK-103.7 (Complete):** MediaPipe Face Landmarker integrated and verified. Stopped as instructed; awaiting next user instruction.
+* **TASK-103.8 (Complete):** MediaPipe Pose Landmarker integrated and verified. Stopped as instructed; awaiting next user instruction.
 
 
 ---

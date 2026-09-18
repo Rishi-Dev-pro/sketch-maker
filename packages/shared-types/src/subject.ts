@@ -94,7 +94,54 @@ export interface FacialFeatures {
   readonly confidence: number;
 }
 
+export interface PoseLandmark {
+  readonly id: string;
+  readonly point: Point2D; // Normalized [0.0 - 1.0]
+  readonly z?: number; // Relative depth in normalized screen units
+  readonly visibility: FeatureVisibility;
+  readonly presence?: number; // Likelihood of landmark existing in frame [0.0 - 1.0]
+  readonly confidence: number; // Combined reliability confidence [0.0 - 1.0]
+}
+
+export interface PoseConnection {
+  readonly from: Point2D;
+  readonly to: Point2D;
+  readonly name: string;
+  readonly confidence: number;
+}
+
+export interface BodyPose {
+  readonly landmarks: PoseLandmark[];
+  readonly connections: PoseConnection[];
+  // Key articulated anatomical points
+  readonly nose?: PoseLandmark;
+  readonly leftEye?: PoseLandmark;
+  readonly rightEye?: PoseLandmark;
+  readonly leftEar?: PoseLandmark;
+  readonly rightEar?: PoseLandmark;
+  readonly neck?: PoseLandmark; // Synthesized midpoint of shoulders
+  readonly leftShoulder?: PoseLandmark;
+  readonly rightShoulder?: PoseLandmark;
+  readonly leftElbow?: PoseLandmark;
+  readonly rightElbow?: PoseLandmark;
+  readonly leftWrist?: PoseLandmark;
+  readonly rightWrist?: PoseLandmark;
+  readonly leftHip?: PoseLandmark;
+  readonly rightHip?: PoseLandmark;
+  readonly leftKnee?: PoseLandmark;
+  readonly rightKnee?: PoseLandmark;
+  readonly leftAnkle?: PoseLandmark;
+  readonly rightAnkle?: PoseLandmark;
+  readonly leftHeel?: PoseLandmark;
+  readonly rightHeel?: PoseLandmark;
+  readonly leftFootIndex?: PoseLandmark;
+  readonly rightFootIndex?: PoseLandmark;
+  readonly boundingBox?: BoundingBox;
+  readonly confidence: number;
+}
+
 export interface BodyFeatures {
+  readonly pose?: BodyPose;
   readonly shoulders: ContourPath[];
   readonly arms: ContourPath[];
   readonly torso: ContourPath[];
