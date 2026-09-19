@@ -97,6 +97,8 @@ Before marking any task as `COMPLETE` in `docs/TASK_TRACKER.md`:
 | `npm run benchmark:strokes` | `tests/benchmarks/stroke-candidate-benchmark.ts` | 12-category stroke candidate benchmark |
 | `npm run test:ordering` | `tests/stroke-engine/stroke-ordering.test.ts` | 17 unit tests for TASK-106 deterministic stroke ordering |
 | `npm run benchmark:ordering` | `tests/benchmarks/stroke-ordering-benchmark.ts` | 12-category stroke ordering & composition benchmark |
+| `npm run test:timeline` | `tests/stroke-engine/stroke-timeline.test.ts` | 17 unit tests for TASK-107 progressive stroke timeline |
+| `npm run benchmark:timeline` | `tests/benchmarks/stroke-timeline-benchmark.ts` | 12-category stroke timeline & animation scheduling benchmark |
 | `npm run typecheck` | Monorepo root | TypeScript typecheck across all 8 workspaces |
 | `npm run build` | Monorepo root | Production build of web application and libraries |
 

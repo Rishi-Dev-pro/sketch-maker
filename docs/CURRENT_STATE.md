@@ -4,9 +4,9 @@
 
 * **Current Date / Time:** 2026-09-19
 * **Current Phase:** Phase 1 — Feasibility Prototype (Headless Photo → Strokes Pipeline)
-* **Current Version:** v0.3.17-alpha (TASK-106 Stroke Ordering & Composition Complete)
+* **Current Version:** v0.3.18-alpha (TASK-107 Progressive Stroke Timeline & Animation Scheduling Complete)
 * **Current Milestone:** M1 — Feasibility Prototype (Headless Pipeline)
-* **Status:** IN_PROGRESS (TASK-106 Stroke Ordering & Composition Complete)
+* **Status:** IN_PROGRESS (TASK-107 Progressive Stroke Timeline & Animation Scheduling Complete)
 
 ---
 
@@ -30,8 +30,9 @@ Phase 1 pipeline is advancing through structural analysis:
 16. **TASK-104 (Contour & Vector Generation):** Implemented canonical vector geometry IR (`VectorGeometry`, `VectorPath`, `GeometryMetrics`) in `packages/shared-types/src/vector.ts` and full geometry engine in `packages/stroke-engine/src/geometry/` (cleaning, clamping, spike/collinear reduction, adaptive RDP simplification across hierarchy levels, Catmull-Rom cubic Bézier fitting with overshoot clamp, Moore-neighborhood mask boundary following, and deterministic multi-cue importance scoring: $I = 0.45 w_{\text{semantic}} + 0.25 c + 0.15 v + 0.15 s$). Profile occlusion strictly suppresses occluded side features (`BM-02`); multi-subject isolation cleanly tags paths by `subjectId` (`BM-11`). 20/20 unit tests pass; 12-category benchmark passes (average latency **1.98 ms** vs < 50ms SLA, **81.6% point reduction** from 2,838 to 514 clean points). Interactive UI audit and visualization verified in `apps/web`.
 17. **TASK-105 (Procedural Stroke Candidate Generation):** Implemented platform-independent stroke candidate generation IR (`StrokeCandidate`, `StrokeCandidateSet`, `StrokeMetrics`, `StrokeSemanticRole`, `StrokeFilteredReason`) in `packages/shared-types/src/stroke.ts` and generator in `packages/stroke-engine/src/candidates/` (semantic role derivation, protected structural anatomical paths, curvature/length gesture partitioning, deterministic stroke width/density models, composite priority scoring $P = 0.4I + 0.3w_{\text{role}} + 0.2c + 0.1\min(1, 2L)$, profile occlusion filtering, and bounded candidate caps preventing stroke explosion). 18/18 unit tests pass; 12-category benchmark passes (average latency **1.06 ms** vs < 50ms SLA target, average **53.2** candidates per subject, max **59**). Interactive UI audit and canvas preview verified in `apps/web`.
 18. **TASK-106 (Stroke Ordering & Composition):** Implemented progressive stroke ordering IR (`OrderedStroke`, `OrderedStrokeSequence`, `CompositionPhase`, `StrokeOrderingMetrics`) in `packages/shared-types/src/stroke.ts` and ordering engine in `packages/stroke-engine/src/ordering/` (6-phase composition model, structural dependency graph, multi-factor deterministic comparator, non-destructive sequence wrapper, contiguous 0-based indexing, strict profile occlusion suppression for `BM-02`, and harmonized multi-subject phase interleaving for `BM-11`). 17/17 unit tests pass; 12-category benchmark passes (average latency **1.19 ms** vs < 10ms SLA target, 100% sequence validity, 0 index gaps, 0 duplicates). Interactive UI audit and canvas color-coded progressive visualization verified in `apps/web`.
-19. **Automated Verification:** All test suites pass (241+ monorepo tests), all 8 monorepo workspaces typecheck cleanly with 0 errors, and client production build succeeds in ~1.7s.
-20. **Stop Condition:** TASK-106 complete. Awaiting user direction before next task (TASK-107).
+19. **TASK-107 (Progressive Stroke Timeline & Animation Scheduling):** Implemented progressive timeline contracts (`TimelineStroke`, `StrokeTimeline`, `TimelineConfig`, `TimelineState`, `TimelineMetrics`) in `packages/shared-types/src/timeline.ts` and scheduling engine in `packages/stroke-engine/src/timeline/` (physical duration model based on arc length and salience, phase-specific multipliers, controlled overlap with phase boundary damping, dependency-aware start offset constraints, target duration normalization, pure math easing curves, and pure $O(N)$ real-time query/scrub API). 17/17 unit tests pass; 12-category benchmark passes (average latency **0.54 ms** vs < 10ms SLA, average query latency **20.2 µs**, 100% temporal validity, 0 occluded timeline strokes, independent multi-person preservation). Interactive UI scrubber, active tip glow, and audit cards verified in `apps/web`.
+20. **Automated Verification:** All test suites pass (258+ monorepo tests), all 8 monorepo workspaces typecheck cleanly with 0 errors, and client production build succeeds in ~2.3s.
+21. **Stop Condition:** TASK-107 complete. Awaiting user direction before next task (TASK-108).
 
 ---
 
@@ -61,28 +62,29 @@ Phase 1 pipeline is advancing through structural analysis:
 * [x] **TASK-104:** Contour & Vector Generation (`packages/stroke-engine/src/geometry/*`, `packages/shared-types/src/vector.ts`, `docs/CONTOUR_VECTOR_GENERATION.md`, `ADR-011`, 20/20 unit tests, 12/12 benchmark images evaluated, 81.6% point reduction, 1.98ms avg latency, interactive web UI audit verified).
 * [x] **TASK-105:** Procedural Stroke Candidate Generation (`packages/stroke-engine/src/candidates/*`, `packages/shared-types/src/stroke.ts`, `docs/STROKE_CANDIDATE_GENERATION.md`, `ADR-012`, 18/18 unit tests, 12/12 benchmark images evaluated, 1.06ms avg latency, 0 stroke explosion, profile occlusion verified, interactive web UI preview verified).
 * [x] **TASK-106:** Stroke Ordering & Composition (`packages/stroke-engine/src/ordering/*`, `packages/shared-types/src/stroke.ts`, `docs/STROKE_ORDERING.md`, `ADR-013`, 17/17 unit tests, 12/12 benchmark images evaluated, 1.19ms avg latency, 100% valid sequence integrity, profile occlusion verified, interactive web UI preview verified).
+* [x] **TASK-107:** Progressive Stroke Timeline & Animation Scheduling (`packages/stroke-engine/src/timeline/*`, `packages/shared-types/src/timeline.ts`, `docs/STROKE_TIMELINE.md`, `ADR-014`, 17/17 unit tests, 12/12 benchmark images evaluated, 0.54ms avg latency, 20.2µs query latency, controlled overlap and dependencies verified, interactive web UI scrubber and audit verified).
 * [x] **Web App Foundation Verification:** `apps/web` builds cleanly with Vite, typechecks with 0 errors, and renders verified in browser.
 
 ---
 
 ## 3. Currently Being Worked On
-* **TASK-106 (Complete):** Deterministic stroke ordering and composition integrated, benchmarked across all 12 categories, and verified in browser diagnostics. Stopped as instructed; awaiting next user instruction.
+* **TASK-107 (Complete):** Progressive Stroke Timeline & Animation Scheduling integrated, benchmarked across all 12 categories, and verified in browser diagnostics. Stopped as instructed; awaiting next user instruction.
 
 ---
 
 ## 4. What Is Partially Implemented
-* Headless package stubs (`style-engine`, `animation-engine`, `export-engine`): Package manifests and version constants exist; algorithmic implementations begin in subsequent Phase 1 tasks.
-* `packages/stroke-engine`: Vector geometry, stroke candidate generation, and stroke ordering modules are complete; timeline scheduling / animation loop (`TASK-107`) and styling presets follow.
+* Headless package stubs (`style-engine`, `export-engine`): Package manifests and version constants exist; algorithmic implementations begin in subsequent Phase 1 tasks.
+* `packages/animation-engine`: Re-exports core timeline scheduling and progress interpolation; progressive canvas render runner and frame loops (`TASK-108`) follow.
 
 ---
 
 ## 5. What Is Blocked
-* None. Stroke ordering and composition is verified and unblocks progressive drawing animation & timeline scheduling (`TASK-107`).
+* None. Timeline scheduling is verified and unblocks progressive drawing animation & canvas rendering runner (`TASK-108`).
 
 ---
 
 ## 6. Known Bugs & Anomalies
-* None. All 241+ unit and regression tests pass cleanly across all 8 workspaces.
+* None. All 258+ unit and regression tests pass cleanly across all 8 workspaces.
 
 ---
 
@@ -93,12 +95,12 @@ Phase 1 pipeline is advancing through structural analysis:
 
 ## 8. Immediate Next Tasks
 
-### Immediate Next Task (Task ID: `TASK-107`):
-* `TASK-107`: Progressive Drawing Engine & Timeline Sequencing (`packages/animation-engine`). Dynamic timeline scheduling, duration interpolation, stroke drawing curves, and progressive canvas playback.
+### Immediate Next Task (Task ID: `TASK-108`):
+* `TASK-108`: Headless Canvas Draw Runner & Progressive Animation Test (`tests/rendering/` & `packages/animation-engine`). Progressive canvas drawing loop, frame interpolation, replay control, and visual quality audit.
 
 ### Next Few Planned Tasks (Phase 1):
-1. `TASK-107`: Progressive Drawing Engine & Timeline Sequencing.
-2. `TASK-108`: Headless canvas draw runner & progressive animation test (`tests/rendering/prototype_runner.html`).
+1. `TASK-108`: Headless canvas draw runner & progressive animation test.
+2. `TASK-109`: Style engine foundation & first expressive aesthetic preset.
 
 
 ---

@@ -15,6 +15,10 @@ import {
   OrderedStrokeSequence,
   OrderedStroke,
   CompositionPhase,
+  createStrokeTimeline,
+  StrokeTimeline,
+  getTimelineState,
+  TimelineState,
 } from '@sketch-maker/stroke-engine';
 import { createMediaPipeWebProvider, MediaPipeWebDelegate } from './vision/mediapipe';
 
@@ -46,6 +50,8 @@ interface BenchmarkRunResult {
   strokeCandidatesCount: number;
   strokeDrawableCount: number;
   orderedStrokesCount: number;
+  timelineStrokesCount: number;
+  timelineDurationS: number;
   fallback: boolean;
 }
 
@@ -81,6 +87,8 @@ export const App: React.FC = () => {
   const [orderingColorMode, setOrderingColorMode] = useState<'phase' | 'gradient' | 'dependency'>('phase');
   const [orderingSubjectFilter, setOrderingSubjectFilter] = useState<string>('all');
   const [showSequenceIndices, setShowSequenceIndices] = useState<boolean>(false);
+  const [showTimeline, setShowTimeline] = useState<boolean>(true);
+  const [timelineScrubPct, setTimelineScrubPct] = useState<number>(100);
 
   // Derive Vector Geometry Intermediate Representation (TASK-104)
   const currentGeometry: VectorGeometry | null = useMemo(() => {
@@ -105,6 +113,25 @@ export const App: React.FC = () => {
     }
     return orderStrokeCandidates(currentStrokeCandidates);
   }, [currentStrokeCandidates]);
+
+  // Derive Progressive Stroke Timeline (TASK-107)
+  const currentTimeline: StrokeTimeline | null = useMemo(() => {
+    if (!currentOrderedSequence || currentOrderedSequence.drawableStrokes === 0) {
+      return null;
+    }
+    return createStrokeTimeline(currentOrderedSequence, {
+      targetDurationMs: 15000 // Standard 15-second animation baseline
+    });
+  }, [currentOrderedSequence]);
+
+  // Derive Real-Time Scrub State (TASK-107)
+  const currentTimelineState: TimelineState | null = useMemo(() => {
+    if (!currentTimeline) {
+      return null;
+    }
+    const queryTime = (currentTimeline.totalDurationMs * timelineScrubPct) / 100;
+    return getTimelineState(currentTimeline, queryTime);
+  }, [currentTimeline, timelineScrubPct]);
 
 
   // Batch benchmark results
@@ -614,6 +641,21 @@ export const App: React.FC = () => {
         ctx.save();
         ctx.globalAlpha = 0.95;
 
+        // Progressive timeline state evaluation (TASK-107)
+        let strokeProgress = 1.0;
+        let isDrawing = false;
+        if (showTimeline && currentTimelineState) {
+          const tState = currentTimelineState.strokes[ordered.sequenceIndex];
+          if (!tState || tState.state === 'pending') {
+            ctx.restore();
+            continue; // Not yet visible at current scrub timestamp
+          }
+          if (tState.state === 'drawing') {
+            strokeProgress = Math.max(0.01, tState.progress);
+            isDrawing = true;
+          }
+        }
+
         // Color coding based on orderingColorMode
         if (orderingColorMode === 'gradient') {
           // Progressive rainbow hue: 260 (violet/blue) down to 0 (red)
@@ -660,12 +702,18 @@ export const App: React.FC = () => {
 
         ctx.lineWidth = Math.max(1.0, candidate.width * 1.5);
 
-        // Draw Bézier curves or polyline
+        // Draw Bézier curves or polyline with progressive progress clipping
         if (candidate.curves && candidate.curves.length > 0) {
+          const totalCurves = candidate.curves.length;
+          const visibleCurvesCount = isDrawing
+            ? Math.max(1, Math.ceil(totalCurves * strokeProgress))
+            : totalCurves;
+
           ctx.beginPath();
           const first = candidate.curves[0];
           ctx.moveTo(first.start.x * W, first.start.y * H);
-          for (const curve of candidate.curves) {
+          for (let cIdx = 0; cIdx < visibleCurvesCount; cIdx++) {
+            const curve = candidate.curves[cIdx];
             ctx.bezierCurveTo(
               curve.cp1.x * W,
               curve.cp1.y * H,
@@ -675,20 +723,37 @@ export const App: React.FC = () => {
               curve.end.y * H
             );
           }
-          if (candidate.closed) ctx.closePath();
+          if (candidate.closed && !isDrawing) ctx.closePath();
           ctx.stroke();
         } else if (candidate.points.length >= 2) {
+          const totalPts = candidate.points.length;
+          const visiblePtsCount = isDrawing
+            ? Math.max(2, Math.ceil(totalPts * strokeProgress))
+            : totalPts;
+
           ctx.beginPath();
           ctx.moveTo(candidate.points[0].x * W, candidate.points[0].y * H);
-          for (let i = 1; i < candidate.points.length; i++) {
+          for (let i = 1; i < visiblePtsCount; i++) {
             ctx.lineTo(candidate.points[i].x * W, candidate.points[i].y * H);
           }
-          if (candidate.closed) ctx.closePath();
+          if (candidate.closed && !isDrawing) ctx.closePath();
           ctx.stroke();
         } else if (candidate.points.length === 1) {
           ctx.beginPath();
           ctx.arc(candidate.points[0].x * W, candidate.points[0].y * H, candidate.width * 2, 0, Math.PI * 2);
           ctx.fillStyle = ctx.strokeStyle;
+          ctx.fill();
+        }
+
+        // Active drawing tip glow indicator
+        if (isDrawing && candidate.points.length > 0) {
+          const tipIdx = Math.min(candidate.points.length - 1, Math.floor(candidate.points.length * strokeProgress));
+          const tipPt = candidate.points[tipIdx];
+          ctx.beginPath();
+          ctx.arc(tipPt.x * W, tipPt.y * H, Math.max(3, candidate.width * 2.5), 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = '#00f0ff';
+          ctx.shadowBlur = 10;
           ctx.fill();
         }
 
@@ -741,6 +806,10 @@ export const App: React.FC = () => {
     orderingColorMode,
     orderingSubjectFilter,
     showSequenceIndices,
+    showTimeline,
+    timelineScrubPct,
+    currentTimeline,
+    currentTimelineState,
   ]);
 
 
@@ -895,6 +964,11 @@ export const App: React.FC = () => {
         const orderedSeq = strokeSet ? orderStrokeCandidates(strokeSet) : null;
         const orderedStrokesCount = orderedSeq?.drawableStrokes ?? 0;
 
+        // Progressive stroke timeline for batch audit (TASK-107)
+        const timeline = orderedSeq ? createStrokeTimeline(orderedSeq, { targetDurationMs: 15000 }) : null;
+        const timelineStrokesCount = timeline?.strokes.length ?? 0;
+        const timelineDurationS = Number(((timeline?.totalDurationMs ?? 0) / 1000).toFixed(1));
+
         runs.push({
           id: bm.id,
           name: bmName,
@@ -913,6 +987,8 @@ export const App: React.FC = () => {
           strokeCandidatesCount,
           strokeDrawableCount,
           orderedStrokesCount,
+          timelineStrokesCount,
+          timelineDurationS,
           fallback: !!res.executionPlan?.fallbackOccurred,
         });
 
@@ -936,6 +1012,8 @@ export const App: React.FC = () => {
           strokeCandidatesCount: 0,
           strokeDrawableCount: 0,
           orderedStrokesCount: 0,
+          timelineStrokesCount: 0,
+          timelineDurationS: 0,
           fallback: true,
         });
         setBatchResults([...runs]);
@@ -953,7 +1031,7 @@ export const App: React.FC = () => {
       <header>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div className="logo-badge">Photo-to-Procedural-Art</div>
-          <span className="phase-pill">TASK-106 Stroke Ordering</span>
+          <span className="phase-pill">TASK-107 Stroke Timeline</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.82rem' }}>
           <span style={{ color: 'var(--text-secondary)' }}>MediaPipe Runtime:</span>
@@ -1385,6 +1463,38 @@ export const App: React.FC = () => {
                   </label>
                 </>
               )}
+
+              <span style={{ color: 'var(--border-subtle)' }}>|</span>
+
+              {/* TASK-107 Timeline Scrubber Toggle */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={showTimeline}
+                  onChange={(e) => setShowTimeline(e.target.checked)}
+                />
+                <span style={{ color: '#a855f7' }}>⏱️</span> Timeline (TASK-107)
+              </label>
+
+              {showTimeline && currentTimeline && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(168, 85, 247, 0.1)', padding: '0.15rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#c084fc', fontFamily: 'var(--font-mono)' }}>
+                    {((currentTimeline.totalDurationMs * timelineScrubPct) / 100000).toFixed(1)}s / {(currentTimeline.totalDurationMs / 1000).toFixed(1)}s
+                  </span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={timelineScrubPct}
+                    onChange={(e) => setTimelineScrubPct(Number(e.target.value))}
+                    style={{ width: '90px', accentColor: '#a855f7', cursor: 'pointer' }}
+                    title={`Timeline scrub: ${timelineScrubPct}%`}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                    ({currentTimelineState?.activeCount ?? 0} active, {currentTimelineState?.completedCount ?? 0} done)
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Viewport Canvas */}
@@ -1643,6 +1753,29 @@ export const App: React.FC = () => {
                     : '--'}
                 </div>
               </div>
+
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Timeline (TASK-107)</div>
+                <div
+                  style={{
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    color: currentTimeline ? '#c084fc' : 'var(--text-muted)',
+                    marginTop: '0.3rem',
+                  }}
+                >
+                  {currentTimeline
+                    ? `⏱️ ${(currentTimeline.totalDurationMs / 1000).toFixed(1)}s (${currentTimeline.metrics.generationLatencyMs.toFixed(1)}ms)`
+                    : '--'}
+                </div>
+              </div>
             </div>
 
             {/* Stroke Candidates Audit Card (TASK-105) */}
@@ -1771,6 +1904,91 @@ export const App: React.FC = () => {
                         <span style={{ color: 'var(--text-muted)' }}>[{s.phase}]</span>
                         <span style={{ color: 'var(--text-primary)' }}>{s.stroke.semanticRole}</span>
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>({s.orderingReason})</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Progressive Stroke Timeline Audit Card (TASK-107) */}
+            {currentTimeline && (
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                <h3 style={{ fontSize: '0.95rem', marginBottom: '0.75rem', fontWeight: 600, color: '#c084fc' }}>
+                  ⏱️ Progressive Stroke Timeline & Animation Scheduling (TASK-107)
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', fontSize: '0.8rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Total Duration: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#c084fc', fontWeight: 600 }}>
+                      {(currentTimeline.totalDurationMs / 1000).toFixed(2)} s {currentTimeline.targetDurationMs ? `(Target: ${(currentTimeline.targetDurationMs / 1000).toFixed(1)}s)` : ''}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Scheduling Latency: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#00f0ff', fontWeight: 600 }}>
+                      {currentTimeline.metrics.generationLatencyMs.toFixed(2)} ms
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Natural Physical Duration: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>
+                      {(currentTimeline.naturalDurationMs / 1000).toFixed(2)} s
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Avg Stroke Duration: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>
+                      {currentTimeline.metrics.averageStrokeDurationMs} ms ({currentTimeline.metrics.minStrokeDurationMs} - {currentTimeline.metrics.maxStrokeDurationMs}ms)
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Max Concurrency: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#10b981', fontWeight: 600 }}>
+                      {currentTimeline.metrics.maxConcurrency} simultaneous strokes
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Average Overlap Window: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>
+                      {currentTimeline.metrics.averageOverlapMs} ms
+                    </span>
+                  </div>
+                </div>
+
+                {/* Real-time scrub state preview */}
+                {currentTimelineState && (
+                  <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.5rem' }}>
+                    <div style={{ fontWeight: 600, marginBottom: '0.3rem', color: '#c084fc' }}>
+                      Scrub State at {timelineScrubPct}% ({((currentTimeline.totalDurationMs * timelineScrubPct) / 100000).toFixed(2)}s):
+                    </div>
+                    <div style={{ display: 'flex', gap: '1rem', fontFamily: 'var(--font-mono)' }}>
+                      <span>Drawing: <strong style={{ color: '#00f0ff' }}>{currentTimelineState.activeCount}</strong></span>
+                      <span>Completed: <strong style={{ color: '#10b981' }}>{currentTimelineState.completedCount}</strong></span>
+                      <span>Pending: <strong style={{ color: '#64748b' }}>{currentTimelineState.pendingCount}</strong></span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Timeline Strokes Preview */}
+                <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.5rem' }}>
+                  <div style={{ fontWeight: 600, marginBottom: '0.3rem' }}>Timeline Schedule Preview (First 5 Strokes):</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontFamily: 'var(--font-mono)' }}>
+                    {currentTimeline.strokes.slice(0, 5).map((ts) => (
+                      <div key={ts.timelineIndex} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <span style={{ color: '#c084fc', fontWeight: 600 }}>#{ts.timelineIndex + 1}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>[{ts.phase}]</span>
+                        <span style={{ color: 'var(--text-primary)' }}>{ts.stroke.stroke.semanticRole}</span>
+                        <span style={{ color: '#38bdf8' }}>{ts.startTimeMs}ms → {ts.endTimeMs}ms ({ts.durationMs}ms)</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>[{ts.easing}]</span>
                       </div>
                     ))}
                   </div>
@@ -2033,6 +2251,7 @@ export const App: React.FC = () => {
                     <th style={{ padding: '0.6rem' }}>Vectors (TASK-104)</th>
                     <th style={{ padding: '0.6rem' }}>Strokes (TASK-105)</th>
                     <th style={{ padding: '0.6rem' }}>Ordered (TASK-106)</th>
+                    <th style={{ padding: '0.6rem' }}>Timeline (TASK-107)</th>
                     <th style={{ padding: '0.6rem' }}>Ears Preserved</th>
                     <th style={{ padding: '0.6rem' }}>Status</th>
                   </tr>
@@ -2063,6 +2282,9 @@ export const App: React.FC = () => {
                       </td>
                       <td style={{ padding: '0.6rem', color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
                         {r.orderedStrokesCount > 0 ? `${r.orderedStrokesCount} ordered` : '--'}
+                      </td>
+                      <td style={{ padding: '0.6rem', color: '#c084fc', fontFamily: 'var(--font-mono)' }}>
+                        {r.timelineStrokesCount > 0 ? `${r.timelineDurationS}s (${r.timelineStrokesCount} str)` : '--'}
                       </td>
                       <td style={{ padding: '0.6rem', color: r.earCount > 0 ? '#fbbf24' : 'var(--text-muted)' }}>
                         {r.earCount} ear(s)

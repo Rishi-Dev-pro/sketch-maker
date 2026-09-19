@@ -302,6 +302,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     * Added `Ordered (TASK-106)` column to 12-category batch benchmark table.
     * Updated header status pill to `TASK-106 Stroke Ordering`.
   * Documented full technical specifications in `docs/STROKE_ORDERING.md`, `docs/ARCHITECTURE.md` (Section 10), and `docs/DECISIONS.md` (`ADR-013`).
+* **Progressive Stroke Timeline & Animation Scheduling (`TASK-107`):**
+  * Created canonical stroke timeline IR data contracts in `packages/shared-types/src/timeline.ts`: `TimelineEasing`, `TimelineStroke`, `TimelineConfig`, `DEFAULT_TIMELINE_CONFIG`, `TimelineMetrics`, `StrokeTimeline`, `TimelineStrokeState`, `TimelineState`. Exported via `packages/shared-types/src/index.ts`.
+  * Implemented pure TypeScript stroke timeline engine in `packages/stroke-engine/src/timeline/`:
+    * `timeline-types.ts`: Internal and re-exported contracts.
+    * `easing.ts`: Pure mathematical easing functions (`linear`, `easeIn`, `easeOut`, `easeInOut`, `applyEasing`).
+    * `phase-timing.ts`: Composition phase multipliers ($M_{\text{phase}}$) and semantic role duration weights ($M_{\text{role}}$) with phase boundary damping.
+    * `duration-model.ts`: Physical stroke drawing duration model ($\text{naturalDuration} = \text{clamp}(\text{baseDuration} + \text{lengthFactor} \cdot L \cdot M_{\text{phase}} \cdot M_{\text{role}} \cdot (0.9 + 0.2I), \text{minDuration}, \text{maxDuration})$).
+    * `dependencies.ts`: Structural dependency constraint enforcement ($\text{startTime}(\text{child}) \ge \text{startTime}(\text{parent}) + \text{duration}(\text{parent}) \times 0.75$).
+    * `scheduler.ts`: Natural progressive timeline scheduler with controlled overlapping ($\rho = 0.35$, max $250\text{ ms}$) and phase boundary damping ($+100\text{ ms}$).
+    * `normalizer.ts`: Target duration scaling preserving stroke min/max clamps ($[80\text{ ms}, 800\text{ ms}]$).
+    * `progress.ts`: Pure $O(N)$ timeline query/scrub API (`getStrokeProgress`, `getTimelineState`) with active stroke detection, tip coordinates, and out-of-bounds timestamp clamping.
+    * `validator.ts`: Comprehensive mathematical validation verifying monotonicity, non-negativity, contiguous indexing, profile occlusion exclusion, and geometry immutability.
+    * `index.ts`: Unified timeline orchestrator `createStrokeTimeline` compiling `OrderedStrokeSequence` into `StrokeTimeline` with concurrency and duration metrics.
+  * Preserved strict profile occlusion semantics: on `BM-02` (90° side profile), occluded far-side features produce 0 timeline strokes.
+  * Preserved multi-subject isolation: on `BM-11` (multi-person), stroke candidates maintain distinct `subjectId` allocations with synchronized phase timelines.
+  * Added 17 automated unit tests in `tests/stroke-engine/stroke-timeline.test.ts` (17/17 passing) verifying easing curves, physical duration model, progressive scheduling, dependency ordering, overlap control, target duration normalization, query API, profile occlusion, multi-person isolation, and pure TS execution with zero DOM/window globals.
+  * Added `test:timeline` script and integrated into root `npm test` gate (100% pass across 258+ monorepo tests).
+  * Added comprehensive 12-category benchmark runner `tests/benchmarks/stroke-timeline-benchmark.ts` and `npm run benchmark:timeline`:
+    * Evaluated across all 12 canonical benchmark categories (`BM-01` to `BM-12`).
+    * Measured average timeline generation latency of **0.54 ms** (vs < 10ms SLA target).
+    * Measured average stroke query latency of **20.2 µs** (0.02 ms per query).
+    * Measured average stroke duration of **378.8 ms** (Min: 80ms, Max: 800ms).
+    * Measured average concurrency of **2.8 simultaneous strokes**.
+    * Validated 100% sequence integrity and profile occlusion exclusion across all 12 images.
+    * Peak heap memory delta remained bounded at 64.18 MB.
+  * Enhanced interactive web UI in `apps/web/src/App.tsx`:
+    * Computed memoized `currentTimeline` and `currentTimelineState` from `currentOrderedSequence`.
+    * Added visualization toggle (`Progressive Timeline`) and interactive time scrub slider ($0\% \to 100\%$) with millisecond and active/completed stroke telemetry.
+    * Canvas progressive stroke drawing with real-time active drawing tip indicator glow.
+    * Added `Timeline (TASK-107)` telemetry card and expandable `Progressive Stroke Timeline & Animation Scheduling Audit Card`.
+    * Added `Timeline (TASK-107)` column to 12-category batch benchmark table.
+    * Updated header status pill to `TASK-107 Stroke Timeline`.
+  * Documented full technical specifications in `docs/STROKE_TIMELINE.md`, `docs/ARCHITECTURE.md` (Section 11), and `docs/DECISIONS.md` (`ADR-014`).
 
 ### Fixed
 * **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**

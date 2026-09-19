@@ -17,6 +17,7 @@ This document tracks quantitative performance benchmarks, memory profiles, and q
 | **Total Analysis Latency** (Photo → `SubjectModel`) | < 1,500 ms | < 3,500 ms | Preprocessing (68.7ms) + Segmentation (239.7ms) = **308.4 ms** | **IN_PROGRESS (ON TRACK)** |
 | **Stroke Candidate Generation** (`VectorGeometry` → `StrokeCandidateSet`) | < 50 ms | < 100 ms | **1.20 ms (avg 12 imgs, max 59 candidates)** | **PASS (EXCEEDS SLA)** |
 | **Stroke Ordering Latency** (`StrokeCandidate[]` → `OrderedStrokeSequence`) | < 10 ms | < 25 ms | **1.19 ms (avg 12 imgs, 100% valid integrity)** | **PASS (EXCEEDS SLA)** |
+| **Stroke Timeline Latency** (`OrderedStrokeSequence` → `StrokeTimeline`) | < 10 ms | < 25 ms | **0.65 ms (avg 12 imgs, 25.3 µs/query)** | **PASS (EXCEEDS SLA)** |
 | **Style Switching Latency** (Using Cached Strokes) | < 80 ms | < 150 ms | Pending Phase 6 | NOT MEASURED |
 | **Rendering FPS** (Progressive Animation Loop) | 60 FPS (Stable) | ≥ 55 FPS | Pending Phase 3 | NOT MEASURED |
 | **Peak Heap RAM (Preprocessing + Segmentation)** | < 150 MB | < 350 MB | **~24.5 MB (Balanced), ~28.0 MB (High)** | **PASS (EXCEEDS SLA)** |
@@ -537,4 +538,37 @@ Every evaluation run grades outputs across 7 dimensions on a 1–10 scale:
   * **Bounded Memory Usage:** Peak heap memory delta remained bounded at **59.50 MB** (total heap: 69.98 MB).
   * **Pure TypeScript Portability:** Zero browser/DOM globals (`window`, `document`, canvas, SVG) are referenced, ensuring 100% portability to future React Native and Web Worker environments.
 
+---
 
+### Run 2026-09-19 — TASK-107 Progressive Stroke Timeline & Animation Scheduling Benchmark
+* **Hardware Environment:** Node.js v24.16.0, Windows x64 CPU.
+* **Test Command:** `npm run benchmark:timeline` (`npx tsx tests/benchmarks/stroke-timeline-benchmark.ts`)
+* **Scope:** All 12 canonical benchmark categories (`BM-01` through `BM-12`).
+* **SLA Performance Targets:** Timeline Latency < 10.0 ms, Stroke Duration Bounded ($[80\text{ ms}, 800\text{ ms}]$), Sequence Integrity: 100% Valid, Profile Occlusion: 100% occluded strokes produce 0 timeline entries, Multi-Subject Isolation: 100% distinct subject IDs preserved.
+
+| Benchmark ID | Latency | Strokes | Natural Duration | Final Duration | Avg Stroke Duration | Concurrency | Query Latency | Integrity | Profile Occlusion | Multi-Person Isolation |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| `BM-01-FRONT-PORTRAIT` | 3.32 ms | 45 | 8.6 s | 12.7 s | 413 ms | 3 | 89 µs | **100% Valid** | N/A | Single Subject |
+| `BM-02-SIDE-PROFILE` | 0.45 ms | 37 | 7.0 s | 11.3 s | 441 ms | 2 | 23 µs | **100% Valid** | **PASS (0 occluded entries)** | Single Subject |
+| `BM-03-GLASSES` | 0.63 ms | 46 | 7.4 s | 12.4 s | 394 ms | 3 | 24 µs | **100% Valid** | N/A | Single Subject |
+| `BM-04-FACIAL-HAIR` | 0.29 ms | 49 | 9.3 s | 12.3 s | 365 ms | 3 | 24 µs | **100% Valid** | N/A | Single Subject |
+| `BM-05-HAIR-VARIETY` | 0.29 ms | 54 | 9.3 s | 12.8 s | 343 ms | 3 | 40 µs | **100% Valid** | N/A | Single Subject |
+| `BM-06-EXTREME-LIGHTING` | 0.27 ms | 43 | 7.2 s | 12.3 s | 418 ms | 2 | 34 µs | **100% Valid** | N/A | Single Subject |
+| `BM-07-COMPLEX-BACKGROUND` | 0.33 ms | 57 | 10.8 s | 12.8 s | 328 ms | 3 | 17 µs | **100% Valid** | N/A | Single Subject |
+| `BM-08-LOW-LIGHT` | 0.33 ms | 48 | 7.9 s | 12.3 s | 376 ms | 3 | 26 µs | **100% Valid** | N/A | Single Subject |
+| `BM-09-FULL-BODY-STANDING` | 0.49 ms | 55 | 8.6 s | 12.7 s | 339 ms | 3 | 7 µs | **100% Valid** | N/A | Skeletal Articulation |
+| `BM-10-FULL-BODY-SITTING` | 0.23 ms | 42 | 7.2 s | 12.0 s | 420 ms | 3 | 3 µs | **100% Valid** | N/A | Skeletal Articulation |
+| `BM-11-MULTI-PERSON` | 0.63 ms | 50 | 9.5 s | 12.5 s | 364 ms | 3 | 12 µs | **100% Valid** | N/A | **PASS (Synchronized timelines)** |
+| `BM-12-HIGH-RES` | 0.57 ms | 54 | 9.2 s | 12.7 s | 345 ms | 2 | 5 µs | **100% Valid** | N/A | Single Subject |
+| **AVERAGE** | **0.65 ms** | **48.3** | **8.49 s** | **12.40 s** | **378.8 ms** | **2.8** | **25.3 µs** | **100% Valid** | **100% Occlusion Pass** | **100% Subject Isolation** |
+
+* **Key Takeaways:**
+  * **Ultra-Fast Generation & Low Overhead:** Average timeline generation latency is **0.65 ms**, well under the strict 10 ms SLA target (< 7% of budget).
+  * **Negligible Frame Evaluation Cost:** Real-time state query latency averages **25.3 µs** per frame evaluation. At 60 FPS (16.6 ms budget), querying timeline state takes less than **0.15%** of available frame time.
+  * **Natural Physical Drawing Pacing:** Individual stroke durations average **378.8 ms** bounded within $[80\text{ ms}, 800\text{ ms}]$, with length, role, and importance shaping physical drawing time.
+  * **Organic Controlled Concurrency:** Staggered overlap ($\rho = 0.35$, max $250\text{ ms}$) produces an average concurrency of **2.8 simultaneous strokes**, avoiding synthetic linear lockstep without exceeding artistic rendering density.
+  * **Target Duration Clamping:** Safe scaling towards target duration ($15\text{ s}$) while respecting stroke min/max clamps yields an average final duration of **12.40 s**, faithfully reported in `metrics.finalDurationMs`.
+  * **Profile Occlusion Rigor:** In `BM-02` (90° side profile), occluded far-side features produce strictly **0 timeline entries**, completely preventing phantom drawing animations.
+  * **Multi-Subject Synchronization:** In `BM-11` (multi-person), strokes retain isolated `subjectId` allocations while participating in harmonized phase progression.
+  * **Bounded Memory Usage:** Peak heap memory delta remained bounded at **68.13 MB** (total heap: 79.69 MB).
+  * **Pure TypeScript Portability:** Zero DOM/window/canvas globals, guaranteeing 100% portability to web workers, NodeJS, and native runtimes.

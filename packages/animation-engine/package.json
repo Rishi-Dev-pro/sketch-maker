@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@sketch-maker/shared-types": "*"
+    "@sketch-maker/shared-types": "*",
+    "@sketch-maker/stroke-engine": "*"
   },
   "devDependencies": {
     "typescript": "^5.4.5"
