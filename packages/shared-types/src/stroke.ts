@@ -1,5 +1,6 @@
-import { Point2D } from './geometry';
-import { SemanticRegion } from './subject';
+import { Point2D, BoundingBox, BezierCurve } from './geometry';
+import { SemanticRegion, FeatureVisibility } from './subject';
+import { GeometrySource, PathHierarchyLevel } from './vector';
 
 export interface StrokePoint extends Point2D {
   readonly pressure?: number; // Normalized pen pressure [0.0 - 1.0]
@@ -9,7 +10,7 @@ export interface StrokePoint extends Point2D {
 
 /**
  * Universal Stroke representation.
- * Represents an individual procedural vector stroke.
+ * Represents an individual procedural vector stroke with final timeline sequence.
  */
 export interface Stroke {
   readonly id: string;
@@ -35,5 +36,111 @@ export interface StrokeModel {
   readonly totalStrokes: number;
   readonly totalLength: number;
   readonly drawingOrder: number[]; // Array of stroke indices in progressive order
+  readonly timestamp: number;
+}
+
+/**
+ * High-level artistic/anatomical semantic role for stroke candidates.
+ */
+export type StrokeSemanticRole =
+  | 'silhouette'
+  | 'facial_contour'
+  | 'eye'
+  | 'eyebrow'
+  | 'nose'
+  | 'mouth'
+  | 'ear'
+  | 'hair'
+  | 'body_structure'
+  | 'clothing_boundary'
+  | 'semantic_boundary'
+  | 'texture'
+  | 'detail'
+  | 'background';
+
+/**
+ * Diagnosable reasons why a stroke candidate might be filtered or marked non-drawable.
+ */
+export type StrokeFilteredReason =
+  | 'occluded'
+  | 'not_detected'
+  | 'low_confidence'
+  | 'too_short'
+  | 'invalid_geometry'
+  | 'background'
+  | 'filtered_noise'
+  | 'density_pruned';
+
+/**
+ * Procedural Stroke Candidate (TASK-105).
+ * Represents a potential drawing action derived from VectorGeometry prior to final
+ * timeline ordering and progressive canvas rendering.
+ *
+ * Distinct from VectorPath (pure geometry) and final Stroke (ordered timeline element).
+ */
+export interface StrokeCandidate {
+  readonly id: string;
+  readonly subjectId: string;
+  readonly sourcePathId: string;
+  readonly source: GeometrySource;
+  /** Simplified polyline points for the stroke gesture */
+  readonly points: Point2D[];
+  /** Optional fitted Bézier curves */
+  readonly curves?: BezierCurve[];
+  readonly closed: boolean;
+  /** Perceptual confidence [0.0, 1.0] */
+  readonly confidence: number;
+  /** Importance score [0.0, 1.0] refined for stroke-level salience */
+  readonly importance: number;
+  /** Relative priority score for future timeline scheduling [0.0, 1.0] */
+  readonly priorityScore: number;
+  readonly semanticRole: StrokeSemanticRole;
+  readonly hierarchyLevel: PathHierarchyLevel;
+  /** Relative line weight multiplier (1.0 = standard stroke) */
+  readonly width: number;
+  /** Detail density score [0.0, 1.0] indicating region detail allocation */
+  readonly density: number;
+  /** Normalized geometric arc length */
+  readonly length: number;
+  readonly bounds: BoundingBox;
+  readonly visibility?: FeatureVisibility;
+  /** Whether the stroke candidate is qualified for actual drawing */
+  readonly drawable: boolean;
+  /** Whether this stroke represents background context */
+  readonly isBackground: boolean;
+  /** Whether this stroke is a structural skeletal gesture */
+  readonly isSkeletal?: boolean;
+  /** Reason if filtered or non-drawable */
+  readonly filteredReason?: StrokeFilteredReason;
+  /** Extensible style & debug metadata */
+  readonly metadata?: Record<string, unknown>;
+}
+
+/**
+ * Diagnostic metrics capturing stroke candidate generation complexity and efficiency.
+ */
+export interface StrokeMetrics {
+  readonly totalCandidates: number;
+  readonly drawableCandidates: number;
+  readonly filteredCandidates: number;
+  readonly totalLength: number;
+  readonly averageLength: number;
+  readonly averageConfidence: number;
+  readonly averageImportance: number;
+  readonly averageWidth: number;
+  readonly strokesBySemanticRole: Partial<Record<StrokeSemanticRole, number>>;
+  readonly strokesByHierarchy: Partial<Record<PathHierarchyLevel, number>>;
+  readonly strokesBySubject: Record<string, number>;
+  readonly generationLatencyMs: number;
+}
+
+/**
+ * Container collection for generated stroke candidates.
+ */
+export interface StrokeCandidateSet {
+  readonly version: string;
+  readonly candidates: StrokeCandidate[];
+  readonly bounds: BoundingBox;
+  readonly metrics: StrokeMetrics;
   readonly timestamp: number;
 }

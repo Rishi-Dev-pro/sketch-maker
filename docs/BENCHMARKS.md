@@ -15,7 +15,7 @@ This document tracks quantitative performance benchmarks, memory profiles, and q
 | **Preprocessing & Downscaling Latency** | < 300 ms | < 800 ms | **68.7 ms (avg 12 imgs), 240.3 ms (24MP)** | **PASS (EXCEEDS SLA)** |
 | **Subject Segmentation Latency** | < 500 ms | < 1,200 ms | **239.7 ms (avg 12 imgs)** | **PASS (EXCEEDS SLA)** |
 | **Total Analysis Latency** (Photo → `SubjectModel`) | < 1,500 ms | < 3,500 ms | Preprocessing (68.7ms) + Segmentation (239.7ms) = **308.4 ms** | **IN_PROGRESS (ON TRACK)** |
-| **Stroke Generation** (`SubjectModel` → `StrokeModel`) | < 500 ms | < 1,200 ms | Pending Phase 1 | NOT MEASURED |
+| **Stroke Candidate Generation** (`VectorGeometry` → `StrokeCandidateSet`) | < 50 ms | < 100 ms | **1.20 ms (avg 12 imgs, max 59 candidates)** | **PASS (EXCEEDS SLA)** |
 | **Style Switching Latency** (Using Cached Strokes) | < 80 ms | < 150 ms | Pending Phase 6 | NOT MEASURED |
 | **Rendering FPS** (Progressive Animation Loop) | 60 FPS (Stable) | ≥ 55 FPS | Pending Phase 3 | NOT MEASURED |
 | **Peak Heap RAM (Preprocessing + Segmentation)** | < 150 MB | < 350 MB | **~24.5 MB (Balanced), ~28.0 MB (High)** | **PASS (EXCEEDS SLA)** |
@@ -469,3 +469,36 @@ Every evaluation run grades outputs across 7 dimensions on a 1–10 scale:
   * **Profile Occlusion Rigor:** On `BM-02` (90° side profile), occluded far-side ocular, brow, nasal, and auricular features produce strictly **0 vector paths**.
   * **Multi-Subject Partitioning:** On `BM-11` (multi-person), vector paths are tagged with distinct `subjectId` fields, enabling independent stroke ordering per subject in downstream stages.
   * **Pure TypeScript Portability:** Zero browser/DOM globals (`window`, `document`, canvas, SVG) are referenced, ensuring 100% portability to future React Native and Web Worker environments.
+
+---
+
+### Run 2026-09-19 — TASK-105 Procedural Stroke Candidate Generation Benchmark
+* **Hardware Environment:** Node.js v24.16.0, Windows x64 CPU.
+* **Test Command:** `npm run benchmark:strokes` (`npx tsx tests/benchmarks/stroke-candidate-benchmark.ts`)
+* **Scope:** All 12 canonical benchmark categories (`BM-01` through `BM-12`).
+* **SLA Performance Targets:** Candidate Latency < 50.0 ms, Stroke Count Bounded (Max < 250), Profile Occlusion: 100% hidden features produce 0 drawable strokes, Multi-Subject Isolation: 100% distinct subject IDs.
+
+| Benchmark ID | Latency | Total Candidates | Drawable Candidates | Filtered Candidates | Avg Arc Length | Avg Importance | Profile Occlusion | Multi-Person Isolation |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| `BM-01-FRONT-PORTRAIT` | 4.57 ms | 48 | 45 | 3 | 0.216 | 0.72 | N/A | Single Subject |
+| `BM-02-SIDE-PROFILE` | 0.94 ms | 37 | 37 | 0 | 0.168 | 0.69 | **PASS (0 occluded drawable)** | Single Subject |
+| `BM-03-GLASSES` | 0.97 ms | 54 | 46 | 8 | 0.119 | 0.71 | N/A | Single Subject |
+| `BM-04-FACIAL-HAIR` | 1.97 ms | 58 | 49 | 9 | 0.179 | 0.71 | N/A | Single Subject |
+| `BM-05-HAIR-VARIETY` | 1.51 ms | 56 | 54 | 2 | 0.230 | 0.69 | N/A | Single Subject |
+| `BM-06-EXTREME-LIGHTING` | 0.39 ms | 50 | 43 | 7 | 0.131 | 0.72 | N/A | Single Subject |
+| `BM-07-COMPLEX-BACKGROUND` | 0.68 ms | 59 | 57 | 2 | 0.243 | 0.72 | N/A | Single Subject |
+| `BM-08-LOW-LIGHT` | 1.03 ms | 58 | 48 | 10 | 0.139 | 0.69 | N/A | Single Subject |
+| `BM-09-FULL-BODY-STANDING` | 0.72 ms | 59 | 55 | 4 | 0.209 | 0.69 | N/A | Skeletal Articulation |
+| `BM-10-FULL-BODY-SITTING` | 0.50 ms | 51 | 42 | 9 | 0.140 | 0.71 | N/A | Skeletal Articulation |
+| `BM-11-MULTI-PERSON` | 0.25 ms | 51 | 50 | 1 | 0.182 | 0.71 | N/A | **PASS (Distinct subjectIds)** |
+| `BM-12-HIGH-RES` | 0.88 ms | 57 | 54 | 3 | 0.193 | 0.71 | N/A | Single Subject |
+| **AVERAGE** | **1.20 ms** | **53.2** | **48.3** | **4.8** | **0.179** | **0.71** | **100% Occlusion Pass** | **100% Subject Isolation** |
+
+* **Key Takeaways:**
+  * **Exceptional SLA Compliance:** Average stroke candidate generation latency is **1.20 ms**, well below the 50 ms SLA budget (< 2.5% of allowance).
+  * **Safe Scaling & Zero Explosion:** Stroke candidates average **53.2** per subject with a maximum of **59** in `BM-07` and `BM-09`, proving that curvature inflection partitioning ($\theta > 75^\circ$), arc length thresholding ($L > 0.35$), and candidate caps eliminate pathological stroke explosion.
+  * **Selective Filtering:** An average of **4.8** candidates per subject are filtered out due to sub-threshold length, low confidence, or background policy, retaining **48.3** high-quality drawable candidates per subject.
+  * **Profile Occlusion Rigor:** In `BM-02` (90° profile), occluded far-side features yield **0 drawable stroke candidates** (marked `'occluded'`), preventing phantom facial marks.
+  * **Multi-Subject Preservation:** In `BM-11` (multi-person), all candidates preserve independent `subjectId` allocations for downstream per-subject stroke ordering.
+  * **Pure TypeScript Decoupling:** Core packages remain 100% pure TypeScript with zero DOM/window/canvas dependencies.
+

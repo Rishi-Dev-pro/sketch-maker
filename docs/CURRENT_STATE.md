@@ -4,9 +4,9 @@
 
 * **Current Date / Time:** 2026-09-19
 * **Current Phase:** Phase 1 — Feasibility Prototype (Headless Photo → Strokes Pipeline)
-* **Current Version:** v0.3.15-alpha (TASK-104 Contour & Vector Generation Complete)
+* **Current Version:** v0.3.16-alpha (TASK-105 Procedural Stroke Candidate Generation Complete)
 * **Current Milestone:** M1 — Feasibility Prototype (Headless Pipeline)
-* **Status:** IN_PROGRESS (TASK-104 Contour & Vector Generation Complete)
+* **Status:** IN_PROGRESS (TASK-105 Procedural Stroke Candidate Generation Complete)
 
 ---
 
@@ -28,8 +28,9 @@ Phase 1 pipeline is advancing through structural analysis:
 14. **TASK-103.8 (MediaPipe Pose Landmarker Integration):** Extended canonical contracts in `packages/shared-types` (`PoseLandmark`, `PoseConnection`, `BodyPose`, `BodyFeatures.pose`). Implemented `pose-mapper.ts` (33-point BlazePose normalized mapping, synthesized neck midpoint, skeletal connections, visibility classification) and `face-pose-associator.ts` (spatial proximity matching $d < 0.25$ for unified `SubjectModel`s, multi-subject handling for `BM-11`). Generalized `MediaPipeWebDelegate` with shared `FilesetResolver`. Vite chunking keeps ML isolated in `vision_bundle` (220 kB), initial page bundle reduced to 172 kB. 12/12 pose mapper unit tests pass; monorepo tests pass (174+ tests); 0 TypeScript errors across 8 workspaces.
 15. **TASK-103.9 (MediaPipe Image Segmenter Integration):** Extended canonical contracts in `packages/shared-types` (`SemanticCategory`, `SemanticMask`, `SemanticSegmentation`, `SubjectModel.semanticSegmentation`). Implemented `segmenter-mapper.ts` (discrete 6-class mapping, nearest-neighbor category resampling, bilinear continuous confidence map interpolation) and `segmentation-reconciler.ts` (evidence-aware hybrid reconciliation between ML semantic masks and TASK-102 deterministic masks). Extended `MediaPipeWebDelegate` with shared `FilesetResolver` and lazy loading of `selfie_multiclass_256x256.tflite` (16.37 MB). Vite chunking keeps ML isolated in `vision_bundle` (226.18 kB), initial page bundle is 177.93 kB. 12/12 segmenter unit tests pass; monorepo tests pass (186+ tests); 0 TypeScript errors across 8 workspaces.
 16. **TASK-104 (Contour & Vector Generation):** Implemented canonical vector geometry IR (`VectorGeometry`, `VectorPath`, `GeometryMetrics`) in `packages/shared-types/src/vector.ts` and full geometry engine in `packages/stroke-engine/src/geometry/` (cleaning, clamping, spike/collinear reduction, adaptive RDP simplification across hierarchy levels, Catmull-Rom cubic Bézier fitting with overshoot clamp, Moore-neighborhood mask boundary following, and deterministic multi-cue importance scoring: $I = 0.45 w_{\text{semantic}} + 0.25 c + 0.15 v + 0.15 s$). Profile occlusion strictly suppresses occluded side features (`BM-02`); multi-subject isolation cleanly tags paths by `subjectId` (`BM-11`). 20/20 unit tests pass; 12-category benchmark passes (average latency **1.98 ms** vs < 50ms SLA, **81.6% point reduction** from 2,838 to 514 clean points). Interactive UI audit and visualization verified in `apps/web`.
-17. **Automated Verification:** All test suites pass (206+ monorepo tests), all 8 monorepo workspaces typecheck cleanly with 0 errors, and client production build succeeds in ~1.5s.
-18. **Stop Condition:** TASK-104 complete. Awaiting user direction before next task (TASK-105).
+17. **TASK-105 (Procedural Stroke Candidate Generation):** Implemented platform-independent stroke candidate generation IR (`StrokeCandidate`, `StrokeCandidateSet`, `StrokeMetrics`, `StrokeSemanticRole`, `StrokeFilteredReason`) in `packages/shared-types/src/stroke.ts` and generator in `packages/stroke-engine/src/candidates/` (semantic role derivation, protected structural anatomical paths, curvature/length gesture partitioning, deterministic stroke width/density models, composite priority scoring $P = 0.4I + 0.3w_{\text{role}} + 0.2c + 0.1\min(1, 2L)$, profile occlusion filtering, and bounded candidate caps preventing stroke explosion). 18/18 unit tests pass; 12-category benchmark passes (average latency **1.06 ms** vs < 50ms SLA target, average **53.2** candidates per subject, max **59**). Interactive UI audit and canvas preview verified in `apps/web`.
+18. **Automated Verification:** All test suites pass (224+ monorepo tests), all 8 monorepo workspaces typecheck cleanly with 0 errors, and client production build succeeds in ~1.5s.
+19. **Stop Condition:** TASK-105 complete. Awaiting user direction before next task (TASK-106).
 
 
 ---
@@ -58,28 +59,29 @@ Phase 1 pipeline is advancing through structural analysis:
 * [x] **TASK-103.8:** MediaPipe Pose Landmarker integration (`apps/web/src/vision/mediapipe/*`, `docs/MEDIAPIPE_POSE_LANDMARKER.md`, 12/12 mapper tests, interactive web UI inspector with skeleton/joint overlays, lazy chunk splitting verified).
 * [x] **TASK-103.9:** MediaPipe Image Segmenter integration (`apps/web/src/vision/mediapipe/*`, `docs/MEDIAPIPE_IMAGE_SEGMENTER.md`, 12/12 mapper/reconciler tests, interactive web UI with semantic mask overlays and category toggles, lazy chunk splitting verified).
 * [x] **TASK-104:** Contour & Vector Generation (`packages/stroke-engine/src/geometry/*`, `packages/shared-types/src/vector.ts`, `docs/CONTOUR_VECTOR_GENERATION.md`, `ADR-011`, 20/20 unit tests, 12/12 benchmark images evaluated, 81.6% point reduction, 1.98ms avg latency, interactive web UI audit verified).
+* [x] **TASK-105:** Procedural Stroke Candidate Generation (`packages/stroke-engine/src/candidates/*`, `packages/shared-types/src/stroke.ts`, `docs/STROKE_CANDIDATE_GENERATION.md`, `ADR-012`, 18/18 unit tests, 12/12 benchmark images evaluated, 1.06ms avg latency, 0 stroke explosion, profile occlusion verified, interactive web UI preview verified).
 * [x] **Web App Foundation Verification:** `apps/web` builds cleanly with Vite, typechecks with 0 errors, and renders verified in browser.
 
 ---
 
 ## 3. Currently Being Worked On
-* **TASK-104 (Complete):** Contour & Vector Generation integrated, benchmarked across all 12 categories, and verified in browser diagnostics. Stopped as instructed; awaiting next user instruction.
+* **TASK-105 (Complete):** Procedural Stroke Candidate Generation integrated, benchmarked across all 12 categories, and verified in browser diagnostics. Stopped as instructed; awaiting next user instruction.
 
 ---
 
 ## 4. What Is Partially Implemented
 * Headless package stubs (`style-engine`, `animation-engine`, `export-engine`): Package manifests and version constants exist; algorithmic implementations begin in subsequent Phase 1 tasks.
-* `packages/stroke-engine`: Vector geometry module is complete; stroke ordering (`TASK-105`) and styling presets follow.
+* `packages/stroke-engine`: Vector geometry and stroke candidate generation modules are complete; stroke ordering / timeline sequencing (`TASK-106`) and styling presets follow.
 
 ---
 
 ## 5. What Is Blocked
-* None. Vector geometry pipeline is verified and unblocks semantic importance weighting & stroke sorting (`TASK-105`).
+* None. Stroke candidate generation is verified and unblocks progressive drawing engine & timeline sequencing (`TASK-106`).
 
 ---
 
 ## 6. Known Bugs & Anomalies
-* None. All 206+ unit and regression tests pass cleanly across all 8 workspaces.
+* None. All 224+ unit and regression tests pass cleanly across all 8 workspaces.
 
 ---
 
@@ -90,12 +92,12 @@ Phase 1 pipeline is advancing through structural analysis:
 
 ## 8. Immediate Next Tasks
 
-### Immediate Next Task (Task ID: `TASK-105`):
-* `TASK-105`: Semantic importance weighting & stroke sorting (`packages/stroke-engine/ordering.ts`). Structure drawing sequence from focal primary landmarks (eyes, nose, mouth) through secondary features, contours, and clothing gesture.
+### Immediate Next Task (Task ID: `TASK-106`):
+* `TASK-106`: Progressive Drawing Engine & Timeline Sequencing (`packages/animation-engine` or `packages/stroke-engine/ordering.ts`). Structure drawing sequence from focal primary landmarks (eyes, nose, mouth) through secondary features, contours, and clothing gesture with timeline interpolation.
 
 ### Next Few Planned Tasks (Phase 1):
-1. `TASK-105`: Semantic importance weighting & stroke sorting (`packages/stroke-engine/ordering.ts`).
-2. `TASK-106`: Headless canvas draw runner & progressive animation test (`tests/rendering/prototype_runner.html`).
+1. `TASK-106`: Progressive Drawing Engine & Timeline Sequencing.
+2. `TASK-107`: Headless canvas draw runner & progressive animation test (`tests/rendering/prototype_runner.html`).
 
 
 ---

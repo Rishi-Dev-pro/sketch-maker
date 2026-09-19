@@ -6,7 +6,12 @@ import {
   VisionExecutionMode,
 } from '@sketch-maker/structural-analysis';
 import { preprocessPixelBuffer, PixelBuffer } from '@sketch-maker/image-processing';
-import { extractAllVectorGeometry, VectorGeometry } from '@sketch-maker/stroke-engine';
+import {
+  extractAllVectorGeometry,
+  VectorGeometry,
+  generateStrokeCandidates,
+  StrokeCandidateSet,
+} from '@sketch-maker/stroke-engine';
 import { createMediaPipeWebProvider, MediaPipeWebDelegate } from './vision/mediapipe';
 
 interface BenchmarkItem {
@@ -34,6 +39,8 @@ interface BenchmarkRunResult {
   segmentationCategories: number;
   vectorPathsCount: number;
   vectorReductionPct: number;
+  strokeCandidatesCount: number;
+  strokeDrawableCount: number;
   fallback: boolean;
 }
 
@@ -59,17 +66,28 @@ export const App: React.FC = () => {
   const [showSemanticHair, setShowSemanticHair] = useState<boolean>(true);
   const [showSemanticSkin, setShowSemanticSkin] = useState<boolean>(true);
   const [showSemanticClothing, setShowSemanticClothing] = useState<boolean>(true);
-  const [showVectorGeometry, setShowVectorGeometry] = useState<boolean>(true);
+  const [showVectorGeometry, setShowVectorGeometry] = useState<boolean>(false);
   const [showVectorCurves, setShowVectorCurves] = useState<boolean>(true);
   const [showImportanceHeatmap, setShowImportanceHeatmap] = useState<boolean>(false);
+  const [showStrokeCandidates, setShowStrokeCandidates] = useState<boolean>(true);
+  const [strokeDrawableOnly, setStrokeDrawableOnly] = useState<boolean>(false);
+  const [strokeColorMode, setStrokeColorMode] = useState<'role' | 'importance' | 'width'>('role');
 
-  // Derive Vector Geometry Intermediate Representation
+  // Derive Vector Geometry Intermediate Representation (TASK-104)
   const currentGeometry: VectorGeometry | null = useMemo(() => {
     if (!currentResult || !currentResult.subjects || currentResult.subjects.length === 0) {
       return null;
     }
     return extractAllVectorGeometry(currentResult.subjects);
   }, [currentResult]);
+
+  // Derive Procedural Stroke Candidates (TASK-105)
+  const currentStrokeCandidates: StrokeCandidateSet | null = useMemo(() => {
+    if (!currentGeometry) {
+      return null;
+    }
+    return generateStrokeCandidates(currentGeometry);
+  }, [currentGeometry]);
 
 
   // Batch benchmark results
@@ -450,9 +468,125 @@ export const App: React.FC = () => {
         ctx.restore();
       }
     }
+
+    // 6. Draw TASK-105 Procedural Stroke Candidates
+    if (showStrokeCandidates && currentStrokeCandidates && currentStrokeCandidates.candidates.length > 0) {
+      for (const candidate of currentStrokeCandidates.candidates) {
+        if (strokeDrawableOnly && !candidate.drawable) {
+          continue;
+        }
+
+        ctx.save();
+
+        if (!candidate.drawable) {
+          ctx.setLineDash([4, 4]);
+          ctx.globalAlpha = 0.35;
+        } else {
+          ctx.globalAlpha = 0.92;
+        }
+
+        // Color coding based on mode
+        if (strokeColorMode === 'importance') {
+          const imp = candidate.importance;
+          const r = Math.round(Math.min(255, Math.max(0, (imp - 0.35) * 2.0 * 255)));
+          const g = Math.round(Math.min(255, Math.max(0, (1.0 - Math.abs(imp - 0.5) * 2.0) * 255)));
+          const b = Math.round(Math.min(255, Math.max(0, (0.65 - imp) * 2.5 * 255)));
+          ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+        } else if (strokeColorMode === 'width') {
+          const normW = Math.min(1.0, candidate.width / 3.0);
+          const r = Math.round(normW * 255);
+          const g = Math.round((1.0 - normW) * 200 + 55);
+          const b = 240;
+          ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+        } else {
+          // Semantic role color
+          switch (candidate.semanticRole) {
+            case 'eye':
+              ctx.strokeStyle = '#00f0ff'; // cyan
+              break;
+            case 'eyebrow':
+              ctx.strokeStyle = '#38bdf8'; // light blue
+              break;
+            case 'nose':
+              ctx.strokeStyle = '#10b981'; // emerald
+              break;
+            case 'mouth':
+              ctx.strokeStyle = '#f43f5e'; // rose
+              break;
+            case 'ear':
+              ctx.strokeStyle = '#fbbf24'; // amber
+              break;
+            case 'facial_contour':
+              ctx.strokeStyle = '#a855f7'; // purple
+              break;
+            case 'hair':
+              ctx.strokeStyle = '#ec4899'; // pink
+              break;
+            case 'silhouette':
+              ctx.strokeStyle = '#f8fafc'; // white/silver
+              break;
+            case 'body_structure':
+              ctx.strokeStyle = '#6366f1'; // indigo
+              break;
+            case 'clothing_boundary':
+              ctx.strokeStyle = '#14b8a6'; // teal
+              break;
+            case 'semantic_boundary':
+              ctx.strokeStyle = '#eab308'; // yellow
+              break;
+            case 'texture':
+            case 'detail':
+              ctx.strokeStyle = '#94a3b8'; // slate
+              break;
+            case 'background':
+              ctx.strokeStyle = '#64748b'; // dark slate
+              break;
+            default:
+              ctx.strokeStyle = '#cbd5e1';
+          }
+        }
+
+        ctx.lineWidth = candidate.width * 1.5;
+
+        // Draw Bézier curves or polyline
+        if (candidate.curves && candidate.curves.length > 0) {
+          ctx.beginPath();
+          const first = candidate.curves[0];
+          ctx.moveTo(first.start.x * W, first.start.y * H);
+          for (const curve of candidate.curves) {
+            ctx.bezierCurveTo(
+              curve.cp1.x * W,
+              curve.cp1.y * H,
+              curve.cp2 ? curve.cp2.x * W : curve.cp1.x * W,
+              curve.cp2 ? curve.cp2.y * H : curve.cp1.y * H,
+              curve.end.x * W,
+              curve.end.y * H
+            );
+          }
+          if (candidate.closed) ctx.closePath();
+          ctx.stroke();
+        } else if (candidate.points.length >= 2) {
+          ctx.beginPath();
+          ctx.moveTo(candidate.points[0].x * W, candidate.points[0].y * H);
+          for (let i = 1; i < candidate.points.length; i++) {
+            ctx.lineTo(candidate.points[i].x * W, candidate.points[i].y * H);
+          }
+          if (candidate.closed) ctx.closePath();
+          ctx.stroke();
+        } else if (candidate.points.length === 1) {
+          ctx.beginPath();
+          ctx.arc(candidate.points[0].x * W, candidate.points[0].y * H, candidate.width * 2, 0, Math.PI * 2);
+          ctx.fillStyle = ctx.strokeStyle;
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    }
   }, [
     currentResult,
     currentGeometry,
+    currentStrokeCandidates,
     showFaceMesh,
     showEarPinna,
     showHair,
@@ -466,6 +600,9 @@ export const App: React.FC = () => {
     showVectorGeometry,
     showVectorCurves,
     showImportanceHeatmap,
+    showStrokeCandidates,
+    strokeDrawableOnly,
+    strokeColorMode,
   ]);
 
 
@@ -610,6 +747,11 @@ export const App: React.FC = () => {
         const vectorPathsCount = vectorGeom?.metrics.totalPaths ?? 0;
         const vectorReductionPct = Math.round((vectorGeom?.metrics.pointReductionRatio ?? 0) * 100);
 
+        // Generate Procedural Stroke Candidates for batch audit
+        const strokeSet = vectorGeom ? generateStrokeCandidates(vectorGeom) : null;
+        const strokeCandidatesCount = strokeSet?.metrics.totalCandidates ?? 0;
+        const strokeDrawableCount = strokeSet?.metrics.drawableCandidates ?? 0;
+
         runs.push({
           id: bm.id,
           name: bmName,
@@ -625,6 +767,8 @@ export const App: React.FC = () => {
           segmentationCategories: segCategories,
           vectorPathsCount,
           vectorReductionPct,
+          strokeCandidatesCount,
+          strokeDrawableCount,
           fallback: !!res.executionPlan?.fallbackOccurred,
         });
 
@@ -645,6 +789,8 @@ export const App: React.FC = () => {
           segmentationCategories: 0,
           vectorPathsCount: 0,
           vectorReductionPct: 0,
+          strokeCandidatesCount: 0,
+          strokeDrawableCount: 0,
           fallback: true,
         });
         setBatchResults([...runs]);
@@ -662,7 +808,7 @@ export const App: React.FC = () => {
       <header>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div className="logo-badge">Photo-to-Procedural-Art</div>
-          <span className="phase-pill">TASK-104 Vector Generation</span>
+          <span className="phase-pill">TASK-105 Stroke Candidates</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.82rem' }}>
           <span style={{ color: 'var(--text-secondary)' }}>MediaPipe Runtime:</span>
@@ -983,7 +1129,7 @@ export const App: React.FC = () => {
                   checked={showVectorGeometry}
                   onChange={(e) => setShowVectorGeometry(e.target.checked)}
                 />
-                <span style={{ color: '#00f0ff' }}>⚡</span> Vector Geometry
+                <span style={{ color: '#00f0ff' }}>⚡</span> Vectors (TASK-104)
               </label>
 
               {showVectorGeometry && (
@@ -1003,6 +1149,50 @@ export const App: React.FC = () => {
                       onChange={(e) => setShowImportanceHeatmap(e.target.checked)}
                     />
                     <span style={{ color: 'var(--text-secondary)' }}>Importance Heatmap</span>
+                  </label>
+                </>
+              )}
+
+              <span style={{ color: 'var(--border-subtle)' }}>|</span>
+
+              {/* TASK-105 Stroke Candidates Toggles */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={showStrokeCandidates}
+                  onChange={(e) => setShowStrokeCandidates(e.target.checked)}
+                />
+                <span style={{ color: '#10b981' }}>🖌️</span> Stroke Candidates (TASK-105)
+              </label>
+
+              {showStrokeCandidates && (
+                <>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={strokeDrawableOnly}
+                      onChange={(e) => setStrokeDrawableOnly(e.target.checked)}
+                    />
+                    <span style={{ color: 'var(--text-secondary)' }}>Drawable Only</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Color:</span>
+                    <select
+                      value={strokeColorMode}
+                      onChange={(e) => setStrokeColorMode(e.target.value as any)}
+                      style={{
+                        background: 'var(--bg-card)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '4px',
+                        padding: '0.1rem 0.3rem',
+                        fontSize: '0.75rem',
+                      }}
+                    >
+                      <option value="role">Semantic Role</option>
+                      <option value="importance">Importance</option>
+                      <option value="width">Line Weight</option>
+                    </select>
                   </label>
                 </>
               )}
@@ -1218,7 +1408,95 @@ export const App: React.FC = () => {
                     : '--'}
                 </div>
               </div>
+
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Stroke Candidates (TASK-105)</div>
+                <div
+                  style={{
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    color: currentStrokeCandidates ? '#10b981' : 'var(--text-muted)',
+                    marginTop: '0.3rem',
+                  }}
+                >
+                  {currentStrokeCandidates
+                    ? `🖌️ ${currentStrokeCandidates.metrics.drawableCandidates} / ${currentStrokeCandidates.metrics.totalCandidates} Drw`
+                    : '--'}
+                </div>
+              </div>
             </div>
+
+            {/* Stroke Candidates Audit Card (TASK-105) */}
+            {currentStrokeCandidates && (
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                <h3 style={{ fontSize: '0.95rem', marginBottom: '0.75rem', fontWeight: 600, color: '#10b981' }}>
+                  🖌️ Procedural Stroke Candidates (TASK-105)
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', fontSize: '0.8rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Drawable / Total: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#10b981', fontWeight: 600 }}>
+                      {currentStrokeCandidates.metrics.drawableCandidates} / {currentStrokeCandidates.metrics.totalCandidates}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Generation Latency: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#00f0ff', fontWeight: 600 }}>
+                      {currentStrokeCandidates.metrics.generationLatencyMs.toFixed(2)} ms
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Filtered Candidates: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#f59e0b' }}>
+                      {currentStrokeCandidates.metrics.filteredCandidates}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Avg Arc Length: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>
+                      {currentStrokeCandidates.metrics.averageLength.toFixed(3)}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Avg Importance: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>
+                      {currentStrokeCandidates.metrics.averageImportance.toFixed(2)}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Avg Line Weight: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>
+                      {currentStrokeCandidates.metrics.averageWidth.toFixed(2)}px
+                    </span>
+                  </div>
+                </div>
+
+                {/* Role Breakdown */}
+                <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.5rem' }}>
+                  <span style={{ fontWeight: 600 }}>Role Distribution: </span>
+                  {Object.entries(currentStrokeCandidates.metrics.strokesBySemanticRole).map(([role, cnt]) => (
+                    <span key={role} style={{ marginRight: '0.6rem', fontFamily: 'var(--font-mono)' }}>
+                      {role}: <strong style={{ color: 'var(--text-primary)' }}>{cnt}</strong>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Vector Geometry Audit Card */}
             {currentGeometry && (
@@ -1473,6 +1751,7 @@ export const App: React.FC = () => {
                     <th style={{ padding: '0.6rem' }}>Body Pose</th>
                     <th style={{ padding: '0.6rem' }}>Semantic Seg</th>
                     <th style={{ padding: '0.6rem' }}>Vectors (TASK-104)</th>
+                    <th style={{ padding: '0.6rem' }}>Strokes (TASK-105)</th>
                     <th style={{ padding: '0.6rem' }}>Ears Preserved</th>
                     <th style={{ padding: '0.6rem' }}>Status</th>
                   </tr>
@@ -1497,6 +1776,9 @@ export const App: React.FC = () => {
                       </td>
                       <td style={{ padding: '0.6rem', color: '#00f0ff', fontFamily: 'var(--font-mono)' }}>
                         {r.vectorPathsCount > 0 ? `${r.vectorPathsCount} paths (${r.vectorReductionPct}% red)` : '--'}
+                      </td>
+                      <td style={{ padding: '0.6rem', color: '#10b981', fontFamily: 'var(--font-mono)' }}>
+                        {r.strokeCandidatesCount > 0 ? `${r.strokeDrawableCount}/${r.strokeCandidatesCount} drw` : '--'}
                       </td>
                       <td style={{ padding: '0.6rem', color: r.earCount > 0 ? '#fbbf24' : 'var(--text-muted)' }}>
                         {r.earCount} ear(s)

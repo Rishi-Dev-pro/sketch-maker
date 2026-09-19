@@ -191,3 +191,28 @@ This document serves as the permanent record of major architectural and technica
   7. *Deterministic Multi-Cue Importance Model:* Computes $I = 0.45 \times w_{\text{semantic}} + 0.25 \times c + 0.15 \times v + 0.15 \times s$, establishing reproducible, objective stroke priority.
   8. *Profile Occlusion & Multi-Subject Isolation:* Profile occluded features (`BM-02`) produce 0 paths. Multi-subject detections (`BM-11`) are partitioned with distinct `subjectId` attributes.
 * **Consequences:** Average extraction latency is ~1.98 ms (< 50 ms SLA target); points are reduced by 81.6% (from 2,838 down to 514 clean vertices per subject); downstream stroke engines receive clean, continuous parametric paths ready for expressive styling.
+
+---
+
+### ADR-012: Stroke Candidate Intermediate Representation, Eligibility Filtering, and Width/Density Models (TASK-105)
+* **Date:** 2026-09-19
+* **Status:** ACCEPTED
+* **Decision:** Introduce a formal, platform-independent `StrokeCandidate` intermediate representation (`StrokeCandidate`, `StrokeCandidateSet`, `StrokeMetrics`, `StrokeSemanticRole`, `StrokeFilteredReason`) in `@sketch-maker/shared-types` and implement deterministic stroke candidate generation in `@sketch-maker/stroke-engine/candidates`.
+* **Context:** TASK-104 established resolution-independent vector geometry (`VectorGeometry`, `VectorPath`). However, vector paths are geometric descriptions of lines without artistic intent, stroke properties, gesture segmentation, or progressive eligibility. Handing raw geometry directly to an animation timeline would lead to:
+  1. Excessive or fragmented strokes on complex silhouettes.
+  2. Loss of anatomical hierarchy (e.g., drawing background noise before facial features).
+  3. Indiscriminate rendering of occluded or low-confidence features.
+  4. Coupling of stroke candidate generation with specific canvas rendering technologies or animation engines.
+* **Architecture & Boundary Rules:**
+  1. *Decoupled Procedural Boundary:* TASK-105 exclusively maps `VectorGeometry` $\to$ `StrokeCandidateSet`. It intentionally omits global draw ordering, animation timeline sequencing, canvas styles (neon, charcoal, watercolor), and video export, which belong to TASK-106+.
+  2. *Pure TypeScript Execution:* 100% pure TypeScript with zero DOM/window/canvas globals in core packages (`@sketch-maker/shared-types`, `@sketch-maker/stroke-engine`).
+  3. *Protected Anatomical Structures:* Primary facial features (eyes, eyebrows, nose, mouth, ears) are protected from fragmentation, ensuring high-salience anatomy is captured as cohesive artistic strokes.
+  4. *Curvature & Gesture Partitioning:* Non-protected paths (silhouettes, hair boundaries, textures) are partitioned at sharp angular inflections ($\theta > 75^\circ$) or arc length limits ($L > 0.35$), with closed loops opened and a hard cap of 8 candidates per path to guarantee bounded stroke counts and prevent stroke explosion.
+  5. *Deterministic Stroke Width & Density Models:*
+     * $w = w_{\text{base}} \times (0.8 + 0.2 \cdot c) \times (0.85 + 0.15 \cdot I)$
+     * Point density computed as $\max(4, \lceil \frac{L}{0.008} \rceil)$ guaranteeing uniform parametric sampling across normalized coordinate space.
+  6. *Composite Priority Scoring:*
+     * $P = 0.4 \cdot I + 0.3 \cdot w_{\text{role}} + 0.2 \cdot c + 0.1 \cdot \min(1, 2L)$, balancing importance, anatomical hierarchy, perceptual confidence, and stroke length.
+  7. *Strict Profile Occlusion & Isolation:* Features tagged `occluded` or with 0 visibility (such as the occluded eye/ear in `BM-02`) yield 0 drawable stroke candidates (filtered with reason `'occluded'`). Multi-person scenes (`BM-11`) strictly preserve independent `subjectId` allocations.
+* **Consequences:** Average candidate generation latency is **1.06 ms** (sub-50 ms SLA target achieved). Candidate counts average **53.2** strokes per subject (max 59), eliminating pathological stroke explosion. Downstream sequencing and styling engines (TASK-106) receive fully qualified, validated, and prioritized stroke candidates.
+

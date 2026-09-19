@@ -342,6 +342,68 @@ VectorGeometry (Canonical Resolution-Independent Geometry IR)
 * **Mask Boundary Extraction:** Clockwise Moore-neighborhood tracing with configurable grid step (default: 4px) and minimum area threshold ($0.001$).
 * **Importance Scoring:** $I = 0.45 \times w_{\text{semantic}} + 0.25 \times c + 0.15 \times v + 0.15 \times s$, ranking primary facial features above secondary clothing boundaries.
 
+---
+
+## 9. Procedural Stroke Candidate Generation Architecture (TASK-105)
+
+### 9.1 Architectural Transition: Geometry to Stroke Candidates
+TASK-105 establishes the boundary between static vector geometry (`VectorGeometry`) and procedural drawing actions (`StrokeCandidate[]`).
+
+```text
+VectorGeometry (Canonical Geometry IR)
+          │
+          ▼
+packages/stroke-engine/src/candidates/
+  ├── semantic-roles.ts     (role mapping: eye, eyebrow, nose, mouth, ear, silhouette, hair, pose, clothing)
+  ├── partitioning.ts       (gesture subdivision: angular turn detection + length partitioning)
+  ├── properties.ts         (deterministic width, density, and priority modeling)
+  ├── filtering.ts          (eligibility, occlusion, confidence, and length gates)
+  ├── validator.ts          (numerical sanitization and finite bounds check)
+  └── generator.ts          (unified candidate generation pipeline)
+          │
+          ▼
+StrokeCandidateSet (Procedural Stroke Candidate IR)
+```
+
+* **Stroke vs. Path Distinction:** A single `VectorPath` represents mathematical geometric evidence. In contrast, a `StrokeCandidate` represents a potential human-like drawing action. A path may yield 0 strokes (occluded/noise), 1 stroke (focal facial feature), or multiple strokes (long silhouette segmented into gesture arcs).
+* **Zero Browser/DOM Dependencies:** Core packages (`packages/shared-types`, `packages/stroke-engine`) contain zero references to `window`, `document`, HTMLCanvasElement, CanvasRenderingContext2D, or SVG DOM elements.
+* **Separation from Progressive Animation:** Stroke candidates define drawability, width, and relative priority. Final global timeline scheduling, frame progression, canvas rendering, and export belong exclusively to subsequent tasks (TASK-106+).
+
+### 9.2 Canonical Stroke Candidate Contract (`@sketch-maker/shared-types`)
+* **`StrokeCandidate`:**
+  * `id`: Unique candidate identifier (e.g. `subject_0_face_left_eye_upper_stroke_0`)
+  * `subjectId`: Preserves multi-person instance separation (`BM-11`)
+  * `sourcePathId`: Origin path ID for non-destructive traceability
+  * `source`: Provenance (`'face_contour' | 'silhouette' | 'pose_connection' | ...`)
+  * `points`: Simplified polyline coordinates in $[0.0, 1.0]$ space
+  * `curves`: Preserved/fitted cubic Bézier splines
+  * `closed`: Topological closure boolean
+  * `confidence`: Detector confidence $[0.0, 1.0]$
+  * `importance`: Refined stroke-level importance $[0.0, 1.0]$
+  * `priorityScore`: Scheduling priority $[0.0, 1.0]$
+  * `semanticRole`: High-level role (`'eye' | 'eyebrow' | 'nose' | 'mouth' | 'ear' | 'silhouette' | 'hair' | 'body_structure' | 'clothing_boundary' | 'detail' | 'texture' | 'background'`)
+  * `hierarchyLevel`: Path structural hierarchy (`0 | 1 | 2 | 3 | 4`)
+  * `width`: Line weight multiplier calibrated by anatomical prominence
+  * `density`: Detail allocation density $[0.0, 1.0]$
+  * `length`: Normalized geometric arc length
+  * `bounds`: Axis-aligned bounding box $[0.0, 1.0]$
+  * `visibility`: Occlusion status (`'visible' | 'occluded' | 'not_detected' | 'uncertain'`)
+  * `drawable`: Eligibility flag indicating qualification for drawing
+  * `isBackground`: Boolean distinguishing background from subject
+  * `filteredReason`: Reason when non-drawable (`'occluded' | 'low_confidence' | 'too_short' | 'background' | ...`)
+* **`StrokeMetrics`:** Aggregates `totalCandidates`, `drawableCandidates`, `filteredCandidates`, `totalLength`, `averageLength`, `averageConfidence`, `averageImportance`, `averageWidth`, `strokesBySemanticRole`, `strokesByHierarchy`, `strokesBySubject`, and `generationLatencyMs`.
+* **`StrokeCandidateSet`:** Top-level container holding `candidates: StrokeCandidate[]`, `bounds: BoundingBox`, `metrics: StrokeMetrics`, and metadata.
+
+### 9.3 Physical & Artistic Models
+* **Gesture Path Partitioning:** Protected facial features (`eyes`, `eyebrows`, `nose`, `mouth`, `ears`) are never fragmented. Long silhouettes or boundaries are split at sharp corners ($\theta > 75^\circ$) or arc length increments ($\le 0.35$).
+* **Expressive Line Weight:** Modulated by role and hierarchy:
+  $$w = w_{\text{base}} \times (0.8 + 0.2 \cdot c) \times (0.85 + 0.15 \cdot I)$$
+* **Detail Density:** Calibrated per region (eyes/nose/mouth: $1.0$, ears/jawline: $0.85$, hair: $0.80$, silhouette: $0.75$, pose: $0.70$, clothing: $0.60$, background: $0.20$).
+* **Drawing Priority Score:**
+  $$P = 0.40 \cdot I + 0.30 \cdot w_{\text{role}} + 0.20 \cdot c + 0.10 \cdot \min(1.0, 2L)$$
+* **Profile Occlusion Guarantee:** Features with `visibility === 'occluded'` strictly produce `drawable: false, filteredReason: 'occluded'`, yielding zero visible lines on the hidden side of true profiles (`BM-02`).
+
+
 
 
 
