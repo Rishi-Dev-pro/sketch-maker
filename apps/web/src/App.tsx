@@ -11,6 +11,10 @@ import {
   VectorGeometry,
   generateStrokeCandidates,
   StrokeCandidateSet,
+  orderStrokeCandidates,
+  OrderedStrokeSequence,
+  OrderedStroke,
+  CompositionPhase,
 } from '@sketch-maker/stroke-engine';
 import { createMediaPipeWebProvider, MediaPipeWebDelegate } from './vision/mediapipe';
 
@@ -41,6 +45,7 @@ interface BenchmarkRunResult {
   vectorReductionPct: number;
   strokeCandidatesCount: number;
   strokeDrawableCount: number;
+  orderedStrokesCount: number;
   fallback: boolean;
 }
 
@@ -69,9 +74,13 @@ export const App: React.FC = () => {
   const [showVectorGeometry, setShowVectorGeometry] = useState<boolean>(false);
   const [showVectorCurves, setShowVectorCurves] = useState<boolean>(true);
   const [showImportanceHeatmap, setShowImportanceHeatmap] = useState<boolean>(false);
-  const [showStrokeCandidates, setShowStrokeCandidates] = useState<boolean>(true);
+  const [showStrokeCandidates, setShowStrokeCandidates] = useState<boolean>(false);
   const [strokeDrawableOnly, setStrokeDrawableOnly] = useState<boolean>(false);
   const [strokeColorMode, setStrokeColorMode] = useState<'role' | 'importance' | 'width'>('role');
+  const [showStrokeOrdering, setShowStrokeOrdering] = useState<boolean>(true);
+  const [orderingColorMode, setOrderingColorMode] = useState<'phase' | 'gradient' | 'dependency'>('phase');
+  const [orderingSubjectFilter, setOrderingSubjectFilter] = useState<string>('all');
+  const [showSequenceIndices, setShowSequenceIndices] = useState<boolean>(false);
 
   // Derive Vector Geometry Intermediate Representation (TASK-104)
   const currentGeometry: VectorGeometry | null = useMemo(() => {
@@ -88,6 +97,14 @@ export const App: React.FC = () => {
     }
     return generateStrokeCandidates(currentGeometry);
   }, [currentGeometry]);
+
+  // Derive Ordered Stroke Sequence (TASK-106)
+  const currentOrderedSequence: OrderedStrokeSequence | null = useMemo(() => {
+    if (!currentStrokeCandidates) {
+      return null;
+    }
+    return orderStrokeCandidates(currentStrokeCandidates);
+  }, [currentStrokeCandidates]);
 
 
   // Batch benchmark results
@@ -583,10 +600,127 @@ export const App: React.FC = () => {
         ctx.restore();
       }
     }
+
+    // 7. Draw TASK-106 Ordered Stroke Sequence
+    if (showStrokeOrdering && currentOrderedSequence && currentOrderedSequence.strokes.length > 0) {
+      const totalOrdered = currentOrderedSequence.strokes.length;
+
+      for (const ordered of currentOrderedSequence.strokes) {
+        const candidate = ordered.stroke;
+        if (orderingSubjectFilter !== 'all' && candidate.subjectId !== orderingSubjectFilter) {
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = 0.95;
+
+        // Color coding based on orderingColorMode
+        if (orderingColorMode === 'gradient') {
+          // Progressive rainbow hue: 260 (violet/blue) down to 0 (red)
+          const progress = totalOrdered > 1 ? ordered.sequenceIndex / (totalOrdered - 1) : 0;
+          const hue = Math.round((1.0 - progress) * 260);
+          ctx.strokeStyle = `hsl(${hue}, 95%, 60%)`;
+        } else if (orderingColorMode === 'dependency') {
+          switch (ordered.dependencyLevel) {
+            case 0:
+              ctx.strokeStyle = '#00f0ff'; // Cyan (Root / Container)
+              break;
+            case 1:
+              ctx.strokeStyle = '#fbbf24'; // Amber (Feature child)
+              break;
+            case 2:
+            default:
+              ctx.strokeStyle = '#f43f5e'; // Rose (Nested detail)
+              break;
+          }
+        } else {
+          // Composition Phase Colors
+          switch (ordered.phase) {
+            case 'foundation':
+              ctx.strokeStyle = '#10b981'; // Emerald
+              break;
+            case 'primary_structure':
+              ctx.strokeStyle = '#00f0ff'; // Cyan
+              break;
+            case 'expressive_features':
+              ctx.strokeStyle = '#f43f5e'; // Rose
+              break;
+            case 'secondary_anatomy':
+              ctx.strokeStyle = '#c084fc'; // Purple
+              break;
+            case 'refinement':
+              ctx.strokeStyle = '#fbbf24'; // Amber
+              break;
+            case 'texture_accent':
+            default:
+              ctx.strokeStyle = '#94a3b8'; // Slate
+              break;
+          }
+        }
+
+        ctx.lineWidth = Math.max(1.0, candidate.width * 1.5);
+
+        // Draw Bézier curves or polyline
+        if (candidate.curves && candidate.curves.length > 0) {
+          ctx.beginPath();
+          const first = candidate.curves[0];
+          ctx.moveTo(first.start.x * W, first.start.y * H);
+          for (const curve of candidate.curves) {
+            ctx.bezierCurveTo(
+              curve.cp1.x * W,
+              curve.cp1.y * H,
+              curve.cp2 ? curve.cp2.x * W : curve.cp1.x * W,
+              curve.cp2 ? curve.cp2.y * H : curve.cp1.y * H,
+              curve.end.x * W,
+              curve.end.y * H
+            );
+          }
+          if (candidate.closed) ctx.closePath();
+          ctx.stroke();
+        } else if (candidate.points.length >= 2) {
+          ctx.beginPath();
+          ctx.moveTo(candidate.points[0].x * W, candidate.points[0].y * H);
+          for (let i = 1; i < candidate.points.length; i++) {
+            ctx.lineTo(candidate.points[i].x * W, candidate.points[i].y * H);
+          }
+          if (candidate.closed) ctx.closePath();
+          ctx.stroke();
+        } else if (candidate.points.length === 1) {
+          ctx.beginPath();
+          ctx.arc(candidate.points[0].x * W, candidate.points[0].y * H, candidate.width * 2, 0, Math.PI * 2);
+          ctx.fillStyle = ctx.strokeStyle;
+          ctx.fill();
+        }
+
+        // Draw sequence index badge if enabled
+        if (showSequenceIndices && candidate.points.length > 0) {
+          const startPt = candidate.points[0];
+          const badgeX = startPt.x * W;
+          const badgeY = startPt.y * H;
+
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+          ctx.beginPath();
+          ctx.arc(badgeX, badgeY, 7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 8px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`${ordered.sequenceIndex + 1}`, badgeX, badgeY);
+        }
+
+        ctx.restore();
+      }
+    }
   }, [
     currentResult,
     currentGeometry,
     currentStrokeCandidates,
+    currentOrderedSequence,
     showFaceMesh,
     showEarPinna,
     showHair,
@@ -603,7 +737,12 @@ export const App: React.FC = () => {
     showStrokeCandidates,
     strokeDrawableOnly,
     strokeColorMode,
+    showStrokeOrdering,
+    orderingColorMode,
+    orderingSubjectFilter,
+    showSequenceIndices,
   ]);
+
 
 
   // Execute perception analysis on the active image
@@ -752,6 +891,10 @@ export const App: React.FC = () => {
         const strokeCandidatesCount = strokeSet?.metrics.totalCandidates ?? 0;
         const strokeDrawableCount = strokeSet?.metrics.drawableCandidates ?? 0;
 
+        // Sequence stroke ordering for batch audit (TASK-106)
+        const orderedSeq = strokeSet ? orderStrokeCandidates(strokeSet) : null;
+        const orderedStrokesCount = orderedSeq?.drawableStrokes ?? 0;
+
         runs.push({
           id: bm.id,
           name: bmName,
@@ -769,6 +912,7 @@ export const App: React.FC = () => {
           vectorReductionPct,
           strokeCandidatesCount,
           strokeDrawableCount,
+          orderedStrokesCount,
           fallback: !!res.executionPlan?.fallbackOccurred,
         });
 
@@ -791,6 +935,7 @@ export const App: React.FC = () => {
           vectorReductionPct: 0,
           strokeCandidatesCount: 0,
           strokeDrawableCount: 0,
+          orderedStrokesCount: 0,
           fallback: true,
         });
         setBatchResults([...runs]);
@@ -808,7 +953,7 @@ export const App: React.FC = () => {
       <header>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div className="logo-badge">Photo-to-Procedural-Art</div>
-          <span className="phase-pill">TASK-105 Stroke Candidates</span>
+          <span className="phase-pill">TASK-106 Stroke Ordering</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.82rem' }}>
           <span style={{ color: 'var(--text-secondary)' }}>MediaPipe Runtime:</span>
@@ -1196,6 +1341,50 @@ export const App: React.FC = () => {
                   </label>
                 </>
               )}
+
+              <span style={{ color: 'var(--border-subtle)' }}>|</span>
+
+              {/* TASK-106 Stroke Ordering Toggles */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={showStrokeOrdering}
+                  onChange={(e) => setShowStrokeOrdering(e.target.checked)}
+                />
+                <span style={{ color: '#38bdf8' }}>🔢</span> Stroke Ordering (TASK-106)
+              </label>
+
+              {showStrokeOrdering && (
+                <>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Color:</span>
+                    <select
+                      value={orderingColorMode}
+                      onChange={(e) => setOrderingColorMode(e.target.value as any)}
+                      style={{
+                        background: 'var(--bg-card)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '4px',
+                        padding: '0.1rem 0.3rem',
+                        fontSize: '0.75rem',
+                      }}
+                    >
+                      <option value="phase">Composition Phase</option>
+                      <option value="gradient">Sequence Gradient</option>
+                      <option value="dependency">Dependency Level</option>
+                    </select>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showSequenceIndices}
+                      onChange={(e) => setShowSequenceIndices(e.target.checked)}
+                    />
+                    <span style={{ color: 'var(--text-secondary)' }}># Badges</span>
+                  </label>
+                </>
+              )}
             </div>
 
             {/* Viewport Canvas */}
@@ -1431,6 +1620,29 @@ export const App: React.FC = () => {
                     : '--'}
                 </div>
               </div>
+
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Stroke Ordering (TASK-106)</div>
+                <div
+                  style={{
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    color: currentOrderedSequence ? '#38bdf8' : 'var(--text-muted)',
+                    marginTop: '0.3rem',
+                  }}
+                >
+                  {currentOrderedSequence
+                    ? `🔢 ${currentOrderedSequence.drawableStrokes} Ordered (${currentOrderedSequence.metrics.orderingLatencyMs.toFixed(1)}ms)`
+                    : '--'}
+                </div>
+              </div>
             </div>
 
             {/* Stroke Candidates Audit Card (TASK-105) */}
@@ -1494,6 +1706,74 @@ export const App: React.FC = () => {
                       {role}: <strong style={{ color: 'var(--text-primary)' }}>{cnt}</strong>
                     </span>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Stroke Ordering & Composition Audit Card (TASK-106) */}
+            {currentOrderedSequence && (
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                <h3 style={{ fontSize: '0.95rem', marginBottom: '0.75rem', fontWeight: 600, color: '#38bdf8' }}>
+                  🔢 Procedural Stroke Ordering & Composition (TASK-106)
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', fontSize: '0.8rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Ordered Drawable Strokes: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#38bdf8', fontWeight: 600 }}>
+                      {currentOrderedSequence.drawableStrokes} / {currentOrderedSequence.totalStrokes}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Ordering Latency: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#00f0ff', fontWeight: 600 }}>
+                      {currentOrderedSequence.metrics.orderingLatencyMs.toFixed(2)} ms
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Dependency Edges / Depth: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#fbbf24' }}>
+                      {currentOrderedSequence.metrics.dependencyCount} edges (Depth {currentOrderedSequence.metrics.maxDependencyDepth})
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Filtered / Occluded: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#94a3b8' }}>
+                      {currentOrderedSequence.filteredStrokes.length} candidates
+                    </span>
+                  </div>
+                </div>
+
+                {/* Phase Breakdown */}
+                <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.5rem' }}>
+                  <span style={{ fontWeight: 600 }}>Phase Breakdown: </span>
+                  {Object.entries(currentOrderedSequence.metrics.phaseCounts).map(([phase, cnt]) => (
+                    <span key={phase} style={{ marginRight: '0.6rem', fontFamily: 'var(--font-mono)' }}>
+                      {phase}: <strong style={{ color: 'var(--text-primary)' }}>{cnt}</strong>
+                    </span>
+                  ))}
+                </div>
+
+                {/* Sequence Preview */}
+                <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.5rem' }}>
+                  <div style={{ fontWeight: 600, marginBottom: '0.3rem' }}>Drawing Sequence Preview (First 5 Strokes):</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontFamily: 'var(--font-mono)' }}>
+                    {currentOrderedSequence.strokes.slice(0, 5).map((s) => (
+                      <div key={s.sequenceIndex} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <span style={{ color: '#38bdf8', fontWeight: 600 }}>#{s.sequenceIndex + 1}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>[{s.phase}]</span>
+                        <span style={{ color: 'var(--text-primary)' }}>{s.stroke.semanticRole}</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>({s.orderingReason})</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -1752,6 +2032,7 @@ export const App: React.FC = () => {
                     <th style={{ padding: '0.6rem' }}>Semantic Seg</th>
                     <th style={{ padding: '0.6rem' }}>Vectors (TASK-104)</th>
                     <th style={{ padding: '0.6rem' }}>Strokes (TASK-105)</th>
+                    <th style={{ padding: '0.6rem' }}>Ordered (TASK-106)</th>
                     <th style={{ padding: '0.6rem' }}>Ears Preserved</th>
                     <th style={{ padding: '0.6rem' }}>Status</th>
                   </tr>
@@ -1779,6 +2060,9 @@ export const App: React.FC = () => {
                       </td>
                       <td style={{ padding: '0.6rem', color: '#10b981', fontFamily: 'var(--font-mono)' }}>
                         {r.strokeCandidatesCount > 0 ? `${r.strokeDrawableCount}/${r.strokeCandidatesCount} drw` : '--'}
+                      </td>
+                      <td style={{ padding: '0.6rem', color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
+                        {r.orderedStrokesCount > 0 ? `${r.orderedStrokesCount} ordered` : '--'}
                       </td>
                       <td style={{ padding: '0.6rem', color: r.earCount > 0 ? '#fbbf24' : 'var(--text-muted)' }}>
                         {r.earCount} ear(s)

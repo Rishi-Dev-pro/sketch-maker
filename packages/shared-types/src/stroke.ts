@@ -144,3 +144,69 @@ export interface StrokeCandidateSet {
   readonly metrics: StrokeMetrics;
   readonly timestamp: number;
 }
+
+/**
+ * High-level artistic sequence stage in progressive procedural drawing.
+ * Governs the macro-level composition order from foundational structure to fine texture.
+ */
+export type CompositionPhase =
+  | 'foundation'          // Phase 0: Overall boundary / silhouette & structural anchor
+  | 'primary_structure'    // Phase 1: Core anatomical architecture (jawline, body skeleton)
+  | 'expressive_features' // Phase 2: Focal facial landmarks (eyes, eyebrows, nose, mouth)
+  | 'secondary_anatomy'   // Phase 3: Secondary structures (ears, hair volume, clothing boundaries)
+  | 'refinement'          // Phase 4: Structural details, inner folds, secondary contours
+  | 'texture_accent';     // Phase 5: Surface texture, hatching, hair strands, background accents
+
+/**
+ * Ordered Procedural Stroke (TASK-106).
+ * Non-destructive wrapper around StrokeCandidate with sequence index, composition phase,
+ * and dependency metadata.
+ */
+export interface OrderedStroke {
+  /** Complete, unmodified source StrokeCandidate */
+  readonly stroke: StrokeCandidate;
+  /** 0-indexed contiguous position in the final drawing sequence */
+  readonly sequenceIndex: number;
+  /** Composition phase categorization */
+  readonly phase: CompositionPhase;
+  /** Numeric phase index [0..5] for convenient sorting and filtering */
+  readonly phaseIndex: number;
+  /** Human-readable phase name */
+  readonly phaseName: string;
+  /** Structural dependency level (0 = root/parent, 1 = direct child, 2 = nested detail) */
+  readonly dependencyLevel: number;
+  /** Explanatory rationale for the assigned sequence priority */
+  readonly orderingReason: string;
+}
+
+/**
+ * Diagnostic metrics capturing stroke ordering performance, phase breakdown, and dependency depth.
+ */
+export interface StrokeOrderingMetrics {
+  readonly totalCandidates: number;
+  readonly drawableCandidates: number;
+  readonly orderedCount: number;
+  readonly filteredCount: number;
+  readonly phaseCounts: Record<CompositionPhase, number>;
+  readonly subjectCounts: Record<string, number>;
+  readonly dependencyCount: number;
+  readonly maxDependencyDepth: number;
+  readonly orderingLatencyMs: number;
+}
+
+/**
+ * Complete ordered stroke sequence ready for progressive timeline animation (TASK-107).
+ */
+export interface OrderedStrokeSequence {
+  readonly version: string;
+  /** Ordered drawable strokes strictly ready for progressive drawing */
+  readonly strokes: OrderedStroke[];
+  readonly totalStrokes: number;
+  readonly drawableStrokes: number;
+  /** Filtered non-drawable candidates preserved strictly for auditing/diagnostics */
+  readonly filteredStrokes: StrokeCandidate[];
+  readonly bounds: BoundingBox;
+  readonly metrics: StrokeOrderingMetrics;
+  readonly timestamp: number;
+}
+

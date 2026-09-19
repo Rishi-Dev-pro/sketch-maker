@@ -216,3 +216,27 @@ This document serves as the permanent record of major architectural and technica
   7. *Strict Profile Occlusion & Isolation:* Features tagged `occluded` or with 0 visibility (such as the occluded eye/ear in `BM-02`) yield 0 drawable stroke candidates (filtered with reason `'occluded'`). Multi-person scenes (`BM-11`) strictly preserve independent `subjectId` allocations.
 * **Consequences:** Average candidate generation latency is **1.06 ms** (sub-50 ms SLA target achieved). Candidate counts average **53.2** strokes per subject (max 59), eliminating pathological stroke explosion. Downstream sequencing and styling engines (TASK-106) receive fully qualified, validated, and prioritized stroke candidates.
 
+---
+
+### ADR-013: Deterministic Multi-Factor Stroke Ordering & Harmonized Multi-Subject Sequencing (TASK-106)
+* **Date:** 2026-09-19
+* **Status:** ACCEPTED
+* **Decision:** Introduce a formal `OrderedStrokeSequence` intermediate representation (`OrderedStroke`, `CompositionPhase`, `StrokeOrderingMetrics`) in `@sketch-maker/shared-types` and implement a deterministic 6-phase multi-factor ordering pipeline in `@sketch-maker/stroke-engine/ordering`.
+* **Context:** TASK-105 produced unordered procedural stroke candidates (`StrokeCandidate[]`). Directly rendering unordered strokes produces an unnatural, chaotic drawing progression (e.g. sketching eye pupils before the head silhouette, or drawing background texture before the body frame). Furthermore, in multi-subject scenes (`BM-11`), drawing one complete person while leaving the other untouched feels artificial. A progressive procedural art engine requires a human-like drawing cadence where composition progresses macro-to-micro.
+* **Architecture & Boundary Rules:**
+  1. *Decoupled Composition Boundary:* TASK-106 exclusively maps `StrokeCandidate[]` $\to$ `OrderedStrokeSequence`. It intentionally avoids frame timing, progressive canvas animation loops (`requestAnimationFrame`), style rendering (neon, watercolor), or video export, which belong to TASK-107+.
+  2. *Pure TypeScript Execution:* 100% pure TypeScript with zero DOM/window/canvas globals in core packages (`@sketch-maker/shared-types`, `@sketch-maker/stroke-engine`).
+  3. *Six-Phase Composition Model:*
+     - Phase 0 (`foundation`): Outer silhouette and body gesture anchors (`hierarchyLevel === 0` or role `silhouette`/`body_structure`).
+     - Phase 1 (`primary_structure`): Head contour, jawline, neck, primary anatomical frame (`hierarchyLevel === 1`).
+     - Phase 2 (`expressive_features`): Primary focal facial features (eyes, eyebrows, nose, mouth).
+     - Phase 3 (`secondary_anatomy`): Secondary anatomical boundaries (ears, face contours).
+     - Phase 4 (`refinement`): Hair masses, clothing boundaries, structural subdivisions.
+     - Phase 5 (`texture_accent`): Hatching, surface detail, background accents.
+  4. *Structural Dependency Hierarchy:* Directed dependency graph mapping parents to children (e.g. iris depends on eye, eye depends on head/jawline, hair depends on head). Children are strictly ordered after parents ($L_0 \to L_1 \to L_2$).
+  5. *Harmonized Multi-Subject Progression:* For multi-person scenes (`BM-11`), subjects progress harmoniously phase-by-phase (Phase 0 Subject A & B $\to$ Phase 1 Subject A & B) rather than drawing one complete subject sequentially.
+  6. *Deterministic Multi-Factor Comparator:* Zero randomness; evaluation order: Phase $\to$ Subject $\to$ Dependency Level $\to$ Role Precedence $\to$ Spatial Flow (Top-to-Bottom, Center-Outward) $\to$ Importance $\to$ Arc Length $\to$ SourcePathId $\to$ Candidate ID.
+  7. *Strict Profile Occlusion & Validation:* Filtered/occluded strokes produce 0 drawable ordered strokes (`BM-02`). Geometry is strictly immutable (coordinates preserved by reference). Contiguous 0-based sequence indices with 100% validation check.
+* **Consequences:** Ordering latency is **1.19 ms** average (< 10 ms SLA target); 100% sequence validity across all 12 benchmark categories; delivers an aesthetically compelling, human-like progressive drawing order to future timeline and canvas animators (TASK-107+).
+
+

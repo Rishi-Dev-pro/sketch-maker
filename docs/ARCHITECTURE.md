@@ -403,8 +403,68 @@ StrokeCandidateSet (Procedural Stroke Candidate IR)
   $$P = 0.40 \cdot I + 0.30 \cdot w_{\text{role}} + 0.20 \cdot c + 0.10 \cdot \min(1.0, 2L)$$
 * **Profile Occlusion Guarantee:** Features with `visibility === 'occluded'` strictly produce `drawable: false, filteredReason: 'occluded'`, yielding zero visible lines on the hidden side of true profiles (`BM-02`).
 
+---
 
+## 10. Stroke Ordering & Composition Architecture (TASK-106)
 
+TASK-106 establishes the boundary between unordered procedural stroke candidates (`StrokeCandidate[]`) and a deterministic, artistically coherent progressive drawing sequence (`OrderedStrokeSequence`).
 
+```text
+StrokeCandidate[] (Unordered Candidates from TASK-105)
+          │
+          ▼
+packages/stroke-engine/src/ordering/
+  ├── phases.ts             (6-phase composition mapping: foundation -> primary -> features -> anatomy -> refinement -> texture)
+  ├── dependencies.ts       (structural dependency hierarchy: parents/children, depth calculation)
+  ├── comparator.ts         (deterministic multi-factor comparator: phase, subject, depth, role, spatial, importance)
+  ├── sorter.ts             (partitioning drawable vs filtered, sorting, sequential 0-based indexing)
+  ├── validator.ts          (strict sequence integrity, occlusion exclusion, subject preservation, geometry immutability)
+  └── index.ts              (unified ordering entry point)
+          │
+          ▼
+OrderedStrokeSequence (Canonical Ordered Sequence IR)
+  ├── orderedStrokes: OrderedStroke[] (drawable strokes in progressive execution order)
+  ├── filteredStrokes: OrderedStroke[] (occluded/low-confidence strokes excluded from canvas)
+  └── metrics: StrokeOrderingMetrics (phase distribution, dependency stats, latency)
+```
 
+### 10.1 Six-Phase Composition Model
+Artists draw macro-to-micro, establishing silhouette and structural anchors before rendering focal facial details and fine textures:
+1. **`foundation` (Phase 0):** Outer silhouette, body gesture/pose anchors, macro envelope (`hierarchyLevel === 0` or role `silhouette` / `body_structure`).
+2. **`primary_structure` (Phase 1):** Head contour, jawline, neck, primary anatomical frame (`hierarchyLevel === 1`).
+3. **`expressive_features` (Phase 2):** Primary focal focal features (`eyes`, `eyebrows`, `nose`, `mouth`, `pupil/iris`).
+4. **`secondary_anatomy` (Phase 3):** External ears, facial contours, secondary anatomical boundaries (`ears`, `face_contour`).
+5. **`refinement` (Phase 4):** Hair masses, clothing boundaries, structural subdivisions (`hair`, `clothing_boundary`).
+6. **`texture_accent` (Phase 5):** Hatching, surface detail, background accents, atmospheric lines (`detail`, `texture`, `background`).
 
+### 10.2 Structural Dependency Hierarchy
+Strokes have natural anatomical dependencies:
+* Features (eyes, nose, mouth) depend on the head/jawline.
+* Iris/pupil features depend on eye contours.
+* Secondary anatomy (ears) depends on head/jawline contours.
+* Hair strands depend on the outer head contour.
+* Clothing boundaries depend on body pose anchors.
+
+The dependency engine computes directed dependency graphs (`dependencies.ts`) to assign a `dependencyLevel` (0 = root/anchor, 1 = direct child, 2 = nested feature). A child stroke is strictly prevented from appearing earlier than its structural parent.
+
+### 10.3 Multi-Factor Deterministic Comparator
+To guarantee 100% reproducible ordering with zero randomness, the comparator evaluates:
+1. **Composition Phase:** Natural drawing progression (0 to 5).
+2. **Subject Progression:** Harmonized phase interleaving across subjects (`BM-11`), ensuring all subjects emerge synchronously through phases.
+3. **Dependency Level:** Parents drawn before children ($L_0 \to L_1 \to L_2$).
+4. **Semantic Role Precedence:** Fine-grained role hierarchy within phases (e.g. eyebrows $\to$ eye contours $\to$ irises $\to$ nose bridge $\to$ lips).
+5. **Spatial Flow:** Deterministic top-to-bottom ($y$-coordinate) and center-outward flow mirroring natural hand movement.
+6. **Importance & Priority:** Higher salience features precede auxiliary strokes.
+7. **Arc Length:** Longer anchor gestures precede short accents.
+8. **Tie-Breaker:** Origin `sourcePathId` followed by lexicographical candidate `id`.
+
+### 10.4 Canonical Ordered Sequence Contract (`@sketch-maker/shared-types`)
+* **`OrderedStroke`:** Non-mutating wrapper preserving full `StrokeCandidate` reference alongside:
+  * `sequenceIndex`: Global 0-based drawing order.
+  * `phase`: Assigned `CompositionPhase`.
+  * `phaseIndex`: Contiguous 0-based index within the phase.
+  * `phaseName`: Human-readable phase description.
+  * `dependencyLevel`: Structural dependency depth ($0, 1, 2$).
+  * `orderingReason`: Deterministic explanation for inspection and auditing.
+* **`StrokeOrderingMetrics`:** Tracks total strokes, drawable vs filtered, counts per phase, dependency edge counts, max depth, and ordering latency ($< 2\text{ ms}$).
+* **`OrderedStrokeSequence`:** Complete ordered sequence ready for animation timeline scheduling (TASK-107+).

@@ -276,6 +276,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     * Added `Strokes (TASK-105)` column to 12-category batch benchmark table.
     * Updated header status pill to `TASK-105 Stroke Candidates`.
   * Documented full architectural details, role mapping, partitioning logic, width/density models, and benchmark results in `docs/STROKE_CANDIDATE_GENERATION.md`, `docs/ARCHITECTURE.md` (Section 9), and `docs/DECISIONS.md` (`ADR-012`).
+* **Deterministic Stroke Ordering & Composition (`TASK-106`):**
+  * Created canonical stroke ordering IR data contracts in `packages/shared-types/src/stroke.ts`: `CompositionPhase`, `OrderedStroke`, `StrokeOrderingMetrics`, `OrderedStrokeSequence`. Exported via `packages/shared-types/src/index.ts`.
+  * Implemented pure TypeScript stroke ordering and composition pipeline in `packages/stroke-engine/src/ordering/`:
+    * `types.ts`: Ordering configuration (`StrokeOrderingConfig`, `DEFAULT_STROKE_ORDERING_CONFIG`).
+    * `phases.ts`: 6-phase composition mapping (`foundation`, `primary_structure`, `expressive_features`, `secondary_anatomy`, `refinement`, `texture_accent`) reflecting human macro-to-micro drawing progression.
+    * `dependencies.ts`: Directed dependency graph mapping parent structures to dependent children (iris $\to$ eye contour, eye/nose/mouth $\to$ head/jawline, hair $\to$ head, clothing $\to$ pose) and calculating dependency depth ($L_0 \to L_1 \to L_2$).
+    * `comparator.ts`: Deterministic multi-factor comparator (Phase $\to$ Subject $\to$ Dependency Level $\to$ Role Precedence $\to$ Spatial Top-to-Bottom Flow $\to$ Importance $\to$ Arc Length $\to$ SourcePathId $\to$ Candidate ID tie-breaker).
+    * `sorter.ts`: Partitioning into drawable vs filtered candidates, sorting drawable candidates, assigning contiguous 0-based `sequenceIndex` and `phaseIndex`, and calculating sequence metrics.
+    * `validator.ts`: Comprehensive sequence validation verifying contiguous 0-based indices, uniqueness, occlusion exclusion (0 occluded drawable strokes), subject preservation, and coordinate immutability.
+  * Preserved strict profile occlusion semantics: on `BM-02` (90° side profile), occluded far-side features produce 0 drawable ordered strokes.
+  * Preserved multi-subject isolation: on `BM-11` (multi-person), harmonized phase interleaving ensures both subjects emerge synchronously across phases rather than one sequentially after the other.
+  * Added 17 automated unit tests in `tests/stroke-engine/stroke-ordering.test.ts` (17/17 passing) verifying phase mapping, dependency hierarchy, multi-factor ordering, multi-person isolation, profile occlusion, geometry immutability, sequence integrity, and 100% pure TypeScript execution without browser/DOM globals.
+  * Added `test:ordering` script and integrated into root `npm test` gate (100% pass across 241+ monorepo tests).
+  * Added comprehensive 12-category benchmark runner `tests/benchmarks/stroke-ordering-benchmark.ts` and `npm run benchmark:ordering`:
+    * Evaluated across all 12 canonical benchmark categories (`BM-01` to `BM-12`).
+    * Measured average latency of **1.19 ms** (vs < 10ms SLA budget).
+    * Validated 100% sequence integrity (0 gaps, 0 duplicates, 0 occluded drawable strokes).
+    * Peak heap memory delta remained bounded at 59.50 MB.
+  * Enhanced interactive web UI in `apps/web/src/App.tsx`:
+    * Computed memoized `currentOrderedSequence` from `currentStrokeCandidates`.
+    * Added visualization toggles (`Stroke Ordering`, `# Badges`) and Color Mode selector (`Composition Phase`, `Sequence Gradient`, `Dependency Level`).
+    * Rendered ordered stroke paths with phase/gradient colors and start-of-stroke sequence index badges.
+    * Added `Stroke Ordering (TASK-106)` metric card and expandable `Stroke Ordering & Composition Audit Card` with phase distribution and drawing step preview.
+    * Added `Ordered (TASK-106)` column to 12-category batch benchmark table.
+    * Updated header status pill to `TASK-106 Stroke Ordering`.
+  * Documented full technical specifications in `docs/STROKE_ORDERING.md`, `docs/ARCHITECTURE.md` (Section 10), and `docs/DECISIONS.md` (`ADR-013`).
 
 ### Fixed
 * **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**

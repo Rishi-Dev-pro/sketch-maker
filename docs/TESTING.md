@@ -82,3 +82,21 @@ Before marking any task as `COMPLETE` in `docs/TASK_TRACKER.md`:
 * [ ] Performance & memory footprints measured against targets in `docs/BENCHMARKS.md`.
 * [ ] Existing functionality remains intact (zero regressions).
 * [ ] Documentation updated (`docs/CURRENT_STATE.md`, `docs/TASK_TRACKER.md`, `docs/CHANGELOG.md`).
+
+---
+
+## 4. Key Test & Benchmark Commands
+
+| Command | Target | Scope |
+| :--- | :--- | :--- |
+| `npm test` | Monorepo root | Runs all unit and integration test suites across all packages |
+| `npm run test:dataset` | `tests/images/` | Validates standard 12-image benchmark dataset integrity |
+| `npm run test:geometry` | `tests/stroke-engine/geometry.test.ts` | 20 unit tests for TASK-104 vector geometry |
+| `npm run benchmark:geometry` | `tests/benchmarks/geometry-benchmark.ts` | 12-category vector extraction & RDP benchmark |
+| `npm run test:strokes` | `tests/stroke-engine/stroke-candidate.test.ts` | 18 unit tests for TASK-105 stroke candidate generation |
+| `npm run benchmark:strokes` | `tests/benchmarks/stroke-candidate-benchmark.ts` | 12-category stroke candidate benchmark |
+| `npm run test:ordering` | `tests/stroke-engine/stroke-ordering.test.ts` | 17 unit tests for TASK-106 deterministic stroke ordering |
+| `npm run benchmark:ordering` | `tests/benchmarks/stroke-ordering-benchmark.ts` | 12-category stroke ordering & composition benchmark |
+| `npm run typecheck` | Monorepo root | TypeScript typecheck across all 8 workspaces |
+| `npm run build` | Monorepo root | Production build of web application and libraries |
+

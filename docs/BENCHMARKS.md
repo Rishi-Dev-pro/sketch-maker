@@ -16,6 +16,7 @@ This document tracks quantitative performance benchmarks, memory profiles, and q
 | **Subject Segmentation Latency** | < 500 ms | < 1,200 ms | **239.7 ms (avg 12 imgs)** | **PASS (EXCEEDS SLA)** |
 | **Total Analysis Latency** (Photo → `SubjectModel`) | < 1,500 ms | < 3,500 ms | Preprocessing (68.7ms) + Segmentation (239.7ms) = **308.4 ms** | **IN_PROGRESS (ON TRACK)** |
 | **Stroke Candidate Generation** (`VectorGeometry` → `StrokeCandidateSet`) | < 50 ms | < 100 ms | **1.20 ms (avg 12 imgs, max 59 candidates)** | **PASS (EXCEEDS SLA)** |
+| **Stroke Ordering Latency** (`StrokeCandidate[]` → `OrderedStrokeSequence`) | < 10 ms | < 25 ms | **1.19 ms (avg 12 imgs, 100% valid integrity)** | **PASS (EXCEEDS SLA)** |
 | **Style Switching Latency** (Using Cached Strokes) | < 80 ms | < 150 ms | Pending Phase 6 | NOT MEASURED |
 | **Rendering FPS** (Progressive Animation Loop) | 60 FPS (Stable) | ≥ 55 FPS | Pending Phase 3 | NOT MEASURED |
 | **Peak Heap RAM (Preprocessing + Segmentation)** | < 150 MB | < 350 MB | **~24.5 MB (Balanced), ~28.0 MB (High)** | **PASS (EXCEEDS SLA)** |
@@ -501,4 +502,39 @@ Every evaluation run grades outputs across 7 dimensions on a 1–10 scale:
   * **Profile Occlusion Rigor:** In `BM-02` (90° profile), occluded far-side features yield **0 drawable stroke candidates** (marked `'occluded'`), preventing phantom facial marks.
   * **Multi-Subject Preservation:** In `BM-11` (multi-person), all candidates preserve independent `subjectId` allocations for downstream per-subject stroke ordering.
   * **Pure TypeScript Decoupling:** Core packages remain 100% pure TypeScript with zero DOM/window/canvas dependencies.
+
+---
+
+### Run 2026-09-19 — TASK-106 Deterministic Stroke Ordering & Composition Benchmark
+* **Hardware Environment:** Node.js v24.16.0, Windows x64 CPU.
+* **Test Command:** `npm run benchmark:ordering` (`npx tsx tests/benchmarks/stroke-ordering-benchmark.ts`)
+* **Scope:** All 12 canonical benchmark categories (`BM-01` through `BM-12`).
+* **SLA Performance Targets:** Ordering Latency < 10.0 ms, Sequence Integrity: 100% Valid (0 gaps, 0 duplicates), Profile Occlusion: 100% occluded candidates yield 0 drawable ordered strokes, Multi-Subject Isolation: 100% distinct subject IDs with harmonized phase interleaving.
+
+| Benchmark ID | Latency | Total Strokes | Drawable Ordered | Filtered Excluded | Dependency Edges | Max Depth | Sequence Integrity | Profile Occlusion | Multi-Person Isolation |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| `BM-01-FRONT-PORTRAIT` | 5.25 ms | 48 | 45 | 3 | 33 | 2 | **100% Valid** | N/A | Single Subject |
+| `BM-02-SIDE-PROFILE` | 0.82 ms | 37 | 37 | 0 | 25 | 2 | **100% Valid** | **PASS (0 occluded drawable)** | Single Subject |
+| `BM-03-GLASSES` | 0.90 ms | 54 | 46 | 8 | 32 | 2 | **100% Valid** | N/A | Single Subject |
+| `BM-04-FACIAL-HAIR` | 1.83 ms | 58 | 49 | 9 | 34 | 2 | **100% Valid** | N/A | Single Subject |
+| `BM-05-HAIR-VARIETY` | 1.34 ms | 56 | 54 | 2 | 39 | 2 | **100% Valid** | N/A | Single Subject |
+| `BM-06-EXTREME-LIGHTING` | 0.40 ms | 50 | 43 | 7 | 30 | 2 | **100% Valid** | N/A | Single Subject |
+| `BM-07-COMPLEX-BACKGROUND` | 0.72 ms | 59 | 57 | 2 | 40 | 2 | **100% Valid** | N/A | Single Subject |
+| `BM-08-LOW-LIGHT` | 1.00 ms | 58 | 48 | 10 | 33 | 2 | **100% Valid** | N/A | Single Subject |
+| `BM-09-FULL-BODY-STANDING` | 0.69 ms | 59 | 55 | 4 | 38 | 2 | **100% Valid** | N/A | Skeletal Articulation |
+| `BM-10-FULL-BODY-SITTING` | 0.38 ms | 51 | 42 | 9 | 30 | 2 | **100% Valid** | N/A | Skeletal Articulation |
+| `BM-11-MULTI-PERSON` | 0.23 ms | 51 | 50 | 1 | 35 | 2 | **100% Valid** | N/A | **PASS (Harmonized progression)** |
+| `BM-12-HIGH-RES` | 0.74 ms | 57 | 54 | 3 | 37 | 2 | **100% Valid** | N/A | Single Subject |
+| **AVERAGE** | **1.19 ms** | **53.2** | **48.3** | **4.8** | **33.8** | **2.0** | **100% Valid** | **100% Occlusion Pass** | **100% Subject Isolation** |
+
+* **Key Takeaways:**
+  * **Exceptional SLA Compliance:** Average stroke ordering latency is **1.19 ms**, consuming less than 12% of the strict 10 ms SLA budget.
+  * **Flawless Sequence Integrity:** 100% of benchmark sequences passed strict validation: zero sequence index gaps, zero duplicate indices, and contiguous 0-based indexing ($0 \dots N-1$).
+  * **Macro-to-Micro Composition Progression:** Staged progression across 6 distinct composition phases (`foundation` $\to$ `primary_structure` $\to$ `expressive_features` $\to$ `secondary_anatomy` $\to$ `refinement` $\to$ `texture_accent`), ensuring natural progressive reveal.
+  * **Structural Dependency Rigor:** Directed dependency graphs enforce anatomical precedence with an average of **33.8** dependency edges per subject (max depth: 2), ensuring facial features appear strictly after head frames, and irises appear after eyelids.
+  * **Profile Occlusion Rigor:** In `BM-02` (90° side profile), all occluded far-side features are partitioned into filtered candidates, producing **0 occluded drawable ordered strokes**.
+  * **Multi-Subject Harmonization:** In `BM-11` (multi-person), harmonized phase progression allows both subjects to emerge concurrently phase-by-phase rather than sequentially completing one subject before starting the other.
+  * **Bounded Memory Usage:** Peak heap memory delta remained bounded at **59.50 MB** (total heap: 69.98 MB).
+  * **Pure TypeScript Portability:** Zero browser/DOM globals (`window`, `document`, canvas, SVG) are referenced, ensuring 100% portability to future React Native and Web Worker environments.
+
 
