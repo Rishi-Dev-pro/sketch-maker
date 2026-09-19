@@ -527,3 +527,62 @@ $$\text{naturalDuration} = \text{clamp}\left(\text{baseDuration} + \text{lengthF
 * `getTimelineState(timeline, timeMs)`: Returns overall progress, active/completed/pending counts, and per-stroke progress with easing ($[0.0, 1.0]$).
 * Average query evaluation latency is **$20.2\ \mu\text{s}$**, enabling seamless 60 FPS scrubber seeking.
 
+---
+
+## 12. Procedural Stroke Renderer & Progressive Canvas Architecture (TASK-108)
+
+TASK-108 introduces the visual realization layer, converting temporal animation states (`StrokeTimeline` and `TimelineState`) into visible progressive artwork on an HTML5 2D Canvas.
+
+```text
+StrokeTimeline (Temporal Schedule from TASK-107)
+          │
+          ▼
+packages/stroke-engine/src/rendering/ (PURE CORE — ZERO DOM)
+  ├── bezier-subdivide.ts   (De Casteljau cubic subdivision, arc length, derivative)
+  ├── partial-geometry.ts   (arc-length traversal for polylines and cubic splines)
+  ├── render-state.ts       (RenderState compilation at arbitrary timestamp t)
+  ├── validator.ts          (RenderState integrity, coordinate finiteness, bound clamping)
+  └── index.ts              (pure core exports)
+          │
+          ▼
+RenderState (Immutable Frame Snapshot IR)
+  ├── timeMs: number, progress: number, strokes: RenderStroke[]
+  └── counts: { active, completed, pending, total }
+          │
+          ▼
+apps/web/src/rendering/ (WEB ADAPTER)
+  ├── viewport.ts           (resolution-independent contain/center coordinate mapping)
+  ├── canvas-renderer.ts    (HTML5 Canvas 2D stroke drawing, DPI scaling, diagnostic modes)
+  ├── animation-player.ts   (wall-clock RAF loop, play, pause, seek, scrub, speed modulation)
+  └── index.ts              (web rendering exports)
+          │
+          ▼
+Progressive Canvas Artwork
+```
+
+### 12.1 Core Architectural Boundary
+* **Core Engine Boundary:** All stroke subdivision math (`bezier-subdivide.ts`), partial geometry extraction (`partial-geometry.ts`), and frame state evaluation (`render-state.ts`) are 100% pure TypeScript located in `@sketch-maker/stroke-engine/rendering`. No references to `window`, `document`, `HTMLCanvasElement`, `CanvasRenderingContext2D`, or `requestAnimationFrame` exist in core packages.
+* **Canvas Adapter Isolation:** All DOM, Canvas 2D context, high-DPI backing-store management, and RAF animation loops are encapsulated within `apps/web/src/rendering/`.
+
+### 12.2 Arc-Length Parameterization & De Casteljau Subdivision
+* **Uniform Velocity:** Rather than parameter-space interpolation which produces non-uniform drawing speeds, stroke progress traverses physical arc length calculated via 4-segment chord approximation for cubic Bézier curves and Euclidean distance for polylines.
+* **De Casteljau Trimming:** Active Bézier segments are trimmed at parameter $u \in [0, 1]$ using pure De Casteljau subdivision:
+  $$\text{Trimmed Curve} = (P_0,\; (1-u)P_0 + u P_1,\; (1-u)^2 P_0 + 2u(1-u)P_1 + u^2 P_2,\; B(u))$$
+* **Instantaneous Tangent:** Evaluates first derivative $B'(u)$ to provide orientation vectors for active drawing pen tips.
+
+### 12.3 Viewport Transformation & High-DPI Support
+* Normalized $[0, 1] \times [0, 1]$ bounding coordinates are mapped to physical screen pixels with aspect-ratio preservation (contain/letterboxing), margin padding, and `devicePixelRatio` scaling.
+* Crisp rendering across standard and Retina displays without blurring or clipping.
+
+### 12.4 Animation Player & Wall-Clock Timing
+* Progression is driven by true elapsed wall-clock time (`performance.now()`) with configurable playback speed ($0.5\times, 1.0\times, 2.0\times, 3.0\times$).
+* Play, pause, scrub/seek, reset, and replay functions operate without frame rate dependence or memory leaks.
+
+### 12.5 Diagnostic Rendering Modes
+* **`normal`:** Production monochrome charcoal sketch on off-white canvas.
+* **`sequence`:** Rainbow spectrum mapped to normalized execution index $i / N$.
+* **`phase`:** Six distinct semantic phase colors (foundation = blue, expressive = emerald, details = violet, etc.).
+* **`subject`:** Unique hue per `subjectId` (validating multi-person separation in `BM-11`).
+* **`timeline`:** Color-coded by execution state (completed, active, pending).
+
+

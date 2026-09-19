@@ -18,6 +18,7 @@ This document tracks quantitative performance benchmarks, memory profiles, and q
 | **Stroke Candidate Generation** (`VectorGeometry` → `StrokeCandidateSet`) | < 50 ms | < 100 ms | **1.20 ms (avg 12 imgs, max 59 candidates)** | **PASS (EXCEEDS SLA)** |
 | **Stroke Ordering Latency** (`StrokeCandidate[]` → `OrderedStrokeSequence`) | < 10 ms | < 25 ms | **1.19 ms (avg 12 imgs, 100% valid integrity)** | **PASS (EXCEEDS SLA)** |
 | **Stroke Timeline Latency** (`OrderedStrokeSequence` → `StrokeTimeline`) | < 10 ms | < 25 ms | **0.65 ms (avg 12 imgs, 25.3 µs/query)** | **PASS (EXCEEDS SLA)** |
+| **RenderState Generation Latency** (`StrokeTimeline` → `RenderState`) | < 2.0 ms | < 5.0 ms | **0.12 ms (avg 12 imgs, 1.8 µs partial geo)** | **PASS (EXCEEDS SLA)** |
 | **Style Switching Latency** (Using Cached Strokes) | < 80 ms | < 150 ms | Pending Phase 6 | NOT MEASURED |
 | **Rendering FPS** (Progressive Animation Loop) | 60 FPS (Stable) | ≥ 55 FPS | Pending Phase 3 | NOT MEASURED |
 | **Peak Heap RAM (Preprocessing + Segmentation)** | < 150 MB | < 350 MB | **~24.5 MB (Balanced), ~28.0 MB (High)** | **PASS (EXCEEDS SLA)** |
@@ -572,3 +573,37 @@ Every evaluation run grades outputs across 7 dimensions on a 1–10 scale:
   * **Multi-Subject Synchronization:** In `BM-11` (multi-person), strokes retain isolated `subjectId` allocations while participating in harmonized phase progression.
   * **Bounded Memory Usage:** Peak heap memory delta remained bounded at **68.13 MB** (total heap: 79.69 MB).
   * **Pure TypeScript Portability:** Zero DOM/window/canvas globals, guaranteeing 100% portability to web workers, NodeJS, and native runtimes.
+
+---
+
+### Run 2026-09-19 — TASK-108 Procedural Stroke Renderer & Partial Geometry Benchmark
+* **Hardware Environment:** Node.js v24.16.0, Windows x64 CPU.
+* **Test Command:** `npm run benchmark:renderer` (`npx tsx tests/benchmarks/renderer-benchmark.ts`)
+* **Scope:** All 12 canonical benchmark categories (`BM-01` through `BM-12`).
+* **SLA Performance Targets:** RenderState Latency < 2.0 ms, Partial Geometry Latency < 20 µs, RenderState Integrity: 100% Valid, Profile Occlusion: 100% occluded strokes produce 0 rendered strokes/pixels, Multi-Subject Isolation: 100% distinct subject IDs preserved.
+
+| Benchmark ID | Latency | Strokes | Midpoint Active | Query Latency | Partial Geo Latency | Integrity | Profile Occlusion | Multi-Person Isolation |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| `BM-01-FRONT-PORTRAIT` | 0.70 ms | 45 | 1 | 33.6 µs | 13.9 µs | **100% Valid** | N/A | Single Subject |
+| `BM-02-SIDE-PROFILE` | 0.07 ms | 37 | 1 | 1.8 µs | 0.6 µs | **100% Valid** | **PASS (0 rendered strokes)** | Single Subject |
+| `BM-03-GLASSES` | 0.07 ms | 46 | 1 | 1.8 µs | 0.6 µs | **100% Valid** | N/A | Single Subject |
+| `BM-04-FACIAL-HAIR` | 0.08 ms | 49 | 2 | 1.8 µs | 0.7 µs | **100% Valid** | N/A | Single Subject |
+| `BM-05-HAIR-VARIETY` | 0.06 ms | 54 | 2 | 1.8 µs | 0.7 µs | **100% Valid** | N/A | Single Subject |
+| `BM-06-EXTREME-LIGHTING` | 0.06 ms | 43 | 1 | 1.8 µs | 0.6 µs | **100% Valid** | N/A | Single Subject |
+| `BM-07-COMPLEX-BACKGROUND` | 0.07 ms | 57 | 2 | 1.9 µs | 0.8 µs | **100% Valid** | N/A | Single Subject |
+| `BM-08-LOW-LIGHT` | 0.07 ms | 48 | 2 | 1.8 µs | 0.7 µs | **100% Valid** | N/A | Single Subject |
+| `BM-09-FULL-BODY-STANDING` | 0.07 ms | 55 | 2 | 1.8 µs | 0.8 µs | **100% Valid** | N/A | Skeletal Articulation |
+| `BM-10-FULL-BODY-SITTING` | 0.05 ms | 42 | 1 | 1.6 µs | 0.6 µs | **100% Valid** | N/A | Skeletal Articulation |
+| `BM-11-MULTI-PERSON` | 0.07 ms | 50 | 1 | 1.8 µs | 0.6 µs | **100% Valid** | N/A | **PASS (Independent subjectId)** |
+| `BM-12-HIGH-RES` | 0.06 ms | 54 | 1 | 1.9 µs | 0.7 µs | **100% Valid** | N/A | Single Subject |
+| **AVERAGE** | **0.12 ms** | **48.3** | **1.4** | **4.5 µs** | **1.8 µs** | **100% Valid** | **100% Occlusion Pass** | **100% Subject Isolation** |
+
+* **Key Takeaways:**
+  * **Exceptional SLA Performance:** RenderState frame compilation executes in an average of **0.12 ms** (120 microseconds), which is **16.6x faster** than the strict 2.0 ms SLA target. Even at 120 FPS rendering budgets (8.33 ms/frame), RenderState calculation consumes only **~1.4%** of available frame budget.
+  * **Microsecond Partial Geometry Extraction:** Arc-length traversal and De Casteljau Bézier curve subdivision averages **1.8 µs** per active stroke.
+  * **Deterministic Mathematical Precision:** 100% of generated partial strokes and bounding boxes pass mathematical integrity verification (all coordinates finite, normalized $[0, 1]$, endpoints matching arc length).
+  * **Flawless Profile Occlusion Enforcement:** In `BM-02` (90° side profile), occluded far-side features produce **0 rendered strokes and 0 visible pixels**, completely eliminating phantom drawing artifacts.
+  * **Multi-Subject Preserved Isolation:** In `BM-11` (multi-person), all rendered strokes retain correct `subjectId` annotations, enabling independent styling or color-coding per subject.
+  * **Bounded Memory Footprint:** Peak heap delta remained bounded at **38.80 MB** (total heap: 51.83 MB).
+  * **Pure Core Portability Guarantee:** Zero DOM/window/canvas globals in core packages (`@sketch-maker/shared-types`, `@sketch-maker/stroke-engine`, `@sketch-maker/animation-engine`). All canvas and RAF handling is cleanly isolated in `apps/web/src/rendering/`.
+

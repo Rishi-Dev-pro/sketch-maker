@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
     "build": "npm run build --workspaces --if-present",
-    "test": "npm run test:dataset && npm run test:preprocess && npm run test:segmentation && npm run test:face-region && npm run test:eyes && npm run test:eyebrows && npm run test:nose && npm run test:mouth && npm run test:jawline && npm run test:ears && npm run test:hair && npm run test:provider && npm run test:mediapipe:mapper && npm run test:mediapipe:pose && npm run test:mediapipe:segmenter && npm run test:geometry && npm run test:strokes && npm run test:ordering && npm run test:timeline && npm run test --workspaces --if-present",
+    "test": "npm run test:dataset && npm run test:preprocess && npm run test:segmentation && npm run test:face-region && npm run test:eyes && npm run test:eyebrows && npm run test:nose && npm run test:mouth && npm run test:jawline && npm run test:ears && npm run test:hair && npm run test:provider && npm run test:mediapipe:mapper && npm run test:mediapipe:pose && npm run test:mediapipe:segmenter && npm run test:geometry && npm run test:strokes && npm run test:ordering && npm run test:timeline && npm run test:renderer && npm run test --workspaces --if-present",
     "test:dataset": "node tests/images/validate.js",
     "test:preprocess": "tsx tests/image-processing/preprocess.test.ts",
     "test:segmentation": "tsx tests/structural-analysis/segmentation.test.ts",
@@ -30,6 +30,7 @@
     "test:strokes": "tsx tests/stroke-engine/stroke-candidate.test.ts",
     "test:ordering": "tsx tests/stroke-engine/stroke-ordering.test.ts",
     "test:timeline": "tsx tests/stroke-engine/stroke-timeline.test.ts",
+    "test:renderer": "tsx tests/stroke-engine/procedural-renderer.test.ts",
 
     "benchmark:image-processing": "tsx tests/image-processing/benchmark-runner.ts",
     "benchmark:segmentation": "tsx tests/structural-analysis/visual-inspector.ts",
@@ -46,6 +47,7 @@
     "benchmark:strokes": "tsx tests/benchmarks/stroke-candidate-benchmark.ts",
     "benchmark:ordering": "tsx tests/benchmarks/stroke-ordering-benchmark.ts",
     "benchmark:timeline": "tsx tests/benchmarks/stroke-timeline-benchmark.ts",
+    "benchmark:renderer": "tsx tests/benchmarks/renderer-benchmark.ts",
     "lint": "npm run lint --workspaces --if-present",
 
     "typecheck": "npm run typecheck --workspaces --if-present"

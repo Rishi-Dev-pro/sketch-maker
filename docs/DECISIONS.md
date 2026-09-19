@@ -258,5 +258,27 @@ This document serves as the permanent record of major architectural and technica
   8. *Pure O(N) Scrub / Query API:* Pure function `getTimelineState(timeline, timeMs)` computes per-stroke execution states (`pending`, `drawing`, `complete`) and eased progress ($[0.0, 1.0]$) at any arbitrary timestamp $t$ in $\sim 20\ \mu\text{s}$.
 * **Consequences:** Average timeline generation latency is **0.54 ms** (< 10 ms SLA target); average query latency is **20.2 µs**; 100% sequence and temporal integrity across all 12 benchmark categories; delivers a mathematically robust time foundation for progressive canvas rendering (TASK-108+).
 
+---
+
+### ADR-015: Progressive Canvas 2D Renderer, Arc-Length De Casteljau Geometry, and High-DPI Viewport Architecture (TASK-108)
+* **Date:** 2026-09-19
+* **Status:** ACCEPTED
+* **Decision:** Introduce a formal `RenderState` frame snapshot contract in `@sketch-maker/shared-types`, implement pure mathematical partial stroke geometry extraction using De Casteljau cubic Bézier subdivision and arc-length parameterization in `@sketch-maker/stroke-engine/rendering`, and establish an isolated HTML5 Canvas 2D progressive rendering layer with resolution-independent viewport mapping and wall-clock RAF player in `apps/web/src/rendering/`.
+* **Context:** TASK-107 produced an immutable progressive timeline (`StrokeTimeline`). However, converting timeline states into visible progressive artwork on an HTML5 canvas requires solving several mathematical and architectural challenges:
+  1. *Curvature Trimming:* Cubic Bézier curves cannot be trimmed by merely truncating parameter $t$ without causing severe geometric distortion and velocity spikes.
+  2. *Drawing Speed Uniformity:* Bézier curve velocity varies wildly along parameter space $t \in [0, 1]$; uniform drawing requires true arc-length parameterization.
+  3. *Portability & Layer Isolation:* Direct canvas drawing inside core engines would couple them to browser DOM environments, breaking headless exports, Node.js CLI tools, and mobile frameworks.
+  4. *High-DPI & Responsive Sizing:* Drawing directly in raw screen coordinates results in blurry lines on Retina/4K displays and distortion across different canvas aspect ratios.
+* **Architecture & Boundary Rules:**
+  1. *Strict Layer Separation:* Core packages (`@sketch-maker/shared-types`, `@sketch-maker/stroke-engine`, `@sketch-maker/animation-engine`) remain 100% pure TypeScript with zero DOM/window/canvas globals. All HTMLCanvasElement, CanvasRenderingContext2D, and requestAnimationFrame usage is strictly restricted to `apps/web/src/rendering/`.
+  2. *De Casteljau Bézier Subdivision:* In-flight Bézier curves are trimmed using pure De Casteljau subdivision at fractional parameter $u$, producing exact sub-curves without mutating source geometry.
+  3. *Arc-Length Traversal:* Stroke drawing progress traverses physical curve distance using 4-segment chord integration for Béziers and Euclidean segment length for polylines, ensuring uniform linear drawing speed.
+  4. *RenderState Frame Snapshot:* `createRenderState(timeline, timeMs, config)` compiles immutable frame states containing only visible partial strokes and active drawing tips.
+  5. *Resolution-Independent Viewport Transform:* `ViewportTransform` projects $[0, 1] \times [0, 1]$ normalized space to physical canvas pixels with aspect-ratio contain/fit letterboxing, margin padding, and `devicePixelRatio` scaling.
+  6. *Wall-Clock Elapsed Animation Loop:* `AnimationPlayer` synchronizes playback against real elapsed time (`performance.now()`), supporting speed modulation ($0.5\times$ to $3.0\times$), scrubbing, pausing, and leak-free cleanup.
+  7. *Diagnostic Render Modes:* Supports `normal` monochrome sketch, `sequence` rainbow spectrum, `phase` semantic color-coding, `subject` multi-person identification, and `timeline` activity state visualization.
+* **Consequences:** RenderState compilation latency is **0.12 ms** (16.6x faster than < 2.0 ms SLA); average partial geometry extraction latency is **1.8 µs**; 100% profile occlusion enforcement (`BM-02`) and multi-person subject separation (`BM-11`) verified; delivers high-quality, crisp, progressive canvas art playback ready for future styling (TASK-109 / TASK-601).
+
+
 
 

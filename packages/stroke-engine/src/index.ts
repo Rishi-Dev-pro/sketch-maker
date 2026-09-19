@@ -9,3 +9,4 @@ export * from './geometry';
 export * from './candidates';
 export * from './ordering';
 export * from './timeline';
+export * from './rendering';

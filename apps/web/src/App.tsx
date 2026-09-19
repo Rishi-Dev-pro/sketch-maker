@@ -19,8 +19,12 @@ import {
   StrokeTimeline,
   getTimelineState,
   TimelineState,
+  createRenderState,
+  RenderState,
+  RenderDiagnosticMode,
 } from '@sketch-maker/stroke-engine';
 import { createMediaPipeWebProvider, MediaPipeWebDelegate } from './vision/mediapipe';
+import { CanvasStrokeRenderer, AnimationPlayer, PlayerState } from './rendering';
 
 interface BenchmarkItem {
   id: string;
@@ -52,6 +56,8 @@ interface BenchmarkRunResult {
   orderedStrokesCount: number;
   timelineStrokesCount: number;
   timelineDurationS: number;
+  renderStrokesCount: number;
+  renderLatencyMs: number;
   fallback: boolean;
 }
 
@@ -89,6 +95,13 @@ export const App: React.FC = () => {
   const [showSequenceIndices, setShowSequenceIndices] = useState<boolean>(false);
   const [showTimeline, setShowTimeline] = useState<boolean>(true);
   const [timelineScrubPct, setTimelineScrubPct] = useState<number>(100);
+
+  // TASK-108 Animation Player & Procedural Renderer State
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
+  const [renderDiagnosticMode, setRenderDiagnosticMode] = useState<RenderDiagnosticMode>('normal');
+  const [showPenTipGlow, setShowPenTipGlow] = useState<boolean>(true);
+  const playerRef = useRef<AnimationPlayer | null>(null);
 
   // Derive Vector Geometry Intermediate Representation (TASK-104)
   const currentGeometry: VectorGeometry | null = useMemo(() => {
@@ -132,6 +145,43 @@ export const App: React.FC = () => {
     const queryTime = (currentTimeline.totalDurationMs * timelineScrubPct) / 100;
     return getTimelineState(currentTimeline, queryTime);
   }, [currentTimeline, timelineScrubPct]);
+
+  // Derive Progressive Render State with Partial Geometry (TASK-108)
+  const currentRenderState: RenderState | null = useMemo(() => {
+    if (!currentTimeline) {
+      return null;
+    }
+    const queryTime = (currentTimeline.totalDurationMs * timelineScrubPct) / 100;
+    return createRenderState(currentTimeline, queryTime, {
+      diagnosticMode: renderDiagnosticMode,
+      penTipGlow: showPenTipGlow,
+      filterSubjectId: orderingSubjectFilter !== 'all' ? orderingSubjectFilter : undefined,
+    });
+  }, [currentTimeline, timelineScrubPct, renderDiagnosticMode, showPenTipGlow, orderingSubjectFilter]);
+
+  // Initialize and synchronize AnimationPlayer (TASK-108)
+  useEffect(() => {
+    const player = new AnimationPlayer();
+    playerRef.current = player;
+
+    const unsubscribe = player.subscribe((state) => {
+      setIsPlaying(state.isPlaying);
+      setTimelineScrubPct(Math.round(state.progress * 1000) / 10);
+    });
+
+    return () => {
+      unsubscribe();
+      player.dispose();
+      playerRef.current = null;
+    };
+  }, []);
+
+  // Update AnimationPlayer timeline on change
+  useEffect(() => {
+    if (playerRef.current && currentTimeline) {
+      playerRef.current.setTimeline(currentTimeline);
+    }
+  }, [currentTimeline]);
 
 
   // Batch benchmark results
@@ -628,140 +678,90 @@ export const App: React.FC = () => {
       }
     }
 
-    // 7. Draw TASK-106 Ordered Stroke Sequence
-    if (showStrokeOrdering && currentOrderedSequence && currentOrderedSequence.strokes.length > 0) {
-      const totalOrdered = currentOrderedSequence.strokes.length;
+    // 7. Draw TASK-108 Procedural Stroke Rendering (Progressive Canvas Art)
+    if (showStrokeOrdering && currentRenderState && currentRenderState.strokes.length > 0) {
+      const totalStrokes = Math.max(1, currentRenderState.totalStrokes);
 
-      for (const ordered of currentOrderedSequence.strokes) {
-        const candidate = ordered.stroke;
-        if (orderingSubjectFilter !== 'all' && candidate.subjectId !== orderingSubjectFilter) {
-          continue;
-        }
+      for (const rStroke of currentRenderState.strokes) {
+        if (rStroke.status === 'pending') continue;
 
         ctx.save();
-        ctx.globalAlpha = 0.95;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.miterLimit = 2;
+        ctx.globalAlpha = rStroke.opacity;
 
-        // Progressive timeline state evaluation (TASK-107)
-        let strokeProgress = 1.0;
-        let isDrawing = false;
-        if (showTimeline && currentTimelineState) {
-          const tState = currentTimelineState.strokes[ordered.sequenceIndex];
-          if (!tState || tState.state === 'pending') {
-            ctx.restore();
-            continue; // Not yet visible at current scrub timestamp
-          }
-          if (tState.state === 'drawing') {
-            strokeProgress = Math.max(0.01, tState.progress);
-            isDrawing = true;
-          }
-        }
-
-        // Color coding based on orderingColorMode
-        if (orderingColorMode === 'gradient') {
-          // Progressive rainbow hue: 260 (violet/blue) down to 0 (red)
-          const progress = totalOrdered > 1 ? ordered.sequenceIndex / (totalOrdered - 1) : 0;
+        // Color coding based on renderDiagnosticMode / orderingColorMode
+        if (renderDiagnosticMode === 'normal') {
+          ctx.strokeStyle = '#f8fafc'; // Crisp high-contrast line art
+        } else if (renderDiagnosticMode === 'sequence' || orderingColorMode === 'gradient') {
+          const progress = totalStrokes > 1 ? rStroke.sequenceIndex / (totalStrokes - 1) : 0;
           const hue = Math.round((1.0 - progress) * 260);
           ctx.strokeStyle = `hsl(${hue}, 95%, 60%)`;
-        } else if (orderingColorMode === 'dependency') {
-          switch (ordered.dependencyLevel) {
-            case 0:
-              ctx.strokeStyle = '#00f0ff'; // Cyan (Root / Container)
-              break;
-            case 1:
-              ctx.strokeStyle = '#fbbf24'; // Amber (Feature child)
-              break;
-            case 2:
-            default:
-              ctx.strokeStyle = '#f43f5e'; // Rose (Nested detail)
-              break;
-          }
+        } else if (renderDiagnosticMode === 'subject') {
+          ctx.strokeStyle = rStroke.subjectId === 'subject-0' ? '#00f0ff' : '#fbbf24';
+        } else if (renderDiagnosticMode === 'timeline') {
+          ctx.strokeStyle = rStroke.status === 'drawing' ? '#00f0ff' : '#cbd5e1';
         } else {
           // Composition Phase Colors
-          switch (ordered.phase) {
-            case 'foundation':
-              ctx.strokeStyle = '#10b981'; // Emerald
-              break;
-            case 'primary_structure':
-              ctx.strokeStyle = '#00f0ff'; // Cyan
-              break;
-            case 'expressive_features':
-              ctx.strokeStyle = '#f43f5e'; // Rose
-              break;
-            case 'secondary_anatomy':
-              ctx.strokeStyle = '#c084fc'; // Purple
-              break;
-            case 'refinement':
-              ctx.strokeStyle = '#fbbf24'; // Amber
-              break;
-            case 'texture_accent':
-            default:
-              ctx.strokeStyle = '#94a3b8'; // Slate
-              break;
+          switch (rStroke.phase) {
+            case 'foundation': ctx.strokeStyle = '#10b981'; break;
+            case 'primary_structure': ctx.strokeStyle = '#00f0ff'; break;
+            case 'expressive_features': ctx.strokeStyle = '#f43f5e'; break;
+            case 'secondary_anatomy': ctx.strokeStyle = '#c084fc'; break;
+            case 'refinement': ctx.strokeStyle = '#fbbf24'; break;
+            case 'texture_accent': default: ctx.strokeStyle = '#94a3b8'; break;
           }
         }
 
-        ctx.lineWidth = Math.max(1.0, candidate.width * 1.5);
+        ctx.lineWidth = Math.max(1.0, rStroke.lineWidth * (Math.min(W, H) / 600));
 
-        // Draw Bézier curves or polyline with progressive progress clipping
-        if (candidate.curves && candidate.curves.length > 0) {
-          const totalCurves = candidate.curves.length;
-          const visibleCurvesCount = isDrawing
-            ? Math.max(1, Math.ceil(totalCurves * strokeProgress))
-            : totalCurves;
-
+        // Draw trimmed curves (via De Casteljau) or trimmed polyline points (via Arc-Length)
+        if (rStroke.geometry.curves && rStroke.geometry.curves.length > 0) {
           ctx.beginPath();
-          const first = candidate.curves[0];
+          const first = rStroke.geometry.curves[0];
           ctx.moveTo(first.start.x * W, first.start.y * H);
-          for (let cIdx = 0; cIdx < visibleCurvesCount; cIdx++) {
-            const curve = candidate.curves[cIdx];
+          for (const curve of rStroke.geometry.curves) {
             ctx.bezierCurveTo(
               curve.cp1.x * W,
               curve.cp1.y * H,
-              curve.cp2 ? curve.cp2.x * W : curve.cp1.x * W,
-              curve.cp2 ? curve.cp2.y * H : curve.cp1.y * H,
+              (curve.cp2 ? curve.cp2.x : curve.cp1.x) * W,
+              (curve.cp2 ? curve.cp2.y : curve.cp1.y) * H,
               curve.end.x * W,
               curve.end.y * H
             );
           }
-          if (candidate.closed && !isDrawing) ctx.closePath();
           ctx.stroke();
-        } else if (candidate.points.length >= 2) {
-          const totalPts = candidate.points.length;
-          const visiblePtsCount = isDrawing
-            ? Math.max(2, Math.ceil(totalPts * strokeProgress))
-            : totalPts;
-
+        } else if (rStroke.geometry.points.length >= 2) {
           ctx.beginPath();
-          ctx.moveTo(candidate.points[0].x * W, candidate.points[0].y * H);
-          for (let i = 1; i < visiblePtsCount; i++) {
-            ctx.lineTo(candidate.points[i].x * W, candidate.points[i].y * H);
+          ctx.moveTo(rStroke.geometry.points[0].x * W, rStroke.geometry.points[0].y * H);
+          for (let i = 1; i < rStroke.geometry.points.length; i++) {
+            ctx.lineTo(rStroke.geometry.points[i].x * W, rStroke.geometry.points[i].y * H);
           }
-          if (candidate.closed && !isDrawing) ctx.closePath();
           ctx.stroke();
-        } else if (candidate.points.length === 1) {
+        } else if (rStroke.geometry.points.length === 1) {
           ctx.beginPath();
-          ctx.arc(candidate.points[0].x * W, candidate.points[0].y * H, candidate.width * 2, 0, Math.PI * 2);
+          ctx.arc(rStroke.geometry.points[0].x * W, rStroke.geometry.points[0].y * H, ctx.lineWidth, 0, Math.PI * 2);
           ctx.fillStyle = ctx.strokeStyle;
           ctx.fill();
         }
 
         // Active drawing tip glow indicator
-        if (isDrawing && candidate.points.length > 0) {
-          const tipIdx = Math.min(candidate.points.length - 1, Math.floor(candidate.points.length * strokeProgress));
-          const tipPt = candidate.points[tipIdx];
+        if (rStroke.status === 'drawing' && rStroke.geometry.tipPoint && showPenTipGlow) {
+          const tip = rStroke.geometry.tipPoint;
           ctx.beginPath();
-          ctx.arc(tipPt.x * W, tipPt.y * H, Math.max(3, candidate.width * 2.5), 0, Math.PI * 2);
+          ctx.arc(tip.x * W, tip.y * H, Math.max(3.0, ctx.lineWidth * 1.5), 0, Math.PI * 2);
           ctx.fillStyle = '#ffffff';
           ctx.shadowColor = '#00f0ff';
-          ctx.shadowBlur = 10;
+          ctx.shadowBlur = 12;
           ctx.fill();
         }
 
-        // Draw sequence index badge if enabled
-        if (showSequenceIndices && candidate.points.length > 0) {
-          const startPt = candidate.points[0];
-          const badgeX = startPt.x * W;
-          const badgeY = startPt.y * H;
+        // Sequence badge if enabled
+        if (showSequenceIndices && rStroke.geometry.points.length > 0) {
+          const badgePt = rStroke.geometry.points[0];
+          const badgeX = badgePt.x * W;
+          const badgeY = badgePt.y * H;
 
           ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
           ctx.beginPath();
@@ -775,7 +775,7 @@ export const App: React.FC = () => {
           ctx.font = 'bold 8px monospace';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(`${ordered.sequenceIndex + 1}`, badgeX, badgeY);
+          ctx.fillText(`${rStroke.sequenceIndex + 1}`, badgeX, badgeY);
         }
 
         ctx.restore();
@@ -786,6 +786,9 @@ export const App: React.FC = () => {
     currentGeometry,
     currentStrokeCandidates,
     currentOrderedSequence,
+    currentRenderState,
+    renderDiagnosticMode,
+    showPenTipGlow,
     showFaceMesh,
     showEarPinna,
     showHair,
@@ -969,6 +972,13 @@ export const App: React.FC = () => {
         const timelineStrokesCount = timeline?.strokes.length ?? 0;
         const timelineDurationS = Number(((timeline?.totalDurationMs ?? 0) / 1000).toFixed(1));
 
+        // Progressive render state for batch audit (TASK-108)
+        const t0 = performance.now();
+        const rState = timeline ? createRenderState(timeline, timeline.totalDurationMs * 0.5) : null;
+        const t1 = performance.now();
+        const renderLatencyMs = Number((t1 - t0).toFixed(2));
+        const renderStrokesCount = rState?.strokes.length ?? 0;
+
         runs.push({
           id: bm.id,
           name: bmName,
@@ -989,6 +999,8 @@ export const App: React.FC = () => {
           orderedStrokesCount,
           timelineStrokesCount,
           timelineDurationS,
+          renderStrokesCount,
+          renderLatencyMs,
           fallback: !!res.executionPlan?.fallbackOccurred,
         });
 
@@ -1014,6 +1026,8 @@ export const App: React.FC = () => {
           orderedStrokesCount: 0,
           timelineStrokesCount: 0,
           timelineDurationS: 0,
+          renderStrokesCount: 0,
+          renderLatencyMs: 0,
           fallback: true,
         });
         setBatchResults([...runs]);
@@ -1031,7 +1045,7 @@ export const App: React.FC = () => {
       <header>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div className="logo-badge">Photo-to-Procedural-Art</div>
-          <span className="phase-pill">TASK-107 Stroke Timeline</span>
+          <span className="phase-pill">TASK-108 Procedural Renderer</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.82rem' }}>
           <span style={{ color: 'var(--text-secondary)' }}>MediaPipe Runtime:</span>
@@ -1466,35 +1480,166 @@ export const App: React.FC = () => {
 
               <span style={{ color: 'var(--border-subtle)' }}>|</span>
 
-              {/* TASK-107 Timeline Scrubber Toggle */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={showTimeline}
-                  onChange={(e) => setShowTimeline(e.target.checked)}
-                />
-                <span style={{ color: '#a855f7' }}>⏱️</span> Timeline (TASK-107)
-              </label>
+              {/* TASK-108 Procedural Stroke Animation Player Controls */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(0, 240, 255, 0.08)', padding: '0.2rem 0.6rem', borderRadius: '6px', border: '1px solid rgba(0, 240, 255, 0.25)' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#00f0ff', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  🎨 Renderer (TASK-108)
+                </span>
 
-              {showTimeline && currentTimeline && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(168, 85, 247, 0.1)', padding: '0.15rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#c084fc', fontFamily: 'var(--font-mono)' }}>
-                    {((currentTimeline.totalDurationMs * timelineScrubPct) / 100000).toFixed(1)}s / {(currentTimeline.totalDurationMs / 1000).toFixed(1)}s
-                  </span>
+                {/* Play / Pause */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isPlaying) {
+                      playerRef.current?.pause();
+                    } else {
+                      playerRef.current?.play();
+                    }
+                  }}
+                  disabled={!currentTimeline}
+                  style={{
+                    background: isPlaying ? '#f43f5e' : '#10b981',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '0.15rem 0.5rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: currentTimeline ? 'pointer' : 'not-allowed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.2rem'
+                  }}
+                  title={isPlaying ? 'Pause progressive drawing' : 'Play progressive drawing'}
+                >
+                  {isPlaying ? '⏸ Pause' : '▶ Play'}
+                </button>
+
+                {/* Reset */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    playerRef.current?.reset();
+                    setTimelineScrubPct(0);
+                  }}
+                  disabled={!currentTimeline}
+                  style={{
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '4px',
+                    padding: '0.15rem 0.4rem',
+                    fontSize: '0.72rem',
+                    cursor: currentTimeline ? 'pointer' : 'not-allowed'
+                  }}
+                  title="Reset to start (0%)"
+                >
+                  ↺ Reset
+                </button>
+
+                {/* Replay */}
+                <button
+                  type="button"
+                  onClick={() => playerRef.current?.replay()}
+                  disabled={!currentTimeline}
+                  style={{
+                    background: 'var(--bg-card)',
+                    color: '#38bdf8',
+                    border: '1px solid rgba(56, 189, 248, 0.4)',
+                    borderRadius: '4px',
+                    padding: '0.15rem 0.4rem',
+                    fontSize: '0.72rem',
+                    cursor: currentTimeline ? 'pointer' : 'not-allowed'
+                  }}
+                  title="Replay from start"
+                >
+                  ⟳ Replay
+                </button>
+
+                {/* Speed selector */}
+                <select
+                  value={playbackSpeed}
+                  onChange={(e) => {
+                    const spd = Number(e.target.value);
+                    setPlaybackSpeed(spd);
+                    playerRef.current?.setSpeed(spd);
+                  }}
+                  style={{
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '4px',
+                    padding: '0.1rem 0.3rem',
+                    fontSize: '0.72rem',
+                  }}
+                  title="Playback Speed"
+                >
+                  <option value={0.5}>0.5x</option>
+                  <option value={1.0}>1.0x</option>
+                  <option value={2.0}>2.0x</option>
+                  <option value={3.0}>3.0x</option>
+                </select>
+
+                {/* Time & Scrub Slider */}
+                {currentTimeline && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#c084fc', fontFamily: 'var(--font-mono)' }}>
+                      {((currentTimeline.totalDurationMs * timelineScrubPct) / 100000).toFixed(1)}s / {(currentTimeline.totalDurationMs / 1000).toFixed(1)}s
+                    </span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      value={timelineScrubPct}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        if (playerRef.current && playerRef.current.getIsPlaying()) {
+                          playerRef.current.pause();
+                        }
+                        setTimelineScrubPct(val);
+                        playerRef.current?.seekProgress(val / 100);
+                      }}
+                      style={{ width: '100px', accentColor: '#00f0ff', cursor: 'pointer' }}
+                      title={`Scrub position: ${timelineScrubPct}%`}
+                    />
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      ({currentRenderState?.activeCount ?? 0} drawing, {currentRenderState?.completedCount ?? 0} done)
+                    </span>
+                  </div>
+                )}
+
+                {/* Diagnostic Mode Selector */}
+                <select
+                  value={renderDiagnosticMode}
+                  onChange={(e) => setRenderDiagnosticMode(e.target.value as any)}
+                  style={{
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '4px',
+                    padding: '0.1rem 0.3rem',
+                    fontSize: '0.72rem',
+                  }}
+                  title="Render Diagnostic Mode"
+                >
+                  <option value="normal">Artwork (Clean Ink)</option>
+                  <option value="phase">Phase Colors</option>
+                  <option value="sequence">Sequence Gradient</option>
+                  <option value="subject">Subject Separation</option>
+                  <option value="timeline">Active/Completed Glow</option>
+                </select>
+
+                {/* Pen Tip Glow Toggle */}
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', cursor: 'pointer', fontSize: '0.72rem', color: 'var(--text-secondary)' }} title="Toggle active drawing tip indicator">
                   <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={timelineScrubPct}
-                    onChange={(e) => setTimelineScrubPct(Number(e.target.value))}
-                    style={{ width: '90px', accentColor: '#a855f7', cursor: 'pointer' }}
-                    title={`Timeline scrub: ${timelineScrubPct}%`}
+                    type="checkbox"
+                    checked={showPenTipGlow}
+                    onChange={(e) => setShowPenTipGlow(e.target.checked)}
                   />
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                    ({currentTimelineState?.activeCount ?? 0} active, {currentTimelineState?.completedCount ?? 0} done)
-                  </span>
-                </div>
-              )}
+                  <span>Tip Glow</span>
+                </label>
+              </div>
             </div>
 
             {/* Viewport Canvas */}
@@ -1776,6 +1921,29 @@ export const App: React.FC = () => {
                     : '--'}
                 </div>
               </div>
+
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Renderer (TASK-108)</div>
+                <div
+                  style={{
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    color: currentRenderState ? '#00f0ff' : 'var(--text-muted)',
+                    marginTop: '0.3rem',
+                  }}
+                >
+                  {currentRenderState
+                    ? `🎨 ${currentRenderState.strokes.length} Drawn (${currentRenderState.activeCount} active)`
+                    : '--'}
+                </div>
+              </div>
             </div>
 
             {/* Stroke Candidates Audit Card (TASK-105) */}
@@ -1993,6 +2161,73 @@ export const App: React.FC = () => {
                     ))}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Procedural Stroke Renderer Audit Card (TASK-108) */}
+            {currentRenderState && (
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                <h3 style={{ fontSize: '0.95rem', marginBottom: '0.75rem', fontWeight: 600, color: '#00f0ff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>🎨 Procedural Stroke Renderer (TASK-108)</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 400, color: isPlaying ? '#10b981' : '#64748b', background: isPlaying ? 'rgba(16,185,129,0.1)' : 'rgba(100,116,139,0.1)', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
+                    {isPlaying ? '▶ Playing' : '⏸ Paused'} ({playbackSpeed}x)
+                  </span>
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', fontSize: '0.8rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Drawn / Total: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#00f0ff', fontWeight: 600 }}>
+                      {currentRenderState.strokes.length} / {currentRenderState.totalStrokes} strokes
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Actively Drawing: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#38bdf8', fontWeight: 600 }}>
+                      {currentRenderState.activeCount} simultaneous
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Drawing Progress: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#10b981' }}>
+                      {(currentRenderState.overallProgress * 100).toFixed(1)}% ({timelineScrubPct}%)
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Diagnostic Mode: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#c084fc', textTransform: 'capitalize' }}>
+                      {renderDiagnosticMode}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Active Strokes Tip Telemetry */}
+                {currentRenderState.activeStrokes.length > 0 && (
+                  <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.5rem' }}>
+                    <div style={{ fontWeight: 600, marginBottom: '0.3rem', color: '#00f0ff' }}>Active Drawing Tips:</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontFamily: 'var(--font-mono)' }}>
+                      {currentRenderState.activeStrokes.map((as) => (
+                        <div key={as.strokeId} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <span style={{ color: '#00f0ff', fontWeight: 600 }}>#{as.sequenceIndex + 1}</span>
+                          <span style={{ color: 'var(--text-muted)' }}>[{as.semanticRole}]</span>
+                          <span style={{ color: '#38bdf8' }}>{(as.progress * 100).toFixed(1)}% drawn</span>
+                          {as.geometry.tipPoint && (
+                            <span style={{ color: '#10b981', fontSize: '0.7rem' }}>
+                              tip: ({as.geometry.tipPoint.x.toFixed(3)}, {as.geometry.tipPoint.y.toFixed(3)})
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -2252,6 +2487,7 @@ export const App: React.FC = () => {
                     <th style={{ padding: '0.6rem' }}>Strokes (TASK-105)</th>
                     <th style={{ padding: '0.6rem' }}>Ordered (TASK-106)</th>
                     <th style={{ padding: '0.6rem' }}>Timeline (TASK-107)</th>
+                    <th style={{ padding: '0.6rem' }}>Renderer (TASK-108)</th>
                     <th style={{ padding: '0.6rem' }}>Ears Preserved</th>
                     <th style={{ padding: '0.6rem' }}>Status</th>
                   </tr>
@@ -2285,6 +2521,9 @@ export const App: React.FC = () => {
                       </td>
                       <td style={{ padding: '0.6rem', color: '#c084fc', fontFamily: 'var(--font-mono)' }}>
                         {r.timelineStrokesCount > 0 ? `${r.timelineDurationS}s (${r.timelineStrokesCount} str)` : '--'}
+                      </td>
+                      <td style={{ padding: '0.6rem', color: '#00f0ff', fontFamily: 'var(--font-mono)' }}>
+                        {r.renderStrokesCount > 0 ? `${r.renderStrokesCount} drw (${r.renderLatencyMs}ms)` : '--'}
                       </td>
                       <td style={{ padding: '0.6rem', color: r.earCount > 0 ? '#fbbf24' : 'var(--text-muted)' }}>
                         {r.earCount} ear(s)

@@ -335,6 +335,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     * Added `Timeline (TASK-107)` column to 12-category batch benchmark table.
     * Updated header status pill to `TASK-107 Stroke Timeline`.
   * Documented full technical specifications in `docs/STROKE_TIMELINE.md`, `docs/ARCHITECTURE.md` (Section 11), and `docs/DECISIONS.md` (`ADR-014`).
+* **Procedural Stroke Renderer & Progressive Canvas Rendering (`TASK-108`):**
+  * Created canonical render contract in `packages/shared-types/src/render.ts`: `PartialStrokeGeometry`, `RenderDiagnosticMode`, `RenderStroke`, `RenderConfig`, `DEFAULT_RENDER_CONFIG`, `RenderState`. Exported via `packages/shared-types/src/index.ts`.
+  * Implemented pure TypeScript rendering and subdivision math in `packages/stroke-engine/src/rendering/`:
+    * `bezier-subdivide.ts`: Pure De Casteljau cubic subdivision (`trimCubicBezier`), 4-segment chord arc length approximation (`approximateCubicBezierLength`), point evaluation (`evaluateCubicBezier`), and tangent evaluation (`evaluateCubicBezierDerivative`).
+    * `partial-geometry.ts`: Pure arc-length parameterized partial geometry extraction (`getPartialStrokeGeometry`) for polylines and cubic Bézier splines with zero input geometry mutation.
+    * `render-state.ts`: Deterministic compilation (`createRenderState`) of `StrokeTimeline` into immutable `RenderState` frame snapshots at arbitrary timestamp $t$.
+    * `validator.ts`: Comprehensive mathematical validation (`validateRenderState`) verifying bounds, counts, and coordinate finiteness.
+    * `index.ts`: Unified module exports re-exported by `@sketch-maker/stroke-engine` and `@sketch-maker/animation-engine`.
+  * Implemented Web Canvas adapter layer in `apps/web/src/rendering/`:
+    * `viewport.ts`: `ViewportTransform` mapping normalized $[0, 1] \times [0, 1]$ coordinates to physical device pixels with aspect-ratio contain letterboxing, margin padding, and `devicePixelRatio` scaling.
+    * `canvas-renderer.ts`: `CanvasStrokeRenderer` with anti-aliasing, round line caps/joins, glowing cyan pen tip indicator, and 5 diagnostic color modes (`normal`, `sequence`, `phase`, `subject`, `timeline`).
+    * `animation-player.ts`: `AnimationPlayer` driving wall-clock progressive animation via `requestAnimationFrame` and `performance.now()`, supporting Play, Pause, Reset, Replay, scrubbing, and speed modulation ($0.5\times$ to $3.0\times$).
+    * `index.ts`: Web rendering module barrel.
+  * Maintained strict architectural boundary: zero DOM/window/canvas globals in core packages (`packages/shared-types`, `packages/stroke-engine`, `packages/animation-engine`).
+  * Preserved strict profile occlusion semantics: `BM-02` occluded features produce 0 rendered strokes or pixels.
+  * Preserved multi-subject isolation: `BM-11` distinct `subjectId` attributes maintained and visually separable.
+  * Added 10 automated unit tests in `tests/stroke-engine/procedural-renderer.test.ts` (10/10 passing) verifying De Casteljau trimming, polyline/Bézier arc-length traversal, boundary clamping, RenderState compilation, occlusion enforcement, multi-person isolation, geometry immutability, and headless portability.
+  * Added `test:renderer` script and integrated into root `npm test` gate (268+ monorepo tests passing with 0 failures).
+  * Added comprehensive 12-category benchmark runner `tests/benchmarks/renderer-benchmark.ts` and `npm run benchmark:renderer`:
+    * Evaluated across all 12 canonical benchmark categories (`BM-01` to `BM-12`).
+    * Measured average RenderState compilation latency of **0.12 ms** (vs < 2.0ms SLA target, 16.6x faster).
+    * Measured average partial geometry extraction latency of **1.8 µs**.
+    * Measured average stroke query latency of **4.5 µs**.
+    * Measured average total strokes: **48.3**.
+    * Validated 100% mathematical validity, 0 occluded strokes rendered (`BM-02`), and multi-person isolation (`BM-11`).
+    * Peak heap RAM delta remained bounded at 38.80 MB.
+  * Integrated interactive Animation Player into `apps/web/src/App.tsx`:
+    * Play/Pause, Reset, Replay, Playback Speed controls, scrub slider, and diagnostic color mode selector.
+    * Real-time canvas drawing with De Casteljau trimmed curves and pen tip glow.
+    * Added `Renderer (TASK-108)` telemetry card, `Procedural Stroke Renderer Audit Card`, and benchmark table column.
+    * Updated header status pill to `TASK-108 Procedural Renderer`.
+  * Documented full technical specifications in `docs/PROCEDURAL_RENDERER.md`, `docs/ARCHITECTURE.md` (Section 12), and `docs/DECISIONS.md` (`ADR-015`).
+
 
 ### Fixed
 * **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**
