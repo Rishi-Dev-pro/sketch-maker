@@ -4,9 +4,9 @@
 
 * **Current Date / Time:** 2026-09-19
 * **Current Phase:** Phase 1 — Feasibility Prototype (Headless Photo → Strokes Pipeline)
-* **Current Version:** v0.3.19-alpha (TASK-108 Procedural Stroke Renderer & Progressive Canvas Rendering Complete)
+* **Current Version:** v0.3.20-alpha (TASK-109 Procedural Style Engine & Rendering Appearance System Complete)
 * **Current Milestone:** M1 — Feasibility Prototype (Headless Pipeline)
-* **Status:** IN_PROGRESS (TASK-108 Procedural Stroke Renderer Complete)
+* **Status:** IN_PROGRESS (TASK-109 Procedural Style Engine Complete)
 
 ---
 
@@ -32,8 +32,9 @@ Phase 1 pipeline is advancing through structural analysis:
 18. **TASK-106 (Stroke Ordering & Composition):** Implemented progressive stroke ordering IR (`OrderedStroke`, `OrderedStrokeSequence`, `CompositionPhase`, `StrokeOrderingMetrics`) in `packages/shared-types/src/stroke.ts` and ordering engine in `packages/stroke-engine/src/ordering/` (6-phase composition model, structural dependency graph, multi-factor deterministic comparator, non-destructive sequence wrapper, contiguous 0-based indexing, strict profile occlusion suppression for `BM-02`, and harmonized multi-subject phase interleaving for `BM-11`). 17/17 unit tests pass; 12-category benchmark passes (average latency **1.19 ms** vs < 10ms SLA target, 100% sequence validity, 0 index gaps, 0 duplicates). Interactive UI audit and canvas color-coded progressive visualization verified in `apps/web`.
 19. **TASK-107 (Progressive Stroke Timeline & Animation Scheduling):** Implemented progressive timeline contracts (`TimelineStroke`, `StrokeTimeline`, `TimelineConfig`, `TimelineState`, `TimelineMetrics`) in `packages/shared-types/src/timeline.ts` and scheduling engine in `packages/stroke-engine/src/timeline/` (physical duration model based on arc length and salience, phase-specific multipliers, controlled overlap with phase boundary damping, dependency-aware start offset constraints, target duration normalization, pure math easing curves, and pure $O(N)$ real-time query/scrub API). 17/17 unit tests pass; 12-category benchmark passes (average latency **0.54 ms** vs < 10ms SLA, average query latency **20.2 µs**, 100% temporal validity, 0 occluded timeline strokes, independent multi-person preservation). Interactive UI scrubber, active tip glow, and audit cards verified in `apps/web`.
 20. **TASK-108 (Procedural Stroke Renderer & Progressive Canvas Rendering):** Implemented pure mathematical partial stroke geometry extraction (`partial-geometry.ts`, De Casteljau cubic subdivision `bezier-subdivide.ts`, `render-state.ts`, `validator.ts`) in `@sketch-maker/stroke-engine/rendering` and complete Web Canvas adapter (`viewport.ts`, `canvas-renderer.ts`, `animation-player.ts`) in `apps/web/src/rendering/`. 10/10 unit tests pass; 12-category benchmark passes (average RenderState latency **0.12 ms** vs < 2.0ms SLA target, average partial geometry latency **1.8 µs**, 0 occluded strokes rendered for `BM-02`, multi-person subject separation preserved for `BM-11`). Interactive animation player with Play/Pause, Reset, Replay, Speed, Scrub, and Diagnostic Modes (`normal`, `sequence`, `phase`, `subject`, `timeline`) verified in browser.
-21. **Automated Verification:** All test suites pass (268+ monorepo tests), all 8 monorepo workspaces typecheck cleanly with 0 errors, and client production build succeeds in ~2.3s.
-22. **Stop Condition:** TASK-108 complete. Awaiting user direction before next task (TASK-109 / Style Engine).
+21. **TASK-109 (Procedural Style Engine & Rendering Appearance System):** Implemented dedicated appearance layer (`packages/style-engine`) and contracts (`StyledRenderState`, `StyledRenderStroke`, `StylePresetDefinition`, `ResolvedStrokeStyle`) in `packages/shared-types/src/style.ts`. Implemented 5-tier cascading precedence hierarchy (`resolver.ts`), singleton `StyleRegistry` (`registry.ts`), and 4 canonical presets (`procedural_black`, `red_line`, `neon`, `blueprint`). 15/15 unit tests pass; 12-category benchmark passes (average style resolution latency **0.008 ms** / **8 µs** vs < 1.0ms SLA target, 100% stroke geometry unchanged, 0 occluded strokes rendered, multi-person isolation preserved). Interactive web UI style switcher, active bloom glow, and audit card verified in `apps/web`.
+22. **Automated Verification:** All test suites pass (283+ monorepo tests), all 8 monorepo workspaces typecheck cleanly with 0 errors, and client production build succeeds in ~2.7s.
+23. **Stop Condition:** TASK-109 complete. Awaiting user direction before next task (TASK-110 / End-to-End Integration).
 
 ---
 
@@ -62,31 +63,32 @@ Phase 1 pipeline is advancing through structural analysis:
 * [x] **TASK-103.9:** MediaPipe Image Segmenter integration (`apps/web/src/vision/mediapipe/*`, `docs/MEDIAPIPE_IMAGE_SEGMENTER.md`, 12/12 mapper/reconciler tests, interactive web UI with semantic mask overlays and category toggles, lazy chunk splitting verified).
 * [x] **TASK-104:** Contour & Vector Generation (`packages/stroke-engine/src/geometry/*`, `packages/shared-types/src/vector.ts`, `docs/CONTOUR_VECTOR_GENERATION.md`, `ADR-011`, 20/20 unit tests, 12/12 benchmark images evaluated, 81.6% point reduction, 1.98ms avg latency, interactive web UI audit verified).
 * [x] **TASK-105:** Procedural Stroke Candidate Generation (`packages/stroke-engine/src/candidates/*`, `packages/shared-types/src/stroke.ts`, `docs/STROKE_CANDIDATE_GENERATION.md`, `ADR-012`, 18/18 unit tests, 12/12 benchmark images evaluated, 1.06ms avg latency, 0 stroke explosion, profile occlusion verified, interactive web UI preview verified).
-* [x] **TASK-106:** Stroke Ordering & Composition (`packages/stroke-engine/src/ordering/*`, `packages/shared-types/src/stroke.ts`, `docs/STROKE_ORDERING.md`, `ADR-013`, 17/17 unit tests, 12/12 benchmark images evaluated, 1.19ms avg latency, 100% valid sequence integrity, profile occlusion verified, interactive web UI preview verified).
+* [x] **TASK-106:** Stroke Ordering & Composition (`packages/stroke-engine/src/ordering/*`, `packages/shared-types/src/stroke.ts`, `docs/STROKE_ORDERING.md`, `ADR-013`, 17/17 unit tests, 12/12 benchmark images evaluated, 1.19ms avg latency, 100% sequence validity, profile occlusion verified, interactive web UI preview verified).
 * [x] **TASK-107:** Progressive Stroke Timeline & Animation Scheduling (`packages/stroke-engine/src/timeline/*`, `packages/shared-types/src/timeline.ts`, `docs/STROKE_TIMELINE.md`, `ADR-014`, 17/17 unit tests, 12/12 benchmark images evaluated, 0.54ms avg latency, 20.2µs query latency, controlled overlap and dependencies verified, interactive web UI scrubber and audit verified).
 * [x] **TASK-108:** Procedural Stroke Renderer & Progressive Canvas Rendering (`packages/stroke-engine/src/rendering/*`, `apps/web/src/rendering/*`, `packages/shared-types/src/render.ts`, `docs/PROCEDURAL_RENDERER.md`, `ADR-015`, 10/10 unit tests, 12/12 benchmark images evaluated, 0.12ms avg RenderState latency, 1.8µs partial geo latency, interactive animation player verified).
+* [x] **TASK-109:** Procedural Style Engine & Rendering Appearance System (`packages/style-engine/*`, `packages/shared-types/src/style.ts`, `docs/STYLE_ENGINE.md`, `ADR-016`, 15/15 unit tests, 12/12 benchmark images evaluated, 0.008ms avg latency, 4 canonical presets, interactive style switcher verified).
 * [x] **Web App Foundation Verification:** `apps/web` builds cleanly with Vite, typechecks with 0 errors, and renders verified in browser.
 
 ---
 
 ## 3. Currently Being Worked On
-* **TASK-108 (Complete):** Procedural Stroke Renderer & Progressive Canvas Rendering integrated, benchmarked across all 12 categories, and verified in browser diagnostics with interactive animation player. Stopped as instructed; awaiting next user instruction.
+* **TASK-109 (Complete):** Procedural Style Engine & Rendering Appearance System integrated, benchmarked across all 12 categories, and verified in browser with 4 canonical presets (`procedural_black`, `red_line`, `neon`, `blueprint`). Stopped as instructed; awaiting next user instruction.
 
 ---
 
 ## 4. What Is Partially Implemented
-* Headless package stubs (`style-engine`, `export-engine`): Package manifests and version constants exist; algorithmic implementations begin in subsequent Phase 1 tasks.
+* Headless package stubs (`export-engine`): Package manifests and version constants exist; algorithmic implementations begin in subsequent Phase 1 tasks.
 * `packages/animation-engine`: Re-exports core timeline scheduling and rendering engine contracts.
 
 ---
 
 ## 5. What Is Blocked
-* None. Progressive Canvas 2D rendering is verified and unblocks Style Engine presets (`TASK-109` / `TASK-601`).
+* None. Procedural Style Engine is verified and unblocks End-to-End Integration (`TASK-110`) and Export Engines (`TASK-801`).
 
 ---
 
 ## 6. Known Bugs & Anomalies
-* None. All 268+ unit and regression tests pass cleanly across all 8 workspaces.
+* None. All 283+ unit and regression tests pass cleanly across all 8 workspaces.
 
 ---
 
@@ -97,12 +99,12 @@ Phase 1 pipeline is advancing through structural analysis:
 
 ## 8. Immediate Next Tasks
 
-### Immediate Next Task (Task ID: `TASK-109`):
-* `TASK-109`: Style Engine Foundation & First Expressive Aesthetic Presets (`packages/style-engine`). Stroke textures, color palettes, line tapering, and artistic preset profiles (charcoal, blueprint, ink).
+### Immediate Next Task (Task ID: `TASK-110`):
+* `TASK-110`: End-to-End Integration & Phase 1 Feasibility Milestone Signoff. Comprehensive verification of complete pipeline: Photo Upload $\to$ Preprocessing $\to$ Segmentation $\to$ Landmark Analysis $\to$ Vectorization $\to$ Stroke Candidates $\to$ Ordering $\to$ Timeline $\to$ Style Resolution $\to$ Canvas Progressive Drawing.
 
-### Next Few Planned Tasks (Phase 1):
-1. `TASK-109`: Style engine foundation & first expressive aesthetic preset.
-2. `TASK-110`: End-to-end integration & Phase 1 Feasibility Milestone signoff.
+### Next Few Planned Tasks (Phase 2+):
+1. `TASK-110`: End-to-end integration & Phase 1 Feasibility Milestone signoff.
+2. `TASK-201`: Robust `SubjectModel` generator package formalization.
 
 
 ---

@@ -367,6 +367,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     * Added `Renderer (TASK-108)` telemetry card, `Procedural Stroke Renderer Audit Card`, and benchmark table column.
     * Updated header status pill to `TASK-108 Procedural Renderer`.
   * Documented full technical specifications in `docs/PROCEDURAL_RENDERER.md`, `docs/ARCHITECTURE.md` (Section 12), and `docs/DECISIONS.md` (`ADR-015`).
+* **Procedural Style Engine & Rendering Appearance System (`TASK-109`):**
+  * Created canonical style contracts in `packages/shared-types/src/style.ts`: `StyleId` (`'procedural_black' | 'red_line' | 'neon' | 'blueprint' | (string & {})`), `BackgroundStyle`, `GlowStyle`, `ResolvedStrokeStyle`, `SemanticStyleModifier`, `StylePresetDefinition`, `StyleConfig`, `DEFAULT_STYLE_CONFIG`, `StyledRenderStroke`, `StyledRenderState`. Retained backward-compatible `QualityProfile` and `BackgroundMode`. Exported via `packages/shared-types/src/index.ts`.
+  * Extended `RenderStroke` in `packages/shared-types/src/render.ts` with optional `style?: ResolvedStrokeStyle`.
+  * Implemented pure TypeScript style engine in `packages/style-engine/`:
+    * `presets/procedural-black.ts`: Reference monochrome preset with charcoal ink (`#1a1a1a`) on pure white background (`#ffffff`), solid opacity ($1.0$), round caps/joins, zero glow.
+    * `presets/red-line.ts`: Expressive crimson ink (`#dc2626`) on warm parchment canvas (`#faf8f5`), high opacity ($0.95$), round caps/joins, zero glow.
+    * `presets/neon.ts`: Cyberpunk dark-mode art on deep abyss (`#090a10`), electric cyan/magenta lines (`#00f0ff`), screen blend mode (`screen`), active multi-pass bloom glow (`radius: 12`, `opacity: 0.85`).
+    * `presets/blueprint.ts`: Architectural draft on deep Prussian navy (`#0b1d3a`), crisp technical cyan-white lines (`#e0f2fe`), subtle transparency ($0.90$), zero glow.
+    * `registry.ts`: `StyleRegistry` singleton with pre-registered presets, deterministic ID resolution, and dynamic registration via `registerStylePreset`.
+    * `resolver.ts`: Deterministic 5-tier cascading precedence hierarchy resolver (`resolveStrokeStyle`, `resolveStyledRenderState`, `resolveDiagnosticColor`) mapping `RenderState` $\to$ `StyledRenderState`.
+    * `index.ts`: Package barrel export with `STYLE_ENGINE_VERSION = '0.2.0'`.
+  * Enforced core design invariant: `GEOMETRY (what) ≠ TIMING (when) ≠ STYLE (how)`. Coordinates, Bézier curves, arc lengths, bounding boxes, sequence indices, and timelines are 100% immutable and never modified by the style engine.
+  * Preserved strict profile occlusion semantics: on `BM-02` (90° side profile), occluded far-side features produce 0 styled strokes or visible pixels.
+  * Preserved multi-subject isolation: on `BM-11` (multi-person), all styled strokes maintain independent `subjectId` annotations.
+  * Updated HTML5 Canvas adapter in `apps/web/src/rendering/canvas-renderer.ts`:
+    * Draws preset canvas background color and opacity.
+    * Applies resolved stroke properties: `color`, `lineWidth`, `lineCap`, `lineJoin`, `opacity`, `blendMode`, `glow` (`shadowColor`, `shadowBlur`), and `dash`.
+    * Cleanly separates canvas DOM rendering from pure TypeScript core contracts.
+  * Added 15 automated unit tests in `tests/style-engine/style-engine.test.ts` (15/15 passing in 10.87 ms) verifying registry lookups, all 4 presets, 5-tier precedence hierarchy, role modifiers, phase modifiers, hierarchy modifiers, diagnostic overrides, active pen tip styling, profile occlusion preservation, multi-person isolation, geometry immutability, and zero DOM/window/canvas globals.
+  * Added `test:styles` script and integrated into root `npm test` gate (283+ monorepo tests passing with 0 failures).
+  * Added comprehensive 12-category benchmark runner `tests/benchmarks/style-benchmark.ts` and `npm run benchmark:styles`:
+    * Evaluated across all 12 canonical benchmark categories (`BM-01` to `BM-12`) across all 4 presets.
+    * Measured average style resolution latency of **0.008 ms** ($8\ \mu\text{s}$), which is **125x faster** than the < 1.0 ms SLA target.
+    * Validated 100% geometry immutability (0 coordinates modified), 100% profile occlusion enforcement (`BM-02`), and 100% multi-person isolation (`BM-11`).
+    * Peak heap RAM delta remained bounded at 12.69 MB.
+  * Integrated interactive Style Preset selector into `apps/web/src/App.tsx`:
+    * Dropdown selector with all 4 presets (`procedural_black`, `red_line`, `neon`, `blueprint`).
+    * Instantaneous style switching during active playback without interrupting time or resetting pen position.
+    * Added `Style Engine (TASK-109)` telemetry card and expandable `Procedural Style Engine Audit Card`.
+    * Added `Style (TASK-109)` column to 12-category batch benchmark table.
+    * Updated header status pill to `TASK-109 Style Engine`.
+  * Documented full architectural specifications in `docs/STYLE_ENGINE.md`, `docs/ARCHITECTURE.md` (Section 13), and `docs/DECISIONS.md` (`ADR-016`).
 
 
 ### Fixed

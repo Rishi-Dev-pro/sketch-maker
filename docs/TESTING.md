@@ -101,6 +101,8 @@ Before marking any task as `COMPLETE` in `docs/TASK_TRACKER.md`:
 | `npm run benchmark:timeline` | `tests/benchmarks/stroke-timeline-benchmark.ts` | 12-category stroke timeline & animation scheduling benchmark |
 | `npm run test:renderer` | `tests/stroke-engine/procedural-renderer.test.ts` | 10 unit tests for TASK-108 procedural stroke renderer & partial geometry |
 | `npm run benchmark:renderer` | `tests/benchmarks/renderer-benchmark.ts` | 12-category procedural stroke renderer benchmark |
+| `npm run test:styles` | `tests/style-engine/style-engine.test.ts` | 15 unit tests for TASK-109 procedural style engine & presets |
+| `npm run benchmark:styles` | `tests/benchmarks/style-benchmark.ts` | 12-category procedural style engine benchmark across 4 presets |
 | `npm run typecheck` | Monorepo root | TypeScript typecheck across all 8 workspaces |
 | `npm run build` | Monorepo root | Production build of web application and libraries |
 

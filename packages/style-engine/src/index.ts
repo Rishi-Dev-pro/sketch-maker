@@ -1,6 +1,10 @@
 /**
  * @sketch-maker/style-engine
- * Platform-agnostic style generators and stroke render parameters.
+ * Platform-agnostic style generators, presets, and stroke appearance resolution.
  */
 
-export const STYLE_ENGINE_VERSION = '0.1.0';
+export const STYLE_ENGINE_VERSION = '0.2.0';
+
+export * from './presets';
+export * from './registry';
+export * from './resolver';

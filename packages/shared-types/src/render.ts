@@ -1,5 +1,6 @@
 import { Point2D, BezierCurve, BoundingBox } from './geometry';
 import { StrokeSemanticRole, CompositionPhase } from './stroke';
+import type { ResolvedStrokeStyle } from './style';
 
 /**
  * Geometric representation of a partially or fully traversed procedural stroke.
@@ -55,6 +56,8 @@ export interface RenderStroke {
   readonly importance: number;
   /** Whether this stroke was flagged as background */
   readonly isBackground: boolean;
+  /** Optional resolved appearance style from the style engine (TASK-109) */
+  readonly style?: ResolvedStrokeStyle;
 }
 
 /**

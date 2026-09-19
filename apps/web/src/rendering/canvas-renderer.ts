@@ -98,23 +98,24 @@ export class CanvasStrokeRenderer {
   }
 
   /**
-   * Renders the progressive RenderState onto the canvas.
+   * Renders the progressive RenderState or StyledRenderState onto the canvas.
    */
-  public render(renderState: RenderState, options?: CanvasRenderOptions): void {
+  public render(
+    renderState: RenderState | (RenderState & { background?: { type: 'solid' | 'transparent'; color?: string } }),
+    options?: CanvasRenderOptions
+  ): void {
     const ctx = this.ctx;
     const vp = this.viewport;
-    const bgMode = options?.backgroundMode ?? 'solid';
-    const bgColor = options?.backgroundColor ?? '#0a0b10';
-    const strokeColor = options?.strokeColor ?? '#f8fafc';
-    const diagMode = options?.diagnosticMode ?? 'normal';
-    const penGlow = options?.penTipGlow ?? true;
-    const showBadges = options?.showSequenceBadges ?? true;
 
     // 1. Clear viewport
     this.clear();
 
-    // 2. Render background
-    if (bgMode === 'solid') {
+    // 2. Render background (resolves from StyledRenderState or options fallback)
+    const stateBg = 'background' in renderState ? renderState.background : undefined;
+    const bgMode = options?.backgroundMode ?? stateBg?.type ?? 'solid';
+    const bgColor = options?.backgroundColor ?? (stateBg && stateBg.type === 'solid' ? stateBg.color : '#ffffff');
+
+    if (bgMode === 'solid' && bgColor) {
       ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, vp.displayWidth, vp.displayHeight);
     }
@@ -133,14 +134,13 @@ export class CanvasStrokeRenderer {
       ctx.restore();
     }
 
-    // 3. Configure line rendering aesthetics
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.miterLimit = 2;
-
     const totalStrokes = Math.max(1, renderState.totalStrokes);
+    const diagMode = options?.diagnosticMode ?? 'normal';
+    const defaultColor = options?.strokeColor ?? '#1a1a1a';
+    const penGlow = options?.penTipGlow ?? true;
+    const showBadges = options?.showSequenceBadges ?? true;
 
-    // 4. Render strokes in deterministic timeline order
+    // 3. Render strokes in deterministic timeline order
     for (let i = 0; i < renderState.strokes.length; i++) {
       const s = renderState.strokes[i];
       if (s.status === 'pending') {
@@ -149,14 +149,38 @@ export class CanvasStrokeRenderer {
 
       ctx.save();
 
-      // Resolve stroke color
-      const color = this.resolveStrokeColor(s, diagMode, strokeColor, totalStrokes);
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
+      // Resolve appearance from resolved style or fallback to defaults
+      if (s.style) {
+        ctx.strokeStyle = s.style.color;
+        ctx.fillStyle = s.style.color;
+        ctx.lineWidth = vp.toPixelWidth(s.style.lineWidth, 0.8, 10.0);
+        ctx.lineCap = s.style.lineCap;
+        ctx.lineJoin = s.style.lineJoin;
+        ctx.globalAlpha = s.style.opacity;
 
-      const pixelWidth = vp.toPixelWidth(s.lineWidth, 1.0, 8.0);
-      ctx.lineWidth = pixelWidth;
-      ctx.globalAlpha = s.opacity;
+        if (s.style.blendMode) {
+          ctx.globalCompositeOperation = s.style.blendMode;
+        }
+
+        if (s.style.glow?.enabled && s.style.glow.radius > 0) {
+          ctx.shadowColor = s.style.glow.color;
+          ctx.shadowBlur = s.style.glow.radius * Math.min(vp.scaleX, vp.scaleY);
+        }
+
+        if (s.style.dash && s.style.dash.length > 0) {
+          ctx.setLineDash(s.style.dash as number[]);
+        }
+      } else {
+        // Fallback for unstyled RenderStroke
+        const color = this.resolveStrokeColor(s, diagMode, defaultColor, totalStrokes);
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = vp.toPixelWidth(s.lineWidth, 1.0, 8.0);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.globalAlpha = s.opacity;
+      }
+      ctx.miterLimit = 2;
 
       // Draw Bézier curves or polyline
       if (s.geometry.curves && s.geometry.curves.length > 0) {
@@ -186,18 +210,18 @@ export class CanvasStrokeRenderer {
       } else if (s.geometry.points.length === 1) {
         const p = vp.toPixel(s.geometry.points[0]);
         ctx.beginPath();
-        ctx.arc(p.x, p.y, pixelWidth, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, ctx.lineWidth * 0.5, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // Active drawing tip glow indicator
+      // Active drawing tip indicator
       if (s.status === 'drawing' && s.geometry.tipPoint && penGlow) {
         const tip = vp.toPixel(s.geometry.tipPoint);
         ctx.beginPath();
-        const radius = Math.max(2.5, pixelWidth * 1.4);
-        ctx.arc(tip.x, tip.y, radius, 0, Math.PI * 2);
+        const tipRadius = Math.max(2.5, ctx.lineWidth * 1.3);
+        ctx.arc(tip.x, tip.y, tipRadius, 0, Math.PI * 2);
         ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = '#00f0ff';
+        ctx.shadowColor = s.style?.glow?.enabled ? s.style.glow.color : (s.style?.color ?? '#00f0ff');
         ctx.shadowBlur = 10;
         ctx.fill();
       }

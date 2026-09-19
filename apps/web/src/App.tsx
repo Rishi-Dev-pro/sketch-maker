@@ -23,6 +23,8 @@ import {
   RenderState,
   RenderDiagnosticMode,
 } from '@sketch-maker/stroke-engine';
+import { StyleId, StyledRenderState } from '@sketch-maker/shared-types';
+import { resolveStyledRenderState } from '@sketch-maker/style-engine';
 import { createMediaPipeWebProvider, MediaPipeWebDelegate } from './vision/mediapipe';
 import { CanvasStrokeRenderer, AnimationPlayer, PlayerState } from './rendering';
 
@@ -58,6 +60,7 @@ interface BenchmarkRunResult {
   timelineDurationS: number;
   renderStrokesCount: number;
   renderLatencyMs: number;
+  styleLatencyMs: number;
   fallback: boolean;
 }
 
@@ -158,6 +161,20 @@ export const App: React.FC = () => {
       filterSubjectId: orderingSubjectFilter !== 'all' ? orderingSubjectFilter : undefined,
     });
   }, [currentTimeline, timelineScrubPct, renderDiagnosticMode, showPenTipGlow, orderingSubjectFilter]);
+
+  // TASK-109 Procedural Style Engine State
+  const [currentStyleId, setCurrentStyleId] = useState<StyleId>('procedural_black');
+
+  // Derive Styled Render State (TASK-109)
+  const currentStyledRenderState: StyledRenderState | null = useMemo(() => {
+    if (!currentRenderState) {
+      return null;
+    }
+    return resolveStyledRenderState(currentRenderState, {
+      preset: currentStyleId,
+      diagnosticMode: renderDiagnosticMode,
+    });
+  }, [currentRenderState, currentStyleId, renderDiagnosticMode]);
 
   // Initialize and synchronize AnimationPlayer (TASK-108)
   useEffect(() => {
@@ -678,43 +695,42 @@ export const App: React.FC = () => {
       }
     }
 
-    // 7. Draw TASK-108 Procedural Stroke Rendering (Progressive Canvas Art)
-    if (showStrokeOrdering && currentRenderState && currentRenderState.strokes.length > 0) {
-      const totalStrokes = Math.max(1, currentRenderState.totalStrokes);
+    // 7. Draw TASK-109 Procedural Style Engine Rendering (Progressive Canvas Art)
+    if (showStrokeOrdering && currentStyledRenderState && currentStyledRenderState.styledStrokes.length > 0) {
+      // 7a. Fill Canvas Background with Preset Style Color
+      if (currentStyledRenderState.background.type === 'solid') {
+        ctx.fillStyle = currentStyledRenderState.background.color;
+        ctx.fillRect(0, 0, W, H);
 
-      for (const rStroke of currentRenderState.strokes) {
+        // Subtle photographic underlay (12% opacity) for grounding
+        ctx.save();
+        ctx.globalAlpha = 0.12;
+        ctx.drawImage(img, 0, 0, W, H);
+        ctx.restore();
+      }
+
+      // 7b. Draw Styled Strokes in Deterministic Sequence Order
+      for (const rStroke of currentStyledRenderState.styledStrokes) {
         if (rStroke.status === 'pending') continue;
 
         ctx.save();
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
+        ctx.lineCap = rStroke.style.lineCap;
+        ctx.lineJoin = rStroke.style.lineJoin;
         ctx.miterLimit = 2;
-        ctx.globalAlpha = rStroke.opacity;
+        ctx.globalAlpha = rStroke.style.opacity;
+        ctx.strokeStyle = rStroke.style.color;
+        ctx.fillStyle = rStroke.style.color;
 
-        // Color coding based on renderDiagnosticMode / orderingColorMode
-        if (renderDiagnosticMode === 'normal') {
-          ctx.strokeStyle = '#f8fafc'; // Crisp high-contrast line art
-        } else if (renderDiagnosticMode === 'sequence' || orderingColorMode === 'gradient') {
-          const progress = totalStrokes > 1 ? rStroke.sequenceIndex / (totalStrokes - 1) : 0;
-          const hue = Math.round((1.0 - progress) * 260);
-          ctx.strokeStyle = `hsl(${hue}, 95%, 60%)`;
-        } else if (renderDiagnosticMode === 'subject') {
-          ctx.strokeStyle = rStroke.subjectId === 'subject-0' ? '#00f0ff' : '#fbbf24';
-        } else if (renderDiagnosticMode === 'timeline') {
-          ctx.strokeStyle = rStroke.status === 'drawing' ? '#00f0ff' : '#cbd5e1';
-        } else {
-          // Composition Phase Colors
-          switch (rStroke.phase) {
-            case 'foundation': ctx.strokeStyle = '#10b981'; break;
-            case 'primary_structure': ctx.strokeStyle = '#00f0ff'; break;
-            case 'expressive_features': ctx.strokeStyle = '#f43f5e'; break;
-            case 'secondary_anatomy': ctx.strokeStyle = '#c084fc'; break;
-            case 'refinement': ctx.strokeStyle = '#fbbf24'; break;
-            case 'texture_accent': default: ctx.strokeStyle = '#94a3b8'; break;
-          }
+        if (rStroke.style.blendMode) {
+          ctx.globalCompositeOperation = rStroke.style.blendMode;
         }
 
-        ctx.lineWidth = Math.max(1.0, rStroke.lineWidth * (Math.min(W, H) / 600));
+        if (rStroke.style.glow?.enabled && rStroke.style.glow.radius > 0) {
+          ctx.shadowColor = rStroke.style.glow.color;
+          ctx.shadowBlur = rStroke.style.glow.radius * (Math.min(W, H) / 600);
+        }
+
+        ctx.lineWidth = Math.max(0.8, rStroke.style.lineWidth * (Math.min(W, H) / 600));
 
         // Draw trimmed curves (via De Casteljau) or trimmed polyline points (via Arc-Length)
         if (rStroke.geometry.curves && rStroke.geometry.curves.length > 0) {
@@ -741,8 +757,7 @@ export const App: React.FC = () => {
           ctx.stroke();
         } else if (rStroke.geometry.points.length === 1) {
           ctx.beginPath();
-          ctx.arc(rStroke.geometry.points[0].x * W, rStroke.geometry.points[0].y * H, ctx.lineWidth, 0, Math.PI * 2);
-          ctx.fillStyle = ctx.strokeStyle;
+          ctx.arc(rStroke.geometry.points[0].x * W, rStroke.geometry.points[0].y * H, ctx.lineWidth * 0.5, 0, Math.PI * 2);
           ctx.fill();
         }
 
@@ -750,9 +765,9 @@ export const App: React.FC = () => {
         if (rStroke.status === 'drawing' && rStroke.geometry.tipPoint && showPenTipGlow) {
           const tip = rStroke.geometry.tipPoint;
           ctx.beginPath();
-          ctx.arc(tip.x * W, tip.y * H, Math.max(3.0, ctx.lineWidth * 1.5), 0, Math.PI * 2);
+          ctx.arc(tip.x * W, tip.y * H, Math.max(3.0, ctx.lineWidth * 1.4), 0, Math.PI * 2);
           ctx.fillStyle = '#ffffff';
-          ctx.shadowColor = '#00f0ff';
+          ctx.shadowColor = rStroke.style.glow?.color || rStroke.style.color || '#00f0ff';
           ctx.shadowBlur = 12;
           ctx.fill();
         }
@@ -787,6 +802,7 @@ export const App: React.FC = () => {
     currentStrokeCandidates,
     currentOrderedSequence,
     currentRenderState,
+    currentStyledRenderState,
     renderDiagnosticMode,
     showPenTipGlow,
     showFaceMesh,
@@ -979,6 +995,12 @@ export const App: React.FC = () => {
         const renderLatencyMs = Number((t1 - t0).toFixed(2));
         const renderStrokesCount = rState?.strokes.length ?? 0;
 
+        // Procedural style resolution for batch audit (TASK-109)
+        const tStyle0 = performance.now();
+        const sState = rState ? resolveStyledRenderState(rState, { preset: currentStyleId }) : null;
+        const tStyle1 = performance.now();
+        const styleLatencyMs = Number((tStyle1 - tStyle0).toFixed(2));
+
         runs.push({
           id: bm.id,
           name: bmName,
@@ -1001,6 +1023,7 @@ export const App: React.FC = () => {
           timelineDurationS,
           renderStrokesCount,
           renderLatencyMs,
+          styleLatencyMs,
           fallback: !!res.executionPlan?.fallbackOccurred,
         });
 
@@ -1028,6 +1051,7 @@ export const App: React.FC = () => {
           timelineDurationS: 0,
           renderStrokesCount: 0,
           renderLatencyMs: 0,
+          styleLatencyMs: 0,
           fallback: true,
         });
         setBatchResults([...runs]);
@@ -1045,7 +1069,7 @@ export const App: React.FC = () => {
       <header>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div className="logo-badge">Photo-to-Procedural-Art</div>
-          <span className="phase-pill">TASK-108 Procedural Renderer</span>
+          <span className="phase-pill">TASK-109 Style Engine</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.82rem' }}>
           <span style={{ color: 'var(--text-secondary)' }}>MediaPipe Runtime:</span>
@@ -1609,6 +1633,27 @@ export const App: React.FC = () => {
                   </div>
                 )}
 
+                {/* Style Preset Selector (TASK-109) */}
+                <select
+                  value={currentStyleId}
+                  onChange={(e) => setCurrentStyleId(e.target.value as StyleId)}
+                  style={{
+                    background: 'var(--bg-card)',
+                    color: '#38bdf8',
+                    border: '1px solid #0284c7',
+                    borderRadius: '4px',
+                    padding: '0.1rem 0.4rem',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                  }}
+                  title="Procedural Style Preset (TASK-109)"
+                >
+                  <option value="procedural_black">⬛ Procedural Black</option>
+                  <option value="red_line">🔴 Red Line</option>
+                  <option value="neon">⚡ Neon</option>
+                  <option value="blueprint">📐 Blueprint</option>
+                </select>
+
                 {/* Diagnostic Mode Selector */}
                 <select
                   value={renderDiagnosticMode}
@@ -1944,6 +1989,29 @@ export const App: React.FC = () => {
                     : '--'}
                 </div>
               </div>
+
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Style Engine (TASK-109)</div>
+                <div
+                  style={{
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    color: currentStyledRenderState ? '#38bdf8' : 'var(--text-muted)',
+                    marginTop: '0.3rem',
+                  }}
+                >
+                  {currentStyledRenderState
+                    ? `🎨 ${currentStyledRenderState.stylePreset.toUpperCase()} (${(currentStyledRenderState.resolutionLatencyMs).toFixed(2)}ms)`
+                    : '--'}
+                </div>
+              </div>
             </div>
 
             {/* Stroke Candidates Audit Card (TASK-105) */}
@@ -2231,6 +2299,52 @@ export const App: React.FC = () => {
               </div>
             )}
 
+            {/* Procedural Style Engine Audit Card (TASK-109) */}
+            {currentStyledRenderState && (
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                <h3 style={{ fontSize: '0.95rem', marginBottom: '0.75rem', fontWeight: 600, color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>🎨 Procedural Style Engine (TASK-109)</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#38bdf8', background: 'rgba(56,189,248,0.1)', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
+                    {currentStyledRenderState.stylePreset.toUpperCase()}
+                  </span>
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', fontSize: '0.8rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Preset: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#38bdf8', fontWeight: 600 }}>
+                      {currentStyledRenderState.stylePreset}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Resolution Latency: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#10b981', fontWeight: 600 }}>
+                      {currentStyledRenderState.resolutionLatencyMs.toFixed(2)} ms
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Styled Strokes: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
+                      {currentStyledRenderState.styledStrokes.length}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Background Mode: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#c084fc' }}>
+                      {currentStyledRenderState.background.type === 'solid' ? currentStyledRenderState.background.color : 'transparent'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Vector Geometry Audit Card */}
             {currentGeometry && (
               <div
@@ -2488,6 +2602,7 @@ export const App: React.FC = () => {
                     <th style={{ padding: '0.6rem' }}>Ordered (TASK-106)</th>
                     <th style={{ padding: '0.6rem' }}>Timeline (TASK-107)</th>
                     <th style={{ padding: '0.6rem' }}>Renderer (TASK-108)</th>
+                    <th style={{ padding: '0.6rem' }}>Style (TASK-109)</th>
                     <th style={{ padding: '0.6rem' }}>Ears Preserved</th>
                     <th style={{ padding: '0.6rem' }}>Status</th>
                   </tr>
@@ -2524,6 +2639,9 @@ export const App: React.FC = () => {
                       </td>
                       <td style={{ padding: '0.6rem', color: '#00f0ff', fontFamily: 'var(--font-mono)' }}>
                         {r.renderStrokesCount > 0 ? `${r.renderStrokesCount} drw (${r.renderLatencyMs}ms)` : '--'}
+                      </td>
+                      <td style={{ padding: '0.6rem', color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
+                        {r.renderStrokesCount > 0 ? `${r.styleLatencyMs}ms` : '--'}
                       </td>
                       <td style={{ padding: '0.6rem', color: r.earCount > 0 ? '#fbbf24' : 'var(--text-muted)' }}>
                         {r.earCount} ear(s)
