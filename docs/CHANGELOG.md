@@ -223,6 +223,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Added 12 automated unit tests in `tests/structural-analysis/mediapipe-segmenter-mapper.test.ts` (12/12 passing) verifying category mapping, unknown handling, nearest-neighbor resampling, bilinear confidence interpolation, canonical mapping, bounding box normalization, hybrid agreement, ML override, gradient barrier preservation, multi-person semantic vs instance verification, delegate lifecycle, and disposal.
   * Added `test:mediapipe:segmenter` script and integrated into root `npm test` gate (100% pass across 186+ monorepo tests).
   * Documented full architectural details, model specifications, 6 classes, resolution resampling, hybrid reconciliation, multi-person limitation, benchmark results, and bundle impact in `docs/MEDIAPIPE_IMAGE_SEGMENTER.md`.
+* **Contour & Vector Generation (`TASK-104`):**
+  * Created canonical vector geometry IR data contracts in `packages/shared-types/src/vector.ts`: `GeometrySource`, `PathHierarchyLevel`, `VectorPath`, `GeometryMetrics`, and `VectorGeometry`. Exported via `packages/shared-types/src/index.ts`.
+  * Implemented pure TypeScript vector geometry pipeline in `packages/stroke-engine/src/geometry/`:
+    * `cleaning.ts`: Coordinate clamping $[0.0, 1.0]$, NaN/Infinity rejection, deduplication ($\epsilon = 10^{-5}$), acute spike suppression ($d > 0.35$), and collinear intermediate point reduction (area $< 10^{-7}$).
+    * `simplification.ts`: Deterministic Ramer-Douglas-Peucker reduction with adaptive hierarchy-calibrated tolerances (`primary_structural`: $0.0015$, `secondary_expressive`: $0.0025$, `anatomical_gesture`: $0.0035$, `boundary_contour`: $0.0040$, `tertiary_texture`: $0.0050$), open path endpoint preservation, and closed loop non-collapsing guarantees.
+    * `curves.ts`: Continuous parametric cubic Bézier curve fitting using Catmull-Rom tangents with chord length weighting, overshoot clamp ($\|C - P\| \le 0.4 L$), and closed loop continuous tangent wrapping.
+    * `mask-contours.ts`: Clockwise 8-connected Moore-neighborhood boundary extraction for raster semantic masks with configurable grid downsampling (default: 4px) and minimum bounding area filtering ($0.001$).
+    * `importance.ts`: Deterministic multi-cue path importance formulation ($I = 0.45 w_{\text{semantic}} + 0.25 c + 0.15 v + 0.15 s$) establishing objective rendering priority.
+    * `extractor.ts`: Unified vector geometry generator traversing facial landmarks, body pose skeleton, hair, silhouette, and semantic segmentation masks.
+  * Preserved strict profile occlusion semantics: on `BM-02` (90° side profile), occluded far-side features produce 0 paths.
+  * Preserved multi-subject isolation: on `BM-11` (multi-person), paths are cleanly partitioned with distinct `subjectId` attributes.
+  * Added 20 automated unit tests in `tests/stroke-engine/geometry.test.ts` (20/20 passing) verifying cleaning, RDP reduction, curve fitting, mask boundaries, importance weighting, occlusion handling, multi-subject partitioning, and 100% pure TypeScript execution without browser/DOM globals.
+  * Added `test:geometry` script and integrated into root `npm test` gate (100% pass across 206+ monorepo tests).
+  * Added comprehensive 12-category benchmark runner `tests/benchmarks/geometry-benchmark.ts` and `npm run benchmark:geometry`:
+    * Evaluated across all 12 canonical benchmark categories (`BM-01` to `BM-12`).
+    * Measured average latency of **1.98 ms** (vs < 50ms SLA budget).
+    * Achieved **81.6% point reduction** (from 2,838 to 514 clean, salient points per subject).
+    * Peak heap memory delta remained bounded at 68.58 MB.
+  * Enhanced interactive web UI in `apps/web/src/App.tsx`:
+    * Computed memoized `currentGeometry` from perception results.
+    * Added visualization toggles (`Vector Geometry`, `Bézier Curves`, `Importance Heatmap`).
+    * Rendered vector path overlays with hierarchy level color coding vs dynamic rainbow importance heatmap.
+    * Added `Vector Paths (TASK-104)` metric card and expandable `Vector Geometry Audit Card`.
+    * Added `Vectors (TASK-104)` column to the 12-category batch benchmark table.
+    * Updated header status pill to `TASK-104 Vector Generation`.
+  * Documented full architectural details, RDP tolerances, Bézier formulation, and benchmark results in `docs/CONTOUR_VECTOR_GENERATION.md`, `docs/ARCHITECTURE.md` (Section 8), and `docs/DECISIONS.md` (`ADR-011`).
 
 ### Fixed
 * **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**

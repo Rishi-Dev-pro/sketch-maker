@@ -435,8 +435,37 @@ Every evaluation run grades outputs across 7 dimensions on a 1–10 scale:
   * **Background Clutter Elimination:** On `BM-07` (Complex Background), deterministic luminance/saliency segmentation suffered false positive leakage into textured background foliage (85.8% coverage). MediaPipe semantic classification pruned non-human background artifacts, isolating a crisp 42.5% subject silhouette.
   * **Deep Shadow Recovery:** On `BM-06` (Extreme Chiaroscuro), heavy shadowing caused deterministic segmentation to drop torso coverage (19.0%). ML semantic classification recognized the shadowed body and face, restoring full 25.4% coverage.
   * **Sobel Edge Barrier Preservation:** On `BM-05` (Textured Hair), high-gradient Sobel barriers from deterministic analysis preserve delicate hairline wisps, while ML segmentation provides macroscopic hair volume.
-  * **Semantic vs. Instance Disambiguation:** MediaPipe multiclass is class-level semantic segmentation (no individual instance separation). Deterministic connected-component clustering (`instances: SubjectRegion[]`) remains critical for multi-subject separation (`BM-11`).
+  * **Semantic vs. Instance Disambiguation:** MediaPipe multiclass is class-level semantic segmentation (no individual instance separation). Deterministic connected-component clustering (`instances: SubjectRegion[]`) for multi-subject isolation (`BM-11`).
   * **Bundle Isolation:** Initial page load bundle remains minimal at **177.93 kB** (gzip: **55.21 kB**), with all vision ML runtimes isolated in the lazy `vision_bundle` (226.18 kB, gzip 68.01 kB).
 
+---
 
+### Run 2026-09-19 — TASK-104 Contour & Vector Generation Benchmark
+* **Hardware Environment:** Node.js v24.16.0, Windows x64 CPU.
+* **Test Command:** `npm run benchmark:geometry` (`npx tsx tests/benchmarks/geometry-benchmark.ts`)
+* **Scope:** All 12 canonical benchmark categories (`BM-01` through `BM-12`).
+* **SLA Performance Targets:** Extraction Latency < 50.0 ms, Point Reduction > 50%, Profile Occlusion: 100% hidden features suppressed, Multi-Subject Isolation: 100% distinct subject IDs.
 
+| Benchmark ID | Geometry Latency | Vector Paths | Raw Points | Simplified Points | Point Reduction | Profile Occlusion | Multi-Person Isolation |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| `BM-01-FRONT-PORTRAIT` | 6.49 ms | 20 | 3,373 | 398 | **88.2%** | N/A | Single Subject |
+| `BM-02-SIDE-PROFILE` | 1.33 ms | 12 | 1,425 | 215 | **84.9%** | **PASS (0 hidden paths)** | Single Subject |
+| `BM-03-GLASSES` | 2.32 ms | 16 | 1,954 | 337 | **82.8%** | N/A | Single Subject |
+| `BM-04-FACIAL-HAIR` | 3.48 ms | 20 | 3,644 | 738 | **79.8%** | N/A | Single Subject |
+| `BM-05-HAIR-VARIETY` | 1.54 ms | 18 | 3,071 | 622 | **79.8%** | N/A | Single Subject |
+| `BM-06-EXTREME-LIGHTING` | 1.61 ms | 13 | 1,937 | 331 | **82.9%** | N/A | Single Subject |
+| `BM-07-COMPLEX-BACKGROUND` | 2.24 ms | 21 | 5,772 | 892 | **84.6%** | N/A | Single Subject |
+| `BM-08-LOW-LIGHT` | 1.42 ms | 21 | 3,136 | 547 | **82.6%** | N/A | Single Subject |
+| `BM-09-FULL-BODY-STANDING` | 0.91 ms | 21 | 2,573 | 603 | **76.6%** | N/A | Skeletal Articulation |
+| `BM-10-FULL-BODY-SITTING` | 0.57 ms | 20 | 1,484 | 337 | **77.3%** | N/A | Skeletal Articulation |
+| `BM-11-MULTI-PERSON` | 0.61 ms | 20 | 2,589 | 478 | **81.5%** | N/A | **PASS (Distinct subjectIds)** |
+| `BM-12-HIGH-RES` | 1.23 ms | 19 | 3,102 | 670 | **78.4%** | N/A | Single Subject |
+| **AVERAGE** | **1.98 ms** | **18.4** | **2,838.3** | **514.0** | **81.6%** | **100% Occlusion Pass** | **100% Subject Isolation** |
+
+* **Key Takeaways:**
+  * **Exceptional SLA Compliance:** Average vector geometry extraction latency is **1.98 ms**, consuming less than 4% of the 50 ms SLA budget.
+  * **Substantial Point Reduction:** Point count decreases by **81.6%** on average (from 2,838 raw points down to 514 clean, simplified points per subject), eliminating rendering bottlenecks without sacrificing geometric inflection fidelity.
+  * **Bounded Memory Usage:** Peak heap memory delta remained at **68.58 MB** (total heap: 79.92 MB) across the entire 12-image batch run.
+  * **Profile Occlusion Rigor:** On `BM-02` (90° side profile), occluded far-side ocular, brow, nasal, and auricular features produce strictly **0 vector paths**.
+  * **Multi-Subject Partitioning:** On `BM-11` (multi-person), vector paths are tagged with distinct `subjectId` fields, enabling independent stroke ordering per subject in downstream stages.
+  * **Pure TypeScript Portability:** Zero browser/DOM globals (`window`, `document`, canvas, SVG) are referenced, ensuring 100% portability to future React Native and Web Worker environments.

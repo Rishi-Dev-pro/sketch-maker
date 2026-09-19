@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   VisionCoordinator,
   DeterministicVisionProvider,
@@ -6,6 +6,7 @@ import {
   VisionExecutionMode,
 } from '@sketch-maker/structural-analysis';
 import { preprocessPixelBuffer, PixelBuffer } from '@sketch-maker/image-processing';
+import { extractAllVectorGeometry, VectorGeometry } from '@sketch-maker/stroke-engine';
 import { createMediaPipeWebProvider, MediaPipeWebDelegate } from './vision/mediapipe';
 
 interface BenchmarkItem {
@@ -31,8 +32,11 @@ interface BenchmarkRunResult {
   earCount: number;
   segmentationDetected: boolean;
   segmentationCategories: number;
+  vectorPathsCount: number;
+  vectorReductionPct: number;
   fallback: boolean;
 }
+
 
 export const App: React.FC = () => {
   const [benchmarks, setBenchmarks] = useState<BenchmarkItem[]>([]);
@@ -55,6 +59,18 @@ export const App: React.FC = () => {
   const [showSemanticHair, setShowSemanticHair] = useState<boolean>(true);
   const [showSemanticSkin, setShowSemanticSkin] = useState<boolean>(true);
   const [showSemanticClothing, setShowSemanticClothing] = useState<boolean>(true);
+  const [showVectorGeometry, setShowVectorGeometry] = useState<boolean>(true);
+  const [showVectorCurves, setShowVectorCurves] = useState<boolean>(true);
+  const [showImportanceHeatmap, setShowImportanceHeatmap] = useState<boolean>(false);
+
+  // Derive Vector Geometry Intermediate Representation
+  const currentGeometry: VectorGeometry | null = useMemo(() => {
+    if (!currentResult || !currentResult.subjects || currentResult.subjects.length === 0) {
+      return null;
+    }
+    return extractAllVectorGeometry(currentResult.subjects);
+  }, [currentResult]);
+
 
   // Batch benchmark results
   const [batchResults, setBatchResults] = useState<BenchmarkRunResult[]>([]);
@@ -355,8 +371,88 @@ export const App: React.FC = () => {
         }
       }
     }
+
+    // 5. Draw TASK-104 Vector Geometry
+    if (showVectorGeometry && currentGeometry && currentGeometry.paths.length > 0) {
+      for (const vpath of currentGeometry.paths) {
+        ctx.save();
+
+        if (showImportanceHeatmap) {
+          const imp = vpath.importance;
+          const r = Math.round(Math.min(255, Math.max(0, (imp - 0.35) * 2.0 * 255)));
+          const g = Math.round(Math.min(255, Math.max(0, (1.0 - Math.abs(imp - 0.5) * 2.0) * 255)));
+          const b = Math.round(Math.min(255, Math.max(0, (0.65 - imp) * 2.5 * 255)));
+          ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+          ctx.lineWidth = 2.2;
+        } else {
+          switch (vpath.level) {
+            case 0: // Silhouette
+              ctx.strokeStyle = '#00f0ff';
+              ctx.lineWidth = 3.2;
+              break;
+            case 1: // Structure
+              ctx.strokeStyle = '#38bdf8';
+              ctx.lineWidth = 2.4;
+              break;
+            case 2: // Anatomy
+              ctx.strokeStyle = '#fbbf24';
+              ctx.lineWidth = 2.0;
+              break;
+            case 3: // Semantic
+              ctx.strokeStyle = '#c084fc';
+              ctx.lineWidth = 1.8;
+              break;
+            case 4: // Fine detail
+              ctx.strokeStyle = '#f43f5e';
+              ctx.lineWidth = 1.5;
+              break;
+            default:
+              ctx.strokeStyle = '#94a3b8';
+              ctx.lineWidth = 1.5;
+          }
+        }
+
+        if (showVectorCurves && vpath.curves && vpath.curves.length > 0) {
+          ctx.beginPath();
+          const first = vpath.curves[0];
+          ctx.moveTo(first.start.x * W, first.start.y * H);
+          for (const curve of vpath.curves) {
+            ctx.bezierCurveTo(
+              curve.cp1.x * W,
+              curve.cp1.y * H,
+              curve.cp2 ? curve.cp2.x * W : curve.cp1.x * W,
+              curve.cp2 ? curve.cp2.y * H : curve.cp1.y * H,
+              curve.end.x * W,
+              curve.end.y * H
+            );
+          }
+          if (vpath.closed) {
+            ctx.closePath();
+          }
+          ctx.stroke();
+        } else if (vpath.points.length >= 2) {
+          ctx.beginPath();
+          ctx.moveTo(vpath.points[0].x * W, vpath.points[0].y * H);
+          for (let i = 1; i < vpath.points.length; i++) {
+            ctx.lineTo(vpath.points[i].x * W, vpath.points[i].y * H);
+          }
+          if (vpath.closed) {
+            ctx.closePath();
+          }
+          ctx.stroke();
+        } else if (vpath.points.length === 1) {
+          ctx.beginPath();
+          ctx.arc(vpath.points[0].x * W, vpath.points[0].y * H, 3, 0, Math.PI * 2);
+          ctx.fillStyle = ctx.strokeStyle;
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    }
   }, [
     currentResult,
+    currentGeometry,
     showFaceMesh,
     showEarPinna,
     showHair,
@@ -367,7 +463,11 @@ export const App: React.FC = () => {
     showSemanticHair,
     showSemanticSkin,
     showSemanticClothing,
+    showVectorGeometry,
+    showVectorCurves,
+    showImportanceHeatmap,
   ]);
+
 
   // Execute perception analysis on the active image
   const analyzeActiveImage = async () => {
@@ -505,6 +605,11 @@ export const App: React.FC = () => {
         const poseDetected = !!subject?.body?.pose;
         const poseJointCount = subject?.body?.pose?.landmarks.length ?? 0;
 
+        // Extract Vector Geometry for batch audit
+        const vectorGeom = res.subjects ? extractAllVectorGeometry(res.subjects) : null;
+        const vectorPathsCount = vectorGeom?.metrics.totalPaths ?? 0;
+        const vectorReductionPct = Math.round((vectorGeom?.metrics.pointReductionRatio ?? 0) * 100);
+
         runs.push({
           id: bm.id,
           name: bmName,
@@ -518,6 +623,8 @@ export const App: React.FC = () => {
           earCount,
           segmentationDetected: segDetected,
           segmentationCategories: segCategories,
+          vectorPathsCount,
+          vectorReductionPct,
           fallback: !!res.executionPlan?.fallbackOccurred,
         });
 
@@ -536,6 +643,8 @@ export const App: React.FC = () => {
           earCount: 0,
           segmentationDetected: false,
           segmentationCategories: 0,
+          vectorPathsCount: 0,
+          vectorReductionPct: 0,
           fallback: true,
         });
         setBatchResults([...runs]);
@@ -553,7 +662,7 @@ export const App: React.FC = () => {
       <header>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div className="logo-badge">Photo-to-Procedural-Art</div>
-          <span className="phase-pill">TASK-103.9 MediaPipe Integration</span>
+          <span className="phase-pill">TASK-104 Vector Generation</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.82rem' }}>
           <span style={{ color: 'var(--text-secondary)' }}>MediaPipe Runtime:</span>
@@ -864,6 +973,39 @@ export const App: React.FC = () => {
                   </label>
                 </>
               )}
+
+              <span style={{ color: 'var(--border-subtle)' }}>|</span>
+
+              {/* TASK-104 Vector Geometry Toggles */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={showVectorGeometry}
+                  onChange={(e) => setShowVectorGeometry(e.target.checked)}
+                />
+                <span style={{ color: '#00f0ff' }}>⚡</span> Vector Geometry
+              </label>
+
+              {showVectorGeometry && (
+                <>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showVectorCurves}
+                      onChange={(e) => setShowVectorCurves(e.target.checked)}
+                    />
+                    <span style={{ color: 'var(--text-secondary)' }}>Bézier Curves</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showImportanceHeatmap}
+                      onChange={(e) => setShowImportanceHeatmap(e.target.checked)}
+                    />
+                    <span style={{ color: 'var(--text-secondary)' }}>Importance Heatmap</span>
+                  </label>
+                </>
+              )}
             </div>
 
             {/* Viewport Canvas */}
@@ -1053,7 +1195,73 @@ export const App: React.FC = () => {
                   {currentResult ? `${currentResult.subjects.length} Subject(s)` : '--'}
                 </div>
               </div>
+
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Vector Paths (TASK-104)</div>
+                <div
+                  style={{
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    color: currentGeometry ? '#00f0ff' : 'var(--text-muted)',
+                    marginTop: '0.3rem',
+                  }}
+                >
+                  {currentGeometry
+                    ? `⚡ ${currentGeometry.metrics.totalPaths} Paths (${(currentGeometry.metrics.pointReductionRatio * 100).toFixed(0)}% red)`
+                    : '--'}
+                </div>
+              </div>
             </div>
+
+            {/* Vector Geometry Audit Card */}
+            {currentGeometry && (
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                <h3 style={{ fontSize: '0.95rem', marginBottom: '0.75rem', fontWeight: 600, color: '#00f0ff' }}>
+                  ⚡ Vector Geometry & Simplification (TASK-104)
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', fontSize: '0.8rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Total Paths: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                      {currentGeometry.metrics.totalPaths}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Extraction Latency: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#00f0ff', fontWeight: 600 }}>
+                      {currentGeometry.metrics.processingTimeMs.toFixed(2)} ms
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Raw Vertices: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>
+                      {currentGeometry.metrics.totalRawPoints}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Simplified Vertices: </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#10b981', fontWeight: 600 }}>
+                      {currentGeometry.metrics.totalSimplifiedPoints} ({(currentGeometry.metrics.pointReductionRatio * 100).toFixed(1)}% reduced)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Semantic Segmentation Audit Card */}
             {currentResult?.primarySubject?.semanticSegmentation && (
@@ -1264,6 +1472,7 @@ export const App: React.FC = () => {
                     <th style={{ padding: '0.6rem' }}>Face Pose</th>
                     <th style={{ padding: '0.6rem' }}>Body Pose</th>
                     <th style={{ padding: '0.6rem' }}>Semantic Seg</th>
+                    <th style={{ padding: '0.6rem' }}>Vectors (TASK-104)</th>
                     <th style={{ padding: '0.6rem' }}>Ears Preserved</th>
                     <th style={{ padding: '0.6rem' }}>Status</th>
                   </tr>
@@ -1285,6 +1494,9 @@ export const App: React.FC = () => {
                       </td>
                       <td style={{ padding: '0.6rem', color: r.segmentationDetected ? '#ec4899' : 'var(--text-muted)' }}>
                         {r.segmentationDetected ? `✓ ${r.segmentationCategories} classes` : '--'}
+                      </td>
+                      <td style={{ padding: '0.6rem', color: '#00f0ff', fontFamily: 'var(--font-mono)' }}>
+                        {r.vectorPathsCount > 0 ? `${r.vectorPathsCount} paths (${r.vectorReductionPct}% red)` : '--'}
                       </td>
                       <td style={{ padding: '0.6rem', color: r.earCount > 0 ? '#fbbf24' : 'var(--text-muted)' }}>
                         {r.earCount} ear(s)

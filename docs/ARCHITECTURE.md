@@ -285,6 +285,64 @@ Pretrained neural networks (like MediaPipe FaceLandmarker) provide dense 468-poi
 * **Evidence-Aware Mask Reconciliation:** Blends ML semantic classification with deterministic luminance/Sobel edge segmentation. The consensus core is retained, ML semantic classification overrides deterministic false positives in complex backgrounds (`BM-07`) and deep chiaroscuro shadows (`BM-06`), while high-gradient Sobel edge barriers from deterministic analysis are preserved to maintain sharp, hairline/contour boundaries (`BM-05`).
 * **Semantic vs. Instance Disambiguation:** MediaPipe multiclass is class-level semantic segmentation (no instance separation). The architecture preserves deterministic connected-component clustering (`instances: SubjectRegion[]`) for multi-subject isolation (`BM-11`).
 
+---
+
+## 8. Contour & Vector Generation Architecture (TASK-104)
+
+### 8.1 Architectural Role & Boundaries
+The Vector Generation engine lives inside `@sketch-maker/stroke-engine/geometry` and consumes the perception IR (`SubjectModel`, facial landmarks, body pose skeleton, semantic masks, silhouette, hair) to generate the resolution-independent vector geometry intermediate representation (`VectorGeometry`).
+
+```text
+SubjectModel (Perception IR)
+          │
+          ▼
+packages/stroke-engine/src/geometry/
+  ├── cleaning.ts           (clamping, NaN sanitization, deduplication, spike & collinear filtering)
+  ├── simplification.ts     (adaptive Ramer-Douglas-Peucker reduction per hierarchy level)
+  ├── curves.ts             (cubic Catmull-Rom Bézier spline fitting with overshoot clamp)
+  ├── mask-contours.ts      (Moore-neighborhood boundary tracing for raster semantic masks)
+  ├── importance.ts         (multi-cue deterministic importance formula)
+  └── extractor.ts          (unified VectorGeometry extraction orchestrator)
+          │
+          ▼
+VectorGeometry (Canonical Resolution-Independent Geometry IR)
+```
+
+* **Zero Browser/DOM Dependencies:** Core packages (`packages/shared-types`, `packages/stroke-engine`) contain zero references to `window`, `document`, HTMLCanvasElement, CanvasRenderingContext2D, or SVG DOM elements.
+* **Preservation of Raw Perception Evidence:** Input points are preserved unmodified in `rawPoints: Point2D[]`. Simplification produces `points: Point2D[]` and `curves: BezierCurve[]` without destroying original perceptual confidence or coordinates.
+* **Strict Separation from Rendering:** Vector generation extracts geometric polylines and curves. Stroke animation, draw ordering, brush dynamics, and canvas rendering belong exclusively to downstream tasks (TASK-105+).
+
+### 8.2 Canonical Vector Data Contracts (`@sketch-maker/shared-types`)
+* **`VectorPath`:** Encapsulates an individual geometric curve with metadata:
+  * `source`: `'face_landmark' | 'jawline' | 'ear' | 'hair' | 'pose_connection' | 'semantic_mask' | 'silhouette' | 'fallback_edge'`
+  * `level`: `'primary_structural' | 'secondary_expressive' | 'anatomical_gesture' | 'boundary_contour' | 'tertiary_texture'`
+  * `subjectId`: Unique string ensuring multi-person separation (`BM-11`)
+  * `featureName`: Descriptive identifier (`'left_eyelid_upper'`, `'jawline_visible'`, etc.)
+  * `points`: Clean, RDP-simplified polyline points in $[0.0, 1.0]$ space
+  * `rawPoints`: Original perception points for forensic audit / reconstruction
+  * `curves`: Fitted cubic Bézier curve segments
+  * `isClosed`: Topological closure boolean
+  * `confidence`: Perception detector confidence $[0.0, 1.0]$
+  * `visibility`: Occlusion status (`'visible' | 'uncertain' | 'occluded' | 'not_detected'`)
+  * `importance`: Deterministic sorting score $[0.0, 1.0]$
+  * `bounds`: Axis-aligned bounding box $[0.0, 1.0]$
+  * `arcLength`: Cumulative normalized curve length
+* **`GeometryMetrics`:** Aggregates `totalPaths`, `totalRawPoints`, `totalSimplifiedPoints`, `reductionPercentage`, and `extractionLatencyMs`.
+* **`VectorGeometry`:** Container holding `paths: VectorPath[]`, aggregate `bounds`, and `metrics`.
+
+### 8.3 Geometric Simplification & Curve Fitting
+* **Cleaning:** Coordinates clamped to $[0.0, 1.0]$, NaNs rejected, duplicate vertices ($\epsilon = 10^{-5}$) filtered, isolated acute spikes ($d > 0.35$) pruned, and redundant collinear vertices (area $< 10^{-7}$) collapsed.
+* **RDP Tolerances:** Calibrated per hierarchy level:
+  * `primary_structural`: $\epsilon = 0.0015$
+  * `secondary_expressive`: $\epsilon = 0.0025$
+  * `anatomical_gesture`: $\epsilon = 0.0035$
+  * `boundary_contour`: $\epsilon = 0.0040$
+  * `tertiary_texture`: $\epsilon = 0.0050$
+* **Bézier Fitting:** Catmull-Rom tangents with chord-length weighting, endpoint clamping to prevent overshoot ($\|C - P\| \le 0.4 \times L$), and continuous tangent wrapping on closed loops.
+* **Mask Boundary Extraction:** Clockwise Moore-neighborhood tracing with configurable grid step (default: 4px) and minimum area threshold ($0.001$).
+* **Importance Scoring:** $I = 0.45 \times w_{\text{semantic}} + 0.25 \times c + 0.15 \times v + 0.15 \times s$, ranking primary facial features above secondary clothing boundaries.
+
+
 
 
 
