@@ -18,12 +18,21 @@ const ROLE_DURATION_MULTIPLIERS: Record<StrokeSemanticRole, number> = {
   eyebrow: 1.00,
   ear: 1.00,
   hair: 0.90,
+  hair_strand: 0.85,
+  contour: 1.05,
   clothing_boundary: 0.90,
   semantic_boundary: 0.85,
   detail: 0.85,
   texture: 0.80,
-  background: 0.75
+  background: 0.75,
+  hatching: 0.80,
+  cross_hatching: 0.78,
+  tonal_stroke: 0.82,
+  shadow_stroke: 0.85,
+  highlight_accent: 0.90,
 };
+
+
 
 /**
  * Returns the duration multiplier for a given composition phase.

@@ -61,15 +61,16 @@ function createMockRenderState(strokes?: RenderStroke[]): RenderState {
 describe('TASK-109: Procedural Style Engine & Appearance System', () => {
 
   describe('Style Preset Registry', () => {
-    it('registers all 4 canonical presets: procedural_black, red_line, neon, blueprint', () => {
+    it('registers all canonical presets including realistic_pencil', () => {
       const presets = getAllStylePresets();
-      assert.strictEqual(presets.length, 4);
+      assert.strictEqual(presets.length, 5);
 
       const ids = presets.map(p => p.id);
       assert.ok(ids.includes('procedural_black'));
       assert.ok(ids.includes('red_line'));
       assert.ok(ids.includes('neon'));
       assert.ok(ids.includes('blueprint'));
+      assert.ok(ids.includes('realistic_pencil'));
     });
 
     it('falls back to procedural_black if an unknown preset is requested', () => {

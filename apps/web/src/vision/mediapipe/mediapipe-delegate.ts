@@ -17,6 +17,7 @@ import {
   mapMediaPipeFacesToSubjectModels,
   MediaPipeLandmark3D,
 } from './landmark-mapper';
+import { enrichSubjectWithReconstruction } from '@sketch-maker/structural-analysis';
 import {
   RawPoseLandmark,
 } from './pose-mapper';
@@ -105,7 +106,7 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
     if (feature === 'pose') return this.poseLandmarkerInstance !== null;
     if (feature === 'segmenter') return this.segmenterInstance !== null;
     return (
-      this.state === 'ready' &&
+      (this.state === 'ready' || this.faceLandmarkerInstance !== null) &&
       (this.faceLandmarkerInstance !== null ||
         this.poseLandmarkerInstance !== null ||
         this.segmenterInstance !== null)
@@ -369,8 +370,8 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
     this.metrics.lastWarmInferenceDurationMs = latencyMs;
     this.metrics.totalInferences++;
 
-    // 4. Map faces and associate with poses
-    const faceSubjects = mapMediaPipeFacesToSubjectModels(rawFaces, dims, 0.92);
+    // 4. Map faces and associate with poses (with photo luminance for tonal analysis)
+    const faceSubjects = mapMediaPipeFacesToSubjectModels(rawFaces, dims, 0.92, input.image.luminance);
     let unifiedSubjects = associateFacesAndPoses(faceSubjects, rawPoses, dims);
 
     // Attach semantic segmentation if computed

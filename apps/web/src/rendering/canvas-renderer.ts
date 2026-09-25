@@ -24,6 +24,8 @@ export interface CanvasRenderOptions {
   readonly backgroundImage?: HTMLImageElement | null;
   /** Background image opacity [0.0 - 1.0] (default: 0.25) */
   readonly backgroundImageOpacity?: number;
+  /** Generated-Only mode: strictly suppresses photographic background underlay */
+  readonly generatedOnly?: boolean;
 }
 
 /**
@@ -120,8 +122,8 @@ export class CanvasStrokeRenderer {
       ctx.fillRect(0, 0, vp.displayWidth, vp.displayHeight);
     }
 
-    // Optional background photograph underlay with dimming
-    if (options?.backgroundImage) {
+    // Optional background photograph underlay with dimming (strictly suppressed in generatedOnly mode)
+    if (options?.backgroundImage && !options?.generatedOnly) {
       ctx.save();
       ctx.globalAlpha = options.backgroundImageOpacity ?? 0.25;
       ctx.drawImage(

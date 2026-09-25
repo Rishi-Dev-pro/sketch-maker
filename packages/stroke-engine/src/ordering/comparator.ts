@@ -30,16 +30,30 @@ function getRolePrecedence(
       return 11;
     case 'hair':
       return 20;
-    case 'ear':
+    case 'hair_strand':
       return 21;
-    case 'clothing_boundary':
+    case 'ear':
       return 22;
-    case 'semantic_boundary':
+    case 'clothing_boundary':
       return 23;
+    case 'semantic_boundary':
+      return 24;
+    case 'contour':
+      return 28;
     case 'detail':
       return 30;
-    case 'texture':
+    case 'tonal_stroke':
+      return 38;
+    case 'shadow_stroke':
+      return 39;
+    case 'hatching':
       return 40;
+    case 'cross_hatching':
+      return 41;
+    case 'highlight_accent':
+      return 42;
+    case 'texture':
+      return 43;
     case 'background':
       return 50;
     default:

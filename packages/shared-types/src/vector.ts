@@ -13,6 +13,13 @@ export type GeometrySource =
   | 'semantic_boundary'
   | 'silhouette'
   | 'edge_structure'
+  | 'reconstructed_feature'
+  | 'hair_mass'
+  | 'hair_flow'
+  | 'hair_strand'
+  | 'tonal_shading'
+  | 'neck_contour'
+  | 'clothing_structure'
   | 'unknown';
 
 /**

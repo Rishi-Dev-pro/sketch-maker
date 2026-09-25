@@ -55,8 +55,16 @@ export function assignCompositionPhase(candidate: StrokeCandidate): PhaseInfo {
     return { phase: 'texture_accent', phaseIndex: meta.index, phaseName: meta.name, description: meta.description };
   }
 
-  // Texture roles
-  if (semanticRole === 'texture') {
+  // Texture and shading roles
+  if (
+    semanticRole === 'texture' ||
+    semanticRole === 'hatching' ||
+    semanticRole === 'cross_hatching' ||
+    semanticRole === 'tonal_stroke' ||
+    semanticRole === 'shadow_stroke' ||
+    semanticRole === 'highlight_accent' ||
+    semanticRole === 'hair_strand'
+  ) {
     const meta = COMPOSITION_PHASES.texture_accent;
     return { phase: 'texture_accent', phaseIndex: meta.index, phaseName: meta.name, description: meta.description };
   }

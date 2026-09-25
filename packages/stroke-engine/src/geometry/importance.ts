@@ -6,21 +6,21 @@ import { SemanticRegion, FeatureVisibility, PathHierarchyLevel } from '@sketch-m
  */
 export const BASE_SEMANTIC_WEIGHTS: Record<SemanticRegion, number> = {
   eyes: 1.00,
-  mouth: 0.92,
-  nose: 0.88,
-  eyebrows: 0.84,
-  face_contour: 0.82,
-  jawline: 0.80,
-  ears: 0.72,
-  hair_boundary: 0.68,
-  hair: 0.65,
-  shoulders: 0.60,
-  body_outline: 0.58,
-  clothing: 0.48,
+  mouth: 0.95,
+  nose: 0.92,
+  eyebrows: 0.90,
+  jawline: 0.88,
+  face_contour: 0.85,
+  ears: 0.78,
+  hair_boundary: 0.76,
+  hair: 0.74,
+  shoulders: 0.65,
+  body_outline: 0.60,
+  clothing: 0.50,
   accessories: 0.40,
-  texture: 0.30,
-  background: 0.20,
-  highlight: 0.15
+  texture: 0.25,
+  background: 0.10,
+  highlight: 0.10
 };
 
 /**

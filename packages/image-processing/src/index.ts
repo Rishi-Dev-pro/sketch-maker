@@ -11,3 +11,4 @@ export * from './resample';
 export * from './luminance';
 export * from './preprocess';
 export * from './adapters';
+export * from './mask-contours';

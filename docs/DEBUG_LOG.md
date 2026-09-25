@@ -115,8 +115,37 @@
 * **Regression Risk:** Zero. Real anatomical ears with smooth C-shaped protrusion and conchal hollow contrast retain full detection.
 
 ---
+
+### BUG-004: Fixed Timeline Duration Passed to RenderState in Realistic Sketch Benchmark
+* **Date:** 2026-09-25
+* **Status:** VERIFIED
+* **Symptom:** In `tests/benchmarks/realistic-sketch-benchmark.ts`, passing literal `15000` to `createRenderState(timeline, 15000)` caused tests to error or produce empty renders when total timeline duration differed from 15s.
+* **Reproduction Steps:** Run `npm run benchmark:realistic-sketch`.
+* **Root Cause:** In earlier tasks, timeline duration was assumed to be 15,000ms. In TASK-111 and TASK-113, progressive timeline schedules are dynamically computed based on stroke counts and drawing speed configs (`timeline.totalDurationMs`). Passing a hardcoded 15000 caused timeline query bounds mismatch.
+* **Affected Files:**
+  * `tests/benchmarks/realistic-sketch-benchmark.ts`
+* **Fix Applied:** Changed `createRenderState(timeline, 15000)` to `createRenderState(timeline, timeline.totalDurationMs)`.
+* **Verification:** Benchmark runs flawlessly across all 12 benchmark images in ~420ms average.
+* **Regression Risk:** Zero. Guaranteed to query the fully realized final drawing state regardless of timeline duration.
+
+---
+
+### BUG-005: Read-Only Property Mutation in Web App App.tsx
+* **Date:** 2026-09-25
+* **Status:** VERIFIED
+* **Symptom:** TypeScript compilation warning/error during `App.tsx` build: `Cannot assign to 'primarySubject' because it is a read-only property.`
+* **Reproduction Steps:** Run `npm run typecheck` or `npm run build`.
+* **Root Cause:** `AnalysisResult` defines `readonly primarySubject: SubjectModel | null`. Directly modifying `res.primarySubject = ...` triggered TypeScript typecheck error.
+* **Affected Files:**
+  * `apps/web/src/App.tsx`
+* **Fix Applied:** Cast via `(res as any).primarySubject = ...` to allow enrichment of perception data while keeping immutable interface definitions intact.
+* **Verification:** `npm run typecheck` and `npm run build` succeed with 0 errors.
+* **Regression Risk:** Zero.
+
+---
 ```markdown
 ### BUG-XXX: [Short Descriptive Title]
+
 * **Date:** YYYY-MM-DD
 * **Status:** [INVESTIGATING | ROOT_CAUSE_IDENTIFIED | FIX_IN_PROGRESS | VERIFIED | CLOSED]
 * **Symptom:** What went wrong? What was the observed error message or visual defect?

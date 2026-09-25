@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
     "build": "npm run build --workspaces --if-present",
-    "test": "npm run test:dataset && npm run test:preprocess && npm run test:segmentation && npm run test:face-region && npm run test:eyes && npm run test:eyebrows && npm run test:nose && npm run test:mouth && npm run test:jawline && npm run test:ears && npm run test:hair && npm run test:provider && npm run test:mediapipe:mapper && npm run test:mediapipe:pose && npm run test:mediapipe:segmenter && npm run test:geometry && npm run test:strokes && npm run test:ordering && npm run test:timeline && npm run test:renderer && npm run test:styles && npm run test --workspaces --if-present",
+    "test": "npm run test:dataset && npm run test:preprocess && npm run test:segmentation && npm run test:face-region && npm run test:eyes && npm run test:eyebrows && npm run test:nose && npm run test:mouth && npm run test:jawline && npm run test:ears && npm run test:hair && npm run test:provider && npm run test:mediapipe:mapper && npm run test:mediapipe:pose && npm run test:mediapipe:segmenter && npm run test:geometry && npm run test:strokes && npm run test:ordering && npm run test:timeline && npm run test:renderer && npm run test:styles && npm run test:reconstruction && npm run test:boundaries && npm run test:realistic-sketch && npm run test:tonal-field && npm run test --workspaces --if-present",
     "test:dataset": "node tests/images/validate.js",
     "test:preprocess": "tsx tests/image-processing/preprocess.test.ts",
     "test:segmentation": "tsx tests/structural-analysis/segmentation.test.ts",
@@ -32,6 +32,10 @@
     "test:timeline": "tsx tests/stroke-engine/stroke-timeline.test.ts",
     "test:renderer": "tsx tests/stroke-engine/procedural-renderer.test.ts",
     "test:styles": "tsx tests/style-engine/style-engine.test.ts",
+    "test:reconstruction": "tsx tests/structural-analysis/feature-reconstruction.test.ts",
+    "test:boundaries": "tsx tests/structural-analysis/semantic-boundary-filter.test.ts",
+    "test:realistic-sketch": "tsx tests/structural-analysis/realistic-sketch.test.ts",
+    "test:tonal-field": "tsx tests/structural-analysis/tonal-field.test.ts",
 
     "benchmark:image-processing": "tsx tests/image-processing/benchmark-runner.ts",
     "benchmark:segmentation": "tsx tests/structural-analysis/visual-inspector.ts",
@@ -50,6 +54,9 @@
     "benchmark:timeline": "tsx tests/benchmarks/stroke-timeline-benchmark.ts",
     "benchmark:renderer": "tsx tests/benchmarks/renderer-benchmark.ts",
     "benchmark:styles": "tsx tests/benchmarks/style-benchmark.ts",
+    "benchmark:reconstruction": "tsx tests/benchmarks/reconstruction-benchmark.ts",
+    "benchmark:realistic-sketch": "tsx tests/benchmarks/realistic-sketch-benchmark.ts",
+
     "lint": "npm run lint --workspaces --if-present",
 
     "typecheck": "npm run typecheck --workspaces --if-present"

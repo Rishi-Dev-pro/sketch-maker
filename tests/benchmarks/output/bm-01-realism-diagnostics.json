@@ -1,0 +1,92 @@
+{
+  "benchmarkId": "BM-01",
+  "task": "TASK-112",
+  "title": "Female Studio Frontal Portrait Visual Realism Calibration",
+  "timestamp": "2026-09-25T12:23:09.042Z",
+  "calibration": {
+    "anatomicalAnchors": {
+      "pupilsAccented": true,
+      "pupilStrokeCount": 2,
+      "nostrilCavitiesSynthesized": true,
+      "nostrilStrokeCount": 2,
+      "noseBridgeSoftened": true,
+      "noseBridgeConfidence": 0.5,
+      "lowerLipHighlightRelief": true,
+      "lowerLipConfidence": 0.6
+    },
+    "tonalShading": {
+      "tonalRegionsCount": 12,
+      "formFollowingStrokesCount": 0,
+      "creviceCrossHatchingCount": 11,
+      "zonesEvaluated": [
+        "eye_socket",
+        "eye_socket",
+        "nose_shadow",
+        "under_lip",
+        "jaw_shadow",
+        "cheek_plane",
+        "cheek_plane",
+        "forehead_plane",
+        "temple_plane",
+        "temple_plane",
+        "mouth_shadow",
+        "neck_shadow"
+      ]
+    },
+    "hairReconstruction": {
+      "totalStrandPaths": 0,
+      "primaryFlowStrands": 6,
+      "secondaryWavyStrands": 12,
+      "accentFlyaways": 6,
+      "prngDeterministic": true
+    },
+    "graphiteValueScale": {
+      "preset": "realistic_pencil",
+      "graphiteColor": "#222224",
+      "blendMode": "multiply",
+      "valueTiers": [
+        {
+          "tier": 1,
+          "lead": "4B",
+          "target": "pupil & nostril anchors, deep fissure",
+          "widthMult": 1.25,
+          "opacityMult": 1.15
+        },
+        {
+          "tier": 2,
+          "lead": "2B",
+          "target": "upper eyelid, brow main body, jawline",
+          "widthMult": 1.05,
+          "opacityMult": 0.88
+        },
+        {
+          "tier": 3,
+          "lead": "HB",
+          "target": "alar creases, lower lid relief, ear contour",
+          "widthMult": 0.85,
+          "opacityMult": 0.8
+        },
+        {
+          "tier": 4,
+          "lead": "H",
+          "target": "malar & jaw form hatching, hair secondary",
+          "widthMult": 0.55,
+          "opacityMult": 0.5
+        },
+        {
+          "tier": 5,
+          "lead": "2H",
+          "target": "flyaways, delicate crevice cross-hatch",
+          "widthMult": 0.45,
+          "opacityMult": 0.38
+        }
+      ]
+    },
+    "metrics": {
+      "totalReconstructedPaths": 275,
+      "vectorPaths": 275,
+      "drawableStrokes": 285,
+      "latencyMs": 389.2
+    }
+  }
+}

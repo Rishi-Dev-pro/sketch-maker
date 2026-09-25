@@ -36,6 +36,7 @@ import { detectJawline } from '../jawline';
 import { detectEars } from '../ears';
 import { detectHair } from '../hair';
 import { FaceRegionEstimate, SubjectRegion } from '../types';
+import { reconstructSubjectFeatures } from '../reconstruction';
 
 export class DeterministicVisionProvider implements VisionProvider {
   readonly metadata: VisionProviderMetadata = {
@@ -144,7 +145,20 @@ export class DeterministicVisionProvider implements VisionProvider {
           upperLip: mouth.upperLip,
           lowerLip: mouth.lowerLip,
           lipSeparation: mouth.lipSeparation,
-          jawline: jawline.leftJaw ?? jawline.rightJaw,
+          jawline: (() => {
+            const pts: import('@sketch-maker/shared-types').Point2D[] = [];
+            if (jawline.leftJaw?.points) pts.push(...jawline.leftJaw.points);
+            if (jawline.chin?.points && pts.length === 0) pts.push(...jawline.chin.points);
+            if (jawline.rightJaw?.points) pts.push(...jawline.rightJaw.points);
+            return pts.length >= 2 ? {
+              id: `${matchingFace.subjectId}_jawline`,
+              region: 'jawline' as const,
+              points: pts,
+              closed: false,
+              confidence: jawline.confidence,
+              visibility: jawline.visibility,
+            } : (jawline.leftJaw ?? jawline.rightJaw);
+          })(),
           chin: jawline.chin,
           leftEar: ears.leftEar,
           rightEar: ears.rightEar,
@@ -204,7 +218,7 @@ export class DeterministicVisionProvider implements VisionProvider {
         const faceConf = facialFeatures && typeof facialFeatures.confidence === 'number' && !isNaN(facialFeatures.confidence) ? facialFeatures.confidence : 1.0;
         const globalConfidence = Number(Math.max(0.0, Math.min(1.0, regConf * faceConf)).toFixed(3));
 
-        const subjectModel: SubjectModel = {
+        let subjectModel: SubjectModel = {
           id: region.id,
           version: '1.0.0',
           sourceDimensions: sourceDims,
@@ -214,6 +228,13 @@ export class DeterministicVisionProvider implements VisionProvider {
           hair: hairContours,
           globalConfidence,
           timestamp: Date.now(),
+        };
+
+        // Enrich subject with Feature Reconstruction & Artistic Interpretation layer
+        const reconstruction = reconstructSubjectFeatures(subjectModel);
+        subjectModel = {
+          ...subjectModel,
+          reconstruction,
         };
 
       subjects.push(subjectModel);

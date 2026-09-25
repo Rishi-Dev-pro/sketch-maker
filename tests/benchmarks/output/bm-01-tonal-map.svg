@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" fill="#0f172a" />
+  <g id="tonal-map-regions">
+  <rect x="248.4" y="198.0" width="139.2" height="92.8" fill="#6e6e6e" stroke="#3b82f6" stroke-width="1.5" />
+    <text x="252.4" y="210" fill="#ffffff" font-family="monospace" font-size="10" font-weight="bold">eye_socket</text>
+    <text x="252.4" y="222" fill="#ffffff" font-family="monospace" font-size="9">midtone (43%)</text>
+  <rect x="615.4" y="162.4" width="139.2" height="92.8" fill="#898989" stroke="#3b82f6" stroke-width="1.5" />
+    <text x="619.4" y="174.4" fill="#0f172a" font-family="monospace" font-size="10" font-weight="bold">eye_socket</text>
+    <text x="619.4" y="186.4" fill="#0f172a" font-family="monospace" font-size="9">midtone (54%)</text>
+  <rect x="478.2" y="310.0" width="25.6" height="110.0" fill="#9c9c9c" stroke="#3b82f6" stroke-width="1.5" />
+    <text x="482.2" y="322" fill="#0f172a" font-family="monospace" font-size="10" font-weight="bold">nose_shadow</text>
+    <text x="482.2" y="334" fill="#0f172a" font-family="monospace" font-size="9">midtone (61%)</text>
+  <rect x="449.3" y="562.1" width="61.4" height="25.6" fill="#afafaf" stroke="#3b82f6" stroke-width="1.5" />
+    <text x="453.3" y="574.1" fill="#0f172a" font-family="monospace" font-size="10" font-weight="bold">under_lip</text>
+    <text x="453.3" y="586.1" fill="#0f172a" font-family="monospace" font-size="9">midtone (69%)</text>
+  <rect x="211.8" y="574.1" width="102.4" height="41.0" fill="#979797" stroke="#3b82f6" stroke-width="1.5" />
+    <text x="215.8" y="586.1" fill="#0f172a" font-family="monospace" font-size="10" font-weight="bold">jaw_shadow</text>
+    <text x="215.8" y="598.1" fill="#0f172a" font-family="monospace" font-size="9">midtone (59%)</text>
+  <rect x="309.2" y="289.3" width="147.6" height="149.0" fill="#646464" stroke="#3b82f6" stroke-width="1.5" />
+    <text x="313.2" y="301.3" fill="#ffffff" font-family="monospace" font-size="10" font-weight="bold">cheek_plane</text>
+    <text x="313.2" y="313.3" fill="#ffffff" font-family="monospace" font-size="9">midtone (39%)</text>
+  <rect x="562.2" y="289.3" width="147.6" height="149.0" fill="#bababa" stroke="#3b82f6" stroke-width="1.5" />
+    <text x="566.2" y="301.3" fill="#0f172a" font-family="monospace" font-size="10" font-weight="bold">cheek_plane</text>
+    <text x="566.2" y="313.3" fill="#0f172a" font-family="monospace" font-size="9">midtone (73%)</text>
+  <rect x="377.8" y="86.7" width="263.5" height="107.3" fill="#696969" stroke="#3b82f6" stroke-width="1.5" />
+    <text x="381.8" y="98.7" fill="#ffffff" font-family="monospace" font-size="10" font-weight="bold">forehead_plane</text>
+    <text x="381.8" y="110.7" fill="#ffffff" font-family="monospace" font-size="9">midtone (41%)</text>
+  <rect x="272.4" y="146.3" width="94.9" height="107.3" fill="#797979" stroke="#3b82f6" stroke-width="1.5" />
+    <text x="276.4" y="158.3" fill="#ffffff" font-family="monospace" font-size="10" font-weight="bold">temple_plane</text>
+    <text x="276.4" y="170.3" fill="#ffffff" font-family="monospace" font-size="9">midtone (47%)</text>
+  <rect x="651.8" y="146.3" width="94.9" height="107.3" fill="#838383" stroke="#3b82f6" stroke-width="1.5" />
+    <text x="655.8" y="158.3" fill="#0f172a" font-family="monospace" font-size="10" font-weight="bold">temple_plane</text>
+    <text x="655.8" y="170.3" fill="#0f172a" font-family="monospace" font-size="9">midtone (51%)</text>
+  <rect x="444.2" y="501.9" width="71.7" height="20.5" fill="#6a6a6a" stroke="#3b82f6" stroke-width="1.5" />
+    <text x="448.2" y="513.9" fill="#ffffff" font-family="monospace" font-size="10" font-weight="bold">mouth_shadow</text>
+    <text x="448.2" y="525.9" fill="#ffffff" font-family="monospace" font-size="9">midtone (42%)</text>
+  <rect x="181.1" y="579.2" width="210.8" height="107.3" fill="#929292" stroke="#3b82f6" stroke-width="1.5" />
+    <text x="185.1" y="591.2" fill="#0f172a" font-family="monospace" font-size="10" font-weight="bold">neck_shadow</text>
+    <text x="185.1" y="603.2" fill="#0f172a" font-family="monospace" font-size="9">midtone (57%)</text>
+  </g>
+</svg>

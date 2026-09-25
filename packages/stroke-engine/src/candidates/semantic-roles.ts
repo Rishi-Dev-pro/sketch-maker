@@ -11,6 +11,25 @@ export function deriveSemanticRole(path: VectorPath): StrokeSemanticRole {
     return 'background';
   }
 
+  // Tonal & Hatching checks
+  if (id.includes('cross')) {
+    return 'cross_hatching';
+  }
+  if (id.includes('hatch')) {
+    return 'hatching';
+  }
+  if (source === 'tonal_shading') {
+    return 'tonal_stroke';
+  }
+
+  // Hair strands & flow
+  if (source === 'hair_strand' || id.includes('hair_strand')) {
+    return 'hair_strand';
+  }
+  if (source === 'hair_flow' || id.includes('hair_flow') || source === 'hair_mass' || id.includes('hair_mass')) {
+    return 'hair';
+  }
+
   // Skeletal pose connections
   if (source === 'pose_connection' || source === 'pose_landmark') {
     return 'body_structure';
@@ -48,7 +67,7 @@ export function deriveSemanticRole(path: VectorPath): StrokeSemanticRole {
     case 'body_outline':
       return 'body_structure';
     case 'texture':
-      return 'texture';
+      return 'tonal_stroke';
   }
 
   if (region === 'face_contour') {
@@ -60,5 +79,5 @@ export function deriveSemanticRole(path: VectorPath): StrokeSemanticRole {
     return 'detail';
   }
 
-  return 'detail';
+  return 'contour';
 }

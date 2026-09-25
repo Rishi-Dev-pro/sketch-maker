@@ -43,12 +43,28 @@ export function computeStrokeWidth(
     case 'semantic_boundary':
       baseWidth = 1.3;
       break;
+    case 'hair_strand':
+      baseWidth = 0.95;
+      break;
     case 'detail':
       baseWidth = level === 4 ? 1.0 : 1.2;
       break;
     case 'texture':
     case 'background':
       baseWidth = baseTexture; // 0.9
+      break;
+    case 'shadow_stroke':
+      baseWidth = baseTexture * 0.95;
+      break;
+    case 'cross_hatching':
+      baseWidth = baseTexture * 1.0;
+      break;
+    case 'hatching':
+    case 'tonal_stroke':
+      baseWidth = baseTexture * 0.90;
+      break;
+    case 'highlight_accent':
+      baseWidth = baseTexture * 0.65;
       break;
     default:
       baseWidth = 1.2;
@@ -93,6 +109,7 @@ export function computeStrokeDensity(
       baseDensity = 0.85;
       break;
     case 'hair':
+    case 'hair_strand':
       baseDensity = 0.80;
       break;
     case 'silhouette':
@@ -109,8 +126,13 @@ export function computeStrokeDensity(
       baseDensity = 0.50;
       break;
     case 'texture':
+    case 'hatching':
+    case 'cross_hatching':
+    case 'tonal_stroke':
+    case 'shadow_stroke':
       baseDensity = 0.40;
       break;
+    case 'highlight_accent':
     case 'background':
       baseDensity = 0.20;
       break;
@@ -150,6 +172,7 @@ export function computeStrokePriorityScore(
       break;
     case 'ear':
     case 'hair':
+    case 'hair_strand':
       roleWeight = 0.72;
       break;
     case 'body_structure':
@@ -163,8 +186,15 @@ export function computeStrokePriorityScore(
       roleWeight = 0.42;
       break;
     case 'texture':
-      roleWeight = 0.30;
+    case 'shadow_stroke':
+    case 'hatching':
+    case 'tonal_stroke':
+      roleWeight = 0.35;
       break;
+    case 'cross_hatching':
+      roleWeight = 0.28;
+      break;
+    case 'highlight_accent':
     case 'background':
       roleWeight = 0.10;
       break;

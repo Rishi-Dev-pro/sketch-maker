@@ -1,6 +1,7 @@
 import { StyleId, StylePresetDefinition } from '@sketch-maker/shared-types';
 import {
   PROCEDURAL_BLACK_PRESET,
+  REALISTIC_PENCIL_PRESET,
   RED_LINE_PRESET,
   NEON_PRESET,
   BLUEPRINT_PRESET
@@ -14,6 +15,7 @@ class StyleRegistry {
 
   constructor() {
     this.register(PROCEDURAL_BLACK_PRESET);
+    this.register(REALISTIC_PENCIL_PRESET);
     this.register(RED_LINE_PRESET);
     this.register(NEON_PRESET);
     this.register(BLUEPRINT_PRESET);

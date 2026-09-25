@@ -34,7 +34,11 @@ export class AnimationPlayer {
 
   public setTimeline(timeline: StrokeTimeline): void {
     this.timeline = timeline;
-    this.currentTimeMs = Math.min(this.currentTimeMs, timeline.totalDurationMs);
+    if (!this.isPlaying) {
+      this.currentTimeMs = timeline.totalDurationMs;
+    } else {
+      this.currentTimeMs = Math.min(this.currentTimeMs, timeline.totalDurationMs);
+    }
     this.notifyListeners();
   }
 

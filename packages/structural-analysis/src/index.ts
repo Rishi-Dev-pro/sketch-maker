@@ -18,3 +18,5 @@ export * from './jawline';
 export * from './ears';
 export * from './hair';
 export * from './providers';
+export * from './reconstruction';
+export * from './tonal';

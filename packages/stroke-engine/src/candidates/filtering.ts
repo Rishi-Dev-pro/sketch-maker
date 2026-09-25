@@ -58,11 +58,26 @@ export function evaluateStrokeEligibility(
     return { drawable: false, isBackground, filteredReason: 'low_confidence' };
   }
 
-  // 5. Length Threshold Check (single-point features like iris centers are exempt if confident)
+  // 5. Length Threshold Check (fine features and single points have lower thresholds)
   const isSinglePoint = segmentPoints.length === 1;
-  if (!isSinglePoint && segmentLength < minLength) {
+  const isFineFeature =
+    role === 'eye' ||
+    role === 'hatching' ||
+    role === 'cross_hatching' ||
+    role === 'hair_strand' ||
+    role === 'tonal_stroke' ||
+    role === 'highlight_accent' ||
+    path.id.includes('tick') ||
+    path.id.includes('lash') ||
+    path.id.includes('nostril') ||
+    path.id.includes('hatch') ||
+    path.id.includes('strand');
+  const effectiveMinLength = isFineFeature ? Math.min(minLength, 0.0006) : minLength;
+
+  if (!isSinglePoint && segmentLength < effectiveMinLength) {
     return { drawable: false, isBackground, filteredReason: 'too_short' };
   }
+
 
   // All eligibility requirements met
   return {

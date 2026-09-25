@@ -54,8 +54,13 @@ export interface EyeLandmarks {
   readonly visibility?: FeatureVisibility;
   readonly upperLid: ContourPath;
   readonly lowerLid: ContourPath;
+  readonly upperCrease?: ContourPath;
+  readonly innerCorner?: Point2D;
+  readonly outerCorner?: Point2D;
   readonly iris?: Point2D;
+  readonly irisContour?: ContourPath;
   readonly pupil?: Point2D;
+  readonly pupilContour?: ContourPath;
   readonly confidence?: number;
 }
 
@@ -76,6 +81,11 @@ export interface FacialFeatures {
   readonly chin?: ContourPath;
   readonly leftEar?: ContourPath;
   readonly rightEar?: ContourPath;
+  readonly columella?: ContourPath;
+  readonly subnasale?: ContourPath;
+  readonly philtrum?: ContourPath[];
+  readonly mentalCrease?: ContourPath;
+  readonly malarPlanes?: ContourPath[];
   readonly featureVisibility?: Partial<
     Record<
       | 'leftEye'
@@ -208,6 +218,7 @@ export interface SubjectModel {
   readonly accessories?: ContourPath[];
   readonly backgroundContours?: ContourPath[];
   readonly semanticSegmentation?: SemanticSegmentation;
+  readonly reconstruction?: import('./reconstruction').ArtisticReconstruction;
   readonly globalConfidence: number;
   readonly timestamp: number;
 }

@@ -6,6 +6,7 @@ import { RenderState, RenderStroke, RenderDiagnosticMode } from './render';
  */
 export type StyleId =
   | 'procedural_black'
+  | 'realistic_pencil'
   | 'red_line'
   | 'neon'
   | 'blueprint';

@@ -648,5 +648,196 @@ Stroke appearance is resolved deterministically through a five-tier cascading hi
 * Extensible via `registerStylePreset` and queryable via `getStylePreset` and `getAllStylePresets`.
 * Future style presets (charcoal, watercolor, binary, cyberpunk) register without modifying the core renderer.
 
+---
 
+## 14. Feature Reconstruction & Interpretation Layer Architecture (TASK-110)
+
+TASK-110 resolves the structural fidelity disconnect across all perception backends by establishing an explicit feature reconstruction and artistic interpretation layer between raw landmark/segmentation perception and vector candidate generation.
+
+```text
+Perception (Landmarks, Saliency, Semantic Masks)
+                  │
+                  ▼
+packages/structural-analysis/src/reconstruction/ (PURE CORE)
+  ├── face-reconstructor.ts        (Eyelids, iris crescent, pupils, dual-contour eyebrows,
+  │                                 nose apex dome, alar wings, cupid's bow, oral fissure,
+  │                                 lower vermilion, mental crease, jawline, chin apex)
+  ├── hair-reconstructor.ts        (Smooth silhouette, primary masses, flow streamlines)
+  ├── body-reconstructor.ts        (Bilateral neck contours, shoulder curves, collars)
+  ├── semantic-boundary-filter.ts  (Relevance evaluation, noise & micro-speckle suppression)
+  ├── coverage-reporter.ts         (19-feature trace matrix, aggregate coverage metric)
+  └── index.ts                     (reconstructSubjectFeatures orchestrator)
+                  │
+                  ▼
+SubjectModel.reconstruction (ArtisticReconstruction IR)
+                  │
+                  ▼
+packages/stroke-engine/src/geometry/extractor.ts
+  ├── Reconstructed Feature Priority  (Reconstructed geometry supersedes raw points)
+  ├── Single-Point Apex Expansion     (Convex arc expansion prevents polyline dropping)
+  └── Semantic Boundary Filtering      (Raw pixel loops filtered by eligibility rules)
+                  │
+                  ▼
+High-Fidelity Vector Paths & Stroke Candidates
+```
+
+### 14.1 Core Design Principle: Perception Evidence ≠ Artwork
+Raw perception data (point scatter, single-point peaks, 256x256 pixel segmentation masks) cannot be directly mapped into artistic strokes without losing structural fidelity:
+1. **Volumetric Hair vs. 1D Contours:** Eyebrows and hair are volumetric structures, not single wires. Reconstructors synthesize dual-contour envelopes (`upperContour`, `lowerContour`) with medial-to-lateral tapering.
+2. **Multi-Point Apex Synthesis:** Single landmark points (nose tip, chin apex) would ordinarily be dropped by polyline vector extraction ($N < 2$). Reconstructors synthesize multi-point convex apex domes (`points.length >= 3`) to preserve essential anatomical focal points.
+3. **Semantic Boundary Filtering:** Raw segmentation mask boundaries contain staircase pixel aliasing. `semantic-boundary-filter.ts` evaluates boundary category relevance: raw `hair` and `face_skin` boundaries are dropped in favor of smooth reconstructed outlines, micro-speckle loops ($A < 0.004$) are eliminated, and clothing boundaries are cleanly capped.
+
+### 14.2 19-Anatomical-Feature Matrix
+The reconstruction layer traces and evaluates 19 essential anatomical features:
+- **Upper Face (8):** `leftUpperLid`, `leftLowerLid`, `rightUpperLid`, `rightLowerLid`, `leftIris`, `rightIris`, `leftEyebrowMass`, `rightEyebrowMass`.
+- **Mid Face (3):** `noseTipApex`, `leftAlarWing`, `rightAlarWing`.
+- **Lower Face (5):** `cupidsBow`, `oralFissure`, `lowerVermilion`, `mandibularJawline`, `chinApexDome`.
+- **Head & Body (3):** `hairSilhouette`, `neckContour`, `shoulderGarmentContour`.
+
+Each feature progresses through a 6-stage lifecycle: `missing` $\to$ `detected_in_perception` $\to$ `reconstructed_in_subject` $\to$ `extracted_to_vector` $\to$ `admitted_as_candidate` $\to$ `rendered_in_stroke`.
+
+### 14.3 Standalone Artwork Verification (Generated-Only Mode)
+To ensure the pipeline is judged purely by its own procedural drawing rather than photograph underlay crutches:
+* `canvas-renderer.ts` and `App.tsx` provide a `generatedOnly` render mode that suppresses the background photo.
+* Support for solid white, solid dark, and transparent checkerboard canvas backgrounds.
+* Real-time 19-feature coverage progress bar and trace pills expose pipeline health directly in the web UI.
+
+---
+
+## 15. MediaPipe High-Fidelity Realistic Sketch Engine Architecture (TASK-111)
+
+TASK-111 establishes MediaPipe ML as the primary high-fidelity reconstruction provider, transforming output from coarse avatar outlines to realistic, high-fidelity graphite pencil portraits on white paper.
+
+```text
+Photo Input (Luminance + Pixels)
+           │
+           ▼
+MediaPipe ML Vision Provider (Primary Provider, Fallback Disabled)
+  ├── 478-Landmark Face Mesh (Iris boundaries 469-477, Eyelid Creases, Malar Planes)
+  ├── Pose & Semantic Segmentation
+           │
+           ▼
+Anatomical Tonal Analyzer (packages/structural-analysis/src/tonal/)
+  ├── Regional Luminance Sampling (Eye Sockets, Nose Chiaroscuro, Subnasale, Mental Crease, Cheeks)
+  └── 100% Deterministic Procedural Shading (Zero Math.random())
+        ├── Parallel Directional Hatching (35°-45°) for Midtones & Shadows
+        └── Cross-Hatching (115°-125°) for Deep Shadows
+           │
+           ▼
+Feature-Specific RDP Geometry Simplification (packages/stroke-engine/)
+  ├── Ultra-Fine (0.0004 - 0.0006): Eyes, Iris, Lashes, Canthi, Lips
+  ├── Fine (0.0007 - 0.0008): Nose Dome, Eyebrow Grains, Hatching Strokes
+  ├── Medium (0.0012 - 0.0018): Jawline, Organic Hair Masses
+  └── Broad (0.0035): Clothing, Body Silhouette
+           │
+           ▼
+Realistic Pencil Style Preset (packages/style-engine/)
+  ├── Graphite Ink #222224
+  ├── Multiply Blend Mode
+  ├── White Paper Canvas (#ffffff)
+  └── Role-Modulated Stroke Weights (0.4px - 2.2px)
+           │
+           ▼
+Pure Generated-Only Artwork (Source Photo Hidden by Default)
++ 8 Visual Debug Layer Toggles Toolbar
+```
+
+### 15.1 Architectural Invariants
+1. **Primary Provider Isolation:** During fidelity evaluation, automatic fallback to deterministic CV is disabled to prevent weaker edge heuristics from contaminating high-fidelity evaluations.
+2. **Deterministic Shading:** Procedural pencil shading produces byte-for-byte identical stroke paths across repeated runs with zero `Math.random()`.
+3. **Pure Generated-Only Canvas:** The source photograph is hidden by default (`showSourceImage = false`), ensuring the portrait's quality, depth, and anatomical likeness stand on the strength of the generated strokes alone.
+
+---
+
+## 16. Photographic Tonal Reconstruction & High-Fidelity Graphite Portrait Engine (TASK-113)
+
+TASK-113 fundamentally inverts the structural paradigm from "vector outlines with secondary hatching" to **graphite value accumulation**, where facial planes, hair mass, and clothing mass emerge organically from continuous 2D spatial luminance and graphite density fields.
+
+```text
+                  ORIGINAL PHOTO
+                        │
+        ┌───────────────┼────────────────┐
+        │               │                │
+        ▼               ▼                ▼
+   MediaPipe       Segmentation      Luminance
+        │               │                │
+        ▼               ▼                ▼
+ Structural       Semantic Masks     Tonal Field
+ Geometry             │                │
+        │               │                ▼
+        │               │        Graphite Density
+        │               │                │
+        └───────────────┼────────────────┘
+                        ▼
+                Tonal Reconstruction
+                        │
+             ┌──────────┼──────────┐
+             ▼          ▼          ▼
+         Broad Marks  Mid Marks  Fine Marks
+             │          │          │
+             └──────────┼──────────┘
+                        ▼
+                Hair Mass + Flow
+                        │
+                        ▼
+                Selective Contours
+                        │
+                        ▼
+                 Fine Anatomy
+                        │
+                        ▼
+               Realistic Pencil
+                        │
+                        ▼
+                 Canvas Renderer
+                        │
+                        ▼
+              GENERATED PORTRAIT
+```
+
+### 16.1 Continuous 2D Spatial TonalField Abstraction
+Rather than collapsing an anatomical region to a single scalar average, each region is represented by a platform-agnostic `TonalField`:
+```typescript
+export interface TonalField {
+  bounds: BoundingBox;
+  width: number;
+  height: number;
+  values: Float32Array;          // Continuous normalized spatial luminance L(x,y)
+  densityValues?: Float32Array;   // Calibrated perceptual graphite density D(x,y)
+  min: number;
+  max: number;
+  mean: number;
+  classification: TonalClassification;
+  semanticAssociation?: string;
+}
+```
+Spatial values are sampled across 15+ zones using bilinear interpolation over $16 \times 16$ to $24 \times 24$ grids, capturing subtle chiaroscuro gradients across cheeks, nose side planes, eye sockets, subnasale, chin cleft, neck, hair mass, and clothing mass.
+
+### 16.2 Relative Percentile Luminance Normalization
+To prevent high-key portraits from blowing out or low-key portraits from becoming completely black, luminance is normalized relative to subject-wide distribution percentiles ($p_{10}, p_{15}, p_{35}, p_{65}, p_{85}, p_{90}$). Relative normalized luminance $u(x,y)$ dynamically adapts without hardcoded thresholds:
+$$u(x,y) = \text{clamp}\left(\frac{L(x,y) - p_{15}}{p_{85} - p_{15}}, 0, 1\right)$$
+
+### 16.3 Calibrated Non-Linear Graphite Response Curve
+Graphite darkness is derived from normalized value via a non-linear perceptual response curve designed to leave paper highlights pristine while building rich graphite values in shadows:
+- **Pristine Paper White Highlights ($u \ge 0.85$):** $D = 0.0$ (guarantees nose tip, lower lip, and cheekbone catchlights stay white).
+- **Subtle Form Modeling ($0.50 \le u < 0.85$):** $D(u) = 0.20 + 0.35 \times (1 - \frac{u - 0.50}{0.35})^{1.3}$ (soft midtone pencil transitions).
+- **Graphite Shadow Deposition ($0.20 \le u < 0.50$):** $D(u) = 0.55 + 0.25 \times (1 - \frac{u - 0.20}{0.30})^{1.5}$ (firm structural shading).
+- **Crevice & Occlusion Deep Shadows ($u < 0.20$):** $D(u) = 0.80 + 0.20 \times (1 - \frac{u}{0.20})^{1.8}$ (maximum graphite density and selective cross-hatching).
+
+### 16.4 Multi-Scale Form-Following Graphite Mark Generator
+Procedural graphite marks are synthesized across four distinct scales:
+1. **Scale A — Broad Tonal Marks:** Long (0.04–0.08 normalized units), low-opacity strokes for volumetric hair mass, clothing mass, cheeks, and neck.
+2. **Scale B — Medium Form Strokes:** Directional strokes (0.02–0.04 units) oriented along 3D anatomical flow angles (malar $60^\circ/120^\circ$, mandibular $30^\circ$, nasal side planes $80^\circ$, neck $70^\circ$).
+3. **Scale C — Fine Anatomical Hatching:** High-precision strokes (0.01–0.02 units) modeling ocular sockets, philtrum, chin cleft, and lip planes.
+4. **Scale D — Micro Accents:** Punctate 4B accents and selective crevice cross-hatching for pupils, nostrils, and oral fissure corners.
+
+### 16.5 Mass-First Hair & Volumetric Clothing
+- **Hair Mass:** Segmentation mask luminance is sampled to construct a 2D hair value field, generating high-density broad mass strokes ($D \approx 0.70–0.95$). Individual primary cranial flow streamlines, secondary wavy strands, and flyaways overlay this foundational mass.
+- **Clothing Mass:** The clothing segmentation mask is sampled to generate visible graphite clothing strokes, rendering sweaters and garments as authentic chiaroscuro masses.
+
+### 16.6 Contour Suppression & Soft Transitions
+Contour lines are suppressed or softened where photographic luminance transitions are gradual (e.g. nasal bridge, cheeks, lower eyelid). Contours are strictly preserved only where image evidence confirms high contrast and anatomical occlusion (mandibular jaw silhouette, oral fissure, upper eyelid crease).
+
+### 16.7 The Contour-Off Acceptance Criterion
+The definitive acceptance test: when all contours, fine anatomy, and hair strands are turned completely OFF, the portrait must remain instantly recognizable as a human likeness through tonal value fields and shading marks alone.
 

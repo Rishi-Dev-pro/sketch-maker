@@ -103,6 +103,13 @@ Before marking any task as `COMPLETE` in `docs/TASK_TRACKER.md`:
 | `npm run benchmark:renderer` | `tests/benchmarks/renderer-benchmark.ts` | 12-category procedural stroke renderer benchmark |
 | `npm run test:styles` | `tests/style-engine/style-engine.test.ts` | 15 unit tests for TASK-109 procedural style engine & presets |
 | `npm run benchmark:styles` | `tests/benchmarks/style-benchmark.ts` | 12-category procedural style engine benchmark across 4 presets |
+| `npm run test:reconstruction` | `tests/structural-analysis/feature-reconstruction.test.ts` | 10 unit tests for TASK-110 feature reconstruction & coverage |
+| `npm run test:boundaries` | `tests/structural-analysis/semantic-boundary-filter.test.ts` | 7 unit tests for TASK-110 semantic boundary relevance filter |
+| `npm run test:tonal-field` | `tests/structural-analysis/tonal-field.test.ts` | 7 unit tests for TASK-113 2D TonalField, normalization, and density mapping |
+| `npm run benchmark:reconstruction` | `tests/benchmarks/reconstruction-benchmark.ts` | 12-category reconstruction fidelity & structural coverage benchmark |
+| `npm run benchmark:realistic-sketch` | `tests/benchmarks/realistic-sketch-benchmark.ts` | 12-category MediaPipe ML & tonal graphite portrait benchmark |
 | `npm run typecheck` | Monorepo root | TypeScript typecheck across all 8 workspaces |
 | `npm run build` | Monorepo root | Production build of web application and libraries |
+
+
 

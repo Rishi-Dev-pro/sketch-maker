@@ -56,7 +56,14 @@ export type StrokeSemanticRole =
   | 'semantic_boundary'
   | 'texture'
   | 'detail'
-  | 'background';
+  | 'background'
+  | 'contour'
+  | 'hatching'
+  | 'cross_hatching'
+  | 'hair_strand'
+  | 'tonal_stroke'
+  | 'shadow_stroke'
+  | 'highlight_accent';
 
 /**
  * Diagnosable reasons why a stroke candidate might be filtered or marked non-drawable.
