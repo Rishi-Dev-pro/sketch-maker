@@ -164,7 +164,7 @@ export function reconstructHair(
     const pts: Point2D[] = [
       { x: topX, y: clamp(foreheadY - 0.02 + t * 0.04) },
       { x: midX, y: clamp(fBox.y + fBox.height * (0.50 + t * 0.10)) },
-      { x: botX, y: clamp(shoulderY - 0.06 + t * 0.04) },
+      { x: clamp(fBox.x - fBox.width * (0.01 + t * 0.04)), y: clamp(shoulderY - 0.06 + t * 0.04) },
     ];
 
     // Only filter against boundary if we have an authoritative segmentation mask (Section 22/23)
@@ -186,7 +186,7 @@ export function reconstructHair(
     const t = i / Math.max(1, rightStreamCount - 1);
     const topX = clamp(fBox.x + fBox.width * (1.00 + t * 0.10));
     const midX = clamp(fBox.x + fBox.width * (1.04 + t * 0.08));
-    const botX = clamp(fBox.x + fBox.width * (0.94 - t * 0.06));
+    const botX = clamp(fBox.x + fBox.width * (0.98 + t * 0.04));
 
     const pts: Point2D[] = [
       { x: topX, y: clamp(foreheadY - 0.02 + t * 0.04) },

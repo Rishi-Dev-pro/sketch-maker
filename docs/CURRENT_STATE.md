@@ -4,9 +4,9 @@
 
 * **Current Date / Time:** 2026-09-25
 * **Current Phase:** Phase 1 — Feasibility Prototype (Headless Photo → Strokes Pipeline)
-* **Current Version:** v0.4.5-alpha (TASK-114 Segmentation-Anchored Structural Reconstruction)
+* **Current Version:** v0.4.6-alpha (TASK-114.6 Restore Facial Structural Ownership & Fix Jawline Discontinuity)
 * **Current Milestone:** M1 — Feasibility Prototype (Headless Pipeline)
-* **Status:** COMPLETE (TASK-114 Segmentation-Anchored Reconstruction Verified across 12 Benchmarks & 24 Test Suites)
+* **Status:** COMPLETE (TASK-114.6 Facial Structural Recovery & Continuity Verified across 12 Benchmarks & 25 Test Suites)
 
 ---
 
@@ -61,8 +61,14 @@ Phase 1 pipeline is advancing through structural analysis:
     5. *Elimination of Extra Waves & Stray Diagonals:* Constrained hair flow streamlines and strands within authoritative hair boundaries (`isPointInOrNearPoly`), and clamped tonal shading to valid density regions ($D(x,y) > 0$), terminating unwanted diagonal lines across empty background.
     6. *Multi-Person Isolation (BM-11):* Each subject maintains independent `subjectId`, authoritative silhouette, and isolated spatial ownership masks.
     7. *9 Visual Debug Layers & Rejection Telemetry:* UI exposes 9 independent structural layers (Source, Raw Segmentation, Clean Segmentation, Authoritative Silhouette, Pose, Face Landmarks, Structural Fusion, Final Geometry, Final Artwork) and live telemetry on accepted, rejected, and clipped candidates.
-29: **Automated Verification:** All 24 test suites pass (100% pass across 330+ tests), 0 TypeScript compiler errors across all 8 workspaces, production bundle builds cleanly. All 11 required BM-01 artifacts generated and verified.
-30: **Stop Condition:** TASK-114 complete. Waiting for visual review before starting TASK-115.
+29: **TASK-114.6 (Restore Facial Structural Ownership & Fix Jawline Discontinuity):** Resolved inner facial geometry disappearance identified during TASK-114.5 forensic investigation:
+    1. *Authoritative Silhouette Selection:* Replaced greedy vertex-count heuristic in `candidates/generator.ts` with strict semantic lookup (`authoritative_silhouette` / `source === 'silhouette'`).
+    2. *Regional Boundary Semantic Separation:* Reclassified `hair_outer_boundary` in `extractor.ts` to `level = 3` and `source = 'hair_mass'`, preventing hair masks from masquerading as authoritative subject silhouettes.
+    3. *Jawline Continuity:* Reversed the second jaw segment in `deterministic-provider.ts` (`rightJaw.points.reverse()`), ensuring smooth continuous anatomical connection (left ear $\to$ chin $\to$ right ear) and completely eliminating the chin-to-opposite-ear cross-face diagonal bridge.
+    4. *Lip Confidence Floors:* Established conservative confidence floors (>=0.35) for reconstructed vermilion borders in `face-reconstructor.ts`, ensuring soft lower lip highlights survive the `minConfidence = 0.15` filter while preserving realism calibration.
+    5. *Hair Flank Boundary Anchoring:* Constrained lateral hair flow strand endpoints to cheek/jaw flanks in `hair-reconstructor.ts`, preventing curls from invading the mouth/chin.
+30: **Automated Verification:** All 25 test suites pass (100% pass across 334+ tests, including `test:facial-recovery`), 0 TypeScript compiler errors across all 8 workspaces, production bundle builds cleanly. All 12 benchmarks pass within SLA (~512ms avg vs 1500ms target). All Section 14 diagnostic artifacts generated. Web browser verification confirms 100% visible presence of facial anatomy (eyes, brows, pupils, nose, nostrils, mouth, lips, chin, jawline) and 0 outside-subject rejections.
+31: **Stop Condition:** TASK-114.6 complete. Awaiting user direction before proceeding.
 
 ---
 

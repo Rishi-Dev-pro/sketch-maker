@@ -63,20 +63,34 @@ export function generateStrokeCandidates(
   let rejectedGeometricInvalidity = 0;
   let clippedCandidates = 0;
 
-  // Extract authoritative silhouettes and hair boundaries per subject
+  // Extract authoritative silhouettes and hair boundaries per subject (TASK-114.6)
   const subjectSilhouettes = new Map<string, Point2D[]>();
   const hairBoundaries = new Map<string, Point2D[]>();
 
   if (geometry && geometry.paths) {
     for (const p of geometry.paths) {
       const sId = p.subjectId || 'subject_default';
-      if ((p.source === 'silhouette' || p.id.includes('silhouette')) && p.points && p.points.length >= 4) {
-        if (!subjectSilhouettes.has(sId) || p.points.length > subjectSilhouettes.get(sId)!.length) {
+      // 1. Authoritative Whole-Subject Silhouette (MUST NOT match hair or clothing regional boundaries)
+      const isAuthoritative =
+        p.id.includes('authoritative_silhouette') ||
+        (p.source === 'silhouette' && !p.id.includes('hair') && !p.id.includes('clothing')) ||
+        (p.id.includes('silhouette') && !p.id.includes('hair') && !p.id.includes('clothing'));
+
+      if (isAuthoritative && p.points && p.points.length >= 4) {
+        // Prioritize explicit authoritative_silhouette, never overwrite with hair
+        if (!subjectSilhouettes.has(sId) || p.id.includes('authoritative_silhouette')) {
           subjectSilhouettes.set(sId, p.points);
         }
       }
-      if (p.id.includes('hair') && (p.source === 'silhouette' || p.closed) && p.points && p.points.length >= 4) {
-        if (!hairBoundaries.has(sId) || p.points.length > hairBoundaries.get(sId)!.length) {
+
+      // 2. Regional Hair Boundary (for hair strand spatial constraint)
+      const isHairBoundary =
+        p.id.includes('hair_outer_boundary') ||
+        p.id.includes('hair_silhouette') ||
+        (p.id.includes('hair') && p.closed && !p.id.includes('strand'));
+
+      if (isHairBoundary && p.points && p.points.length >= 4) {
+        if (!hairBoundaries.has(sId) || p.id.includes('hair_outer_boundary') || p.points.length > hairBoundaries.get(sId)!.length) {
           hairBoundaries.set(sId, p.points);
         }
       }

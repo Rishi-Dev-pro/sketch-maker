@@ -664,7 +664,7 @@ export function reconstructMouth(
     region: 'mouth',
     points: seamPts,
     closed: false,
-    confidence: fissure?.confidence ?? confidence,
+    confidence: Math.max(0.50, fissure?.confidence ?? confidence),
     visibility: 'visible',
   };
 
@@ -684,7 +684,7 @@ export function reconstructMouth(
           { x: leftPt.x, y: leftPt.y },
         ],
         closed: false,
-        confidence: confidence * 0.9,
+        confidence: Math.max(0.55, confidence * 0.9),
         visibility: 'visible',
       };
     }
@@ -697,7 +697,7 @@ export function reconstructMouth(
           { x: clamp(rightPt.x + 0.003), y: clamp(rightPt.y - 0.001) },
         ],
         closed: false,
-        confidence: confidence * 0.9,
+        confidence: Math.max(0.55, confidence * 0.9),
         visibility: 'visible',
       };
     }
@@ -711,7 +711,7 @@ export function reconstructMouth(
       region: 'mouth',
       points: [...upperPts],
       closed: false,
-      confidence: upperLip?.confidence ?? confidence,
+      confidence: Math.max(0.45, upperLip?.confidence ?? confidence),
       visibility: 'visible',
     };
   }
@@ -719,14 +719,16 @@ export function reconstructMouth(
   // 4. Lower Lip vermilion contour:
   // In portrait sketching, the lower lip is lit from above.
   // Soften the lower contour so the central highlight is preserved without a harsh black outline box.
+  // Enforce a confidence floor of 0.35 so soft lower lip is not dropped by minConfidence (0.15).
   let lowerVermilion: ContourPath | undefined;
   if (lowerPts.length >= 2) {
+    const rawLowerConf = (lowerLip?.confidence ?? confidence) * 0.60;
     lowerVermilion = {
       id: `${subjectId}_mouth_lower_lip`,
       region: 'mouth',
       points: [...lowerPts],
       closed: false,
-      confidence: (lowerLip?.confidence ?? confidence) * 0.60,
+      confidence: Math.max(0.35, rawLowerConf),
       visibility: 'visible',
     };
   }

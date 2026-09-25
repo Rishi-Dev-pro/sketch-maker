@@ -149,7 +149,7 @@ export class DeterministicVisionProvider implements VisionProvider {
             const pts: import('@sketch-maker/shared-types').Point2D[] = [];
             if (jawline.leftJaw?.points) pts.push(...jawline.leftJaw.points);
             if (jawline.chin?.points && pts.length === 0) pts.push(...jawline.chin.points);
-            if (jawline.rightJaw?.points) pts.push(...jawline.rightJaw.points);
+            if (jawline.rightJaw?.points) pts.push(...[...jawline.rightJaw.points].reverse());
             return pts.length >= 2 ? {
               id: `${matchingFace.subjectId}_jawline`,
               region: 'jawline' as const,

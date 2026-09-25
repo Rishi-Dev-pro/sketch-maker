@@ -170,6 +170,42 @@
   - Rejection telemetry reports 32 rejected strokes and 30 clipped strokes for BM-01.
 * **Regression Risk:** Zero. High-fidelity tonal field and anatomical facial features preserved without regression.
 
+### BUG-008: Facial Structural Ownership Collision & Jawline Concatenation Bridge (TASK-114.6)
+* **Date:** 2026-09-25
+* **Status:** VERIFIED
+* **Symptom:**
+  - After TASK-114, BM-01 generated pencil portrait lost all inner facial geometry (eyes, brows, nose, mouth/lips, chin, jawline) and displayed 170 candidate rejections with `filteredReason = 'outside_subject'`.
+  - A spurious long diagonal bridge crossed the face from the chin to the opposite ear.
+  - Lower lip strokes were dropped despite reliable landmark detection.
+* **Reproduction Steps:**
+  1. Process `BM-01-FRONT-PORTRAIT` with MediaPipe ML provider and Realistic Pencil preset.
+  2. Inspect rejection telemetry: 170 strokes rejected as `outside_subject`.
+  3. Inspect final geometry: facial features completely absent inside face region; chin connected to opposite ear via long diagonal line.
+* **Root Cause:**
+  1. *Primary Root Cause:* In `packages/stroke-engine/src/candidates/generator.ts`, `subjectSilhouettes` used a greedy vertex-count heuristic (`p.points.length > subjectSilhouettes.get(subjectId)!.length`). In `extractor.ts`, `hair_outer_boundary` was classified as `source = 'silhouette'` with higher vertex count than the authoritative subject silhouette, causing the hair boundary to overwrite the subject silhouette. All inner facial features lying outside the hair polygon were consequently rejected as `outside_subject`.
+  2. *Secondary Root Cause:* In `packages/structural-analysis/src/providers/deterministic-provider.ts`, bilateral jawline paths (`leftJaw` and `rightJaw`) were concatenated sequentially (`[...leftJaw.points, ...rightJaw.points]`) without reversing the right jaw path. Because both paths originated at the ear and terminated at the chin, the concatenation created an unnatural direct bridge from the chin back to the opposite ear across the face.
+  3. *Tertiary Root Cause:* In `packages/structural-analysis/src/reconstruction/face-reconstructor.ts`, lower vermilion confidence attenuation from TASK-112 reduced confidence below the `minConfidence = 0.15` filter threshold, eliminating legitimate reconstructed lip geometry.
+* **Affected Files:**
+  * `packages/stroke-engine/src/geometry/extractor.ts`
+  * `packages/stroke-engine/src/candidates/generator.ts`
+  * `packages/structural-analysis/src/providers/deterministic-provider.ts`
+  * `packages/structural-analysis/src/reconstruction/face-reconstructor.ts`
+  * `packages/structural-analysis/src/reconstruction/hair-reconstructor.ts`
+  * `tests/structural-analysis/facial-structural-recovery.test.ts`
+  * `tests/benchmarks/realistic-sketch-benchmark.ts`
+* **Fix Applied:**
+  1. *Authoritative Silhouette Selection:* Replaced the vertex-count heuristic in `candidates/generator.ts` with explicit semantic binding (`authoritative_silhouette` / `source === 'silhouette'`).
+  2. *Regional Boundary Semantic Separation:* Reclassified `hair_outer_boundary` in `extractor.ts` as `level = 3` and `source = 'hair_mass'`, separating regional hair boundaries from whole-subject silhouettes.
+  3. *Jawline Continuity:* Reversed the right jaw points during concatenation (`pts.push(...[...jawline.rightJaw.points].reverse())`) to create an anatomically continuous path: left ear $\to$ chin $\to$ right ear.
+  4. *Lip Confidence Floors:* Preserved calibrated confidence floors (>=0.35) for vermilion borders in `face-reconstructor.ts` so soft lower lip geometry survives filtering.
+  5. *Hair Flank Boundary Anchoring:* Corrected lateral flow endpoint coordinates in `hair-reconstructor.ts` to keep strands anchored to lateral flanks.
+* **Verification:**
+  - `npm test` passes all 25 suites (including `test:facial-recovery` 4/4 pass).
+  - `npm run benchmark:realistic-sketch` executes all 12 benchmarks within SLA (512ms avg).
+  - BM-01 rejection telemetry drops from 170 rejected to 0 rejected (`rejectedOutsideSubject: 0`).
+  - Web UI browser subagent verification confirms complete visible presence of eyes, eyebrows, pupils/iris, nose, nostrils, mouth, lips, chin, jawline, and complete absence of the chin-to-ear bridge.
+* **Regression Risk:** Zero. Realism calibration (soft lower lip, nostril cavities, pupil accents, directional shading) is preserved without reverting to cartoon outlines.
+
 ---
 ```markdown
 ### BUG-XXX: [Short Descriptive Title]

@@ -429,7 +429,34 @@ export async function runRealisticSketchBenchmark(): Promise<RealisticSketchBenc
       // 10. Final Generated-Only Artwork (Contours + Shading + Hair on white canvas)
       const finalSvg = renderStrokesToSvg(styledState.styledStrokes, decoded.width, decoded.height, '#ffffff');
       fs.writeFileSync(path.join(outputDir, 'bm-01-final-generated-only.svg'), finalSvg, 'utf8');
+      fs.writeFileSync(path.join(outputDir, 'bm-01-final-generated-only-fixed.svg'), finalSvg, 'utf8');
       fs.writeFileSync(path.join(outputDir, 'bm-01-realistic-pencil.svg'), finalSvg, 'utf8');
+
+      // TASK-114.6: Explicit Section 14 Visual Diagnostic Artifacts
+      fs.writeFileSync(path.join(outputDir, 'bm-01-authoritative-silhouette-fixed.svg'), authSilSvg, 'utf8');
+      fs.writeFileSync(path.join(outputDir, 'bm-01-face-structure-fixed.svg'), faceSvg, 'utf8');
+
+      // Facial Candidates Only
+      const facialRoles = new Set(['eye', 'mouth', 'nose', 'eyebrow', 'facial_contour', 'jaw', 'chin', 'lip', 'iris', 'pupil']);
+      const facialCandidates = candidates.candidates.filter(c => 
+        facialRoles.has(c.semanticRole) || c.id.includes('eye') || c.id.includes('brow') || 
+        c.id.includes('nose') || c.id.includes('mouth') || c.id.includes('lip') || c.id.includes('jaw') || c.id.includes('chin')
+      );
+      const facialCandidatesSvg = renderCandidatesToSvg(facialCandidates, decoded.width, decoded.height, '#ffffff');
+      fs.writeFileSync(path.join(outputDir, 'bm-01-facial-candidates-fixed.svg'), facialCandidatesSvg, 'utf8');
+
+      // Facial Validation (Candidates with Authoritative Silhouette Reference Overlay)
+      const facialValidationSvg = renderCandidatesToSvg(facialCandidates, decoded.width, decoded.height, '#ffffff', silPoints);
+      fs.writeFileSync(path.join(outputDir, 'bm-01-facial-validation-fixed.svg'), facialValidationSvg, 'utf8');
+
+      // Jawline Fixed SVG
+      const jawPaths: any[] = [];
+      if (reconstruction.jawChin) {
+        jawPaths.push({ points: reconstruction.jawChin.jawline.points, color: '#38bdf8', width: 2.8 });
+        jawPaths.push({ points: reconstruction.jawChin.chin.points, color: '#0284c7', width: 2.8 });
+      }
+      const jawSvg = renderContourPathsToSvg(jawPaths, decoded.width, decoded.height, '#38bdf8', 2.8, '#ffffff');
+      fs.writeFileSync(path.join(outputDir, 'bm-01-jawline-fixed.svg'), jawSvg, 'utf8');
 
       // Contours Only
       const contourStrokes = styledState.styledStrokes.filter(s => {

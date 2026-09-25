@@ -170,14 +170,14 @@ function harvestSubjectCandidates(
 
         if (
           p.id.includes('authoritative_silhouette') ||
-          (p as any).source === 'silhouette' ||
-          (p.id.includes('silhouette') && !p.id.includes('hair'))
+          ((p as any).source === 'silhouette' && !p.id.includes('hair') && !p.id.includes('clothing')) ||
+          (p.id.includes('silhouette') && !p.id.includes('hair') && !p.id.includes('clothing'))
         ) {
           level = 0;
           source = 'silhouette';
-        } else if (p.id.includes('hair_outer_boundary')) {
-          level = 0;
-          source = 'silhouette';
+        } else if (p.id.includes('hair_outer_boundary') || p.id.includes('hair_silhouette')) {
+          level = 3;
+          source = 'hair_mass';
         } else if (p.id.includes('clothing_outer_boundary')) {
           level = 1;
           source = 'clothing_structure';

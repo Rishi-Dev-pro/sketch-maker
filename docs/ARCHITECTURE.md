@@ -935,3 +935,30 @@ Before any stroke candidate reaches sequence ordering, scheduling, or rendering,
 4. **Segmentation-Aware Clipping:** Strokes legitimately crossing from inside to outside the silhouette (e.g. collar boundaries, hair fringes) are bisected and trimmed at the polygon boundary; outside segments are discarded.
 5. **Telemetry:** Captures total candidates, valid candidates, rejected candidates by category, and clipped candidates.
 
+### 17.6 Spatial Ownership Invariants (TASK-114.6)
+To avoid boundary collisions where high-vertex regional masks overwrite whole-subject boundaries, the pipeline enforces strict architectural separation:
+
+```text
+Subject
+ ├── authoritativeSilhouette (level = 0, source = 'silhouette')
+ │       ↓
+ │   whole person ownership (Face + Hair + Neck + Clothing + Torso)
+ │
+ ├── hairBoundary (level = 3, source = 'hair_mass')
+ │       ↓
+ │   regional hair ownership
+ │
+ ├── clothingBoundary (level = 3, source = 'clothing_boundary')
+ │       ↓
+ │   regional clothing ownership
+ │
+ └── facialRegions (level = 1, source = 'face_reconstruction')
+         ↓
+     inner facial anatomy ownership
+```
+
+* **Core Invariant:** `authoritativeSilhouette ≠ regionalBoundary`.
+* **Selection Rule:** Authoritative silhouette selection must NEVER use geometric complexity (vertex count, polygon area, or path length). It is resolved solely via explicit semantic identity (`authoritative_silhouette` / `source === 'silhouette'`).
+* **Facial Containment Invariant:** Facial anatomy strokes MUST only require containment inside the `authoritativeSilhouette` and must NEVER require containment inside `hairBoundary` or `clothingBoundary`.
+
+

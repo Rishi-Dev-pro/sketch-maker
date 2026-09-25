@@ -3,14 +3,15 @@
   <!-- Clean white paper canvas for pure generated-only sketch -->
   <rect width="1024" height="1024" fill="#ffffff" />
   <g id="realistic-pencil-sketch">
-  <path d="M 394.00 86.00 L 452.44 54.00 L 494.00 41.78 L 533.66 39.44 L 572.10 47.00 L 581.22 57.00 L 606.78 63.00 L 642.79 84.00" fill="none" stroke="#222224" stroke-width="5.50" stroke-linecap="round" stroke-linejoin="round" opacity="0.78" />
-  <path d="M 261.58 338.00 L 259.00 336.01 L 261.22 323.00 L 273.22 292.00 L 280.00 288.00 L 280.98 275.00 L 287.77 264.00 L 286.22 254.00 L 304.78 214.00 L 302.22 211.00 L 334.22 151.00 L 363.22 115.00 L 394.00 86.00" fill="none" stroke="#222224" stroke-width="5.50" stroke-linecap="round" stroke-linejoin="round" opacity="0.78" />
-  <path d="M 638.53 86.00 L 645.78 91.00 L 645.00 99.00 L 652.78 104.00 L 653.78 111.00 L 660.78 114.00 L 668.00 131.00 L 673.34 134.00" fill="none" stroke="#222224" stroke-width="5.50" stroke-linecap="round" stroke-linejoin="round" opacity="0.78" />
-  <path d="M 642.79 84.00 L 638.53 86.00" fill="none" stroke="#222224" stroke-width="5.50" stroke-linecap="round" stroke-linejoin="round" opacity="0.78" />
-  <path d="M 673.34 134.00 L 671.44 136.00 L 698.78 184.00 L 726.77 254.00 L 729.00 266.00 L 726.00 269.00" fill="none" stroke="#222224" stroke-width="5.50" stroke-linecap="round" stroke-linejoin="round" opacity="0.78" />
-  <path d="M 726.00 269.00 L 731.78 274.00" fill="none" stroke="#222224" stroke-width="5.50" stroke-linecap="round" stroke-linejoin="round" opacity="0.78" />
-  <path d="M 268.00 574.00 L 268.00 566.00 L 263.22 563.00 L 263.00 533.00 L 258.88 526.00 L 253.22 491.00 L 255.77 488.00 L 248.00 476.00 L 250.23 435.00 L 247.00 429.00 L 247.00 408.00 L 262.00 349.00 L 258.10 344.00 L 261.58 338.00" fill="none" stroke="#222224" stroke-width="5.50" stroke-linecap="round" stroke-linejoin="round" opacity="0.78" />
-  <path d="M 376.02 574.78 L 268.00 574.00" fill="none" stroke="#222224" stroke-width="5.50" stroke-linecap="round" stroke-linejoin="round" opacity="0.78" />
-  <path d="M 473.34 10.53 L 480.80 117.24" fill="none" stroke="#222224" stroke-width="2.61" stroke-linecap="round" stroke-linejoin="round" opacity="0.76" />
+  <path d="M 394.00 86.00 L 452.44 54.00 L 494.00 41.78 L 533.66 39.44 L 572.10 47.00 L 581.22 57.00 L 606.78 63.00 L 642.79 84.00" fill="none" stroke="#222224" stroke-width="3.23" stroke-linecap="round" stroke-linejoin="round" opacity="0.77" />
+  <path d="M 505.96 3.55 L 614.90 15.16 L 762.46 147.96" fill="none" stroke="#222224" stroke-width="2.66" stroke-linecap="round" stroke-linejoin="round" opacity="0.77" />
+  <path d="M 472.86 3.66 L 480.80 117.24" fill="none" stroke="#222224" stroke-width="2.61" stroke-linecap="round" stroke-linejoin="round" opacity="0.76" />
+  <path d="M 261.58 338.00 L 259.00 336.01 L 261.22 323.00 L 273.22 292.00 L 280.00 288.00 L 280.98 275.00 L 287.77 264.00 L 286.22 254.00 L 304.78 214.00 L 302.22 211.00 L 334.22 151.00 L 363.22 115.00 L 394.00 86.00" fill="none" stroke="#222224" stroke-width="3.23" stroke-linecap="round" stroke-linejoin="round" opacity="0.77" />
+  <path d="M 638.53 86.00 L 645.78 91.00 L 645.00 99.00 L 652.78 104.00 L 653.78 111.00 L 660.78 114.00 L 668.00 131.00 L 673.34 134.00" fill="none" stroke="#222224" stroke-width="3.23" stroke-linecap="round" stroke-linejoin="round" opacity="0.77" />
+  <path d="M 642.79 84.00 L 638.53 86.00" fill="none" stroke="#222224" stroke-width="3.23" stroke-linecap="round" stroke-linejoin="round" opacity="0.77" />
+  <path d="M 673.34 134.00 L 671.44 136.00 L 698.78 184.00 L 726.77 254.00 L 729.00 266.00 L 726.00 269.00" fill="none" stroke="#222224" stroke-width="3.23" stroke-linecap="round" stroke-linejoin="round" opacity="0.77" />
+  <path d="M 726.00 269.00 L 731.78 274.00" fill="none" stroke="#222224" stroke-width="3.23" stroke-linecap="round" stroke-linejoin="round" opacity="0.77" />
+  <path d="M 268.00 574.00 L 268.00 566.00 L 263.22 563.00 L 263.00 533.00 L 258.88 526.00 L 253.22 491.00 L 255.77 488.00 L 248.00 476.00 L 250.23 435.00 L 247.00 429.00 L 247.00 408.00 L 262.00 349.00 L 258.10 344.00 L 261.58 338.00" fill="none" stroke="#222224" stroke-width="3.23" stroke-linecap="round" stroke-linejoin="round" opacity="0.77" />
+  <path d="M 376.02 574.78 L 268.00 574.00" fill="none" stroke="#222224" stroke-width="3.23" stroke-linecap="round" stroke-linejoin="round" opacity="0.77" />
   </g>
 </svg>
