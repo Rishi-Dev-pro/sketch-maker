@@ -308,6 +308,10 @@ export interface ArtisticReconstruction {
   readonly hairMassStrokes?: readonly ContourPath[];
   /** Tonal mass strokes for clothing body (TASK-113) */
   readonly clothingMassStrokes?: readonly ContourPath[];
+  /** Authoritative subject silhouette derived from cleaned segmentation (TASK-114) */
+  readonly authoritativeSilhouette?: ContourPath;
+  /** Explicit structural hierarchy model (TASK-114) */
+  readonly structuralModel?: import('./structural').StructuralModel;
   readonly allReconstructedPaths: readonly ContourPath[];
   readonly confidence: number;
   readonly timestamp: number;

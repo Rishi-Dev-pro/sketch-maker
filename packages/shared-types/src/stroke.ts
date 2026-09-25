@@ -76,7 +76,10 @@ export type StrokeFilteredReason =
   | 'invalid_geometry'
   | 'background'
   | 'filtered_noise'
-  | 'density_pruned';
+  | 'density_pruned'
+  | 'outside_subject'
+  | 'wrong_semantic_region'
+  | 'invalid_subject_id';
 
 /**
  * Procedural Stroke Candidate (TASK-105).
@@ -139,6 +142,17 @@ export interface StrokeMetrics {
   readonly strokesByHierarchy: Partial<Record<PathHierarchyLevel, number>>;
   readonly strokesBySubject: Record<string, number>;
   readonly generationLatencyMs: number;
+  readonly rejectionTelemetry?: {
+    readonly totalCandidates: number;
+    readonly validCandidates: number;
+    readonly rejectedCandidates: number;
+    readonly rejectedOutsideSubject: number;
+    readonly rejectedWrongSemanticRegion: number;
+    readonly rejectedOccluded: number;
+    readonly rejectedInvalidSubjectId: number;
+    readonly rejectedGeometricInvalidity: number;
+    readonly clippedCandidates: number;
+  };
 }
 
 /**

@@ -106,6 +106,7 @@ Before marking any task as `COMPLETE` in `docs/TASK_TRACKER.md`:
 | `npm run test:reconstruction` | `tests/structural-analysis/feature-reconstruction.test.ts` | 10 unit tests for TASK-110 feature reconstruction & coverage |
 | `npm run test:boundaries` | `tests/structural-analysis/semantic-boundary-filter.test.ts` | 7 unit tests for TASK-110 semantic boundary relevance filter |
 | `npm run test:tonal-field` | `tests/structural-analysis/tonal-field.test.ts` | 7 unit tests for TASK-113 2D TonalField, normalization, and density mapping |
+| `npm run test:structural-reconstruction` | `tests/structural-analysis/segmentation-anchored-reconstruction.test.ts` | 7 unit tests for TASK-114 segmentation silhouette, pose anchoring, stroke gate, and clipping |
 | `npm run benchmark:reconstruction` | `tests/benchmarks/reconstruction-benchmark.ts` | 12-category reconstruction fidelity & structural coverage benchmark |
 | `npm run benchmark:realistic-sketch` | `tests/benchmarks/realistic-sketch-benchmark.ts` | 12-category MediaPipe ML & tonal graphite portrait benchmark |
 | `npm run typecheck` | Monorepo root | TypeScript typecheck across all 8 workspaces |

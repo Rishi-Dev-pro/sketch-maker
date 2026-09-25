@@ -7,4 +7,5 @@ export * from './vector';
 export * from './timeline';
 export * from './render';
 export * from './reconstruction';
+export * from './structural';
 

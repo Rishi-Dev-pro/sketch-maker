@@ -557,24 +557,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       * All 23 monorepo test suites pass (100% pass rate).
       * Full monorepo typecheck (0 errors across 8 workspaces) and production build pass.
 
-* **Photo-Exact Portrait Likeness & Multi-Modal Reconstruction (`TASK-114`):**
-  * Eliminated all visual artifacts and achieved authentic, realistic pencil sketch likeness to `BM-01`:
-    * Corrected MediaPipe Eyelid Topology (`apps/web/src/vision/mediapipe/landmark-mapper.ts`):
-      * Inverted eyelid index definitions corrected: right eye upper lid `[33, 246, 161, 160, 159, 158, 157, 173, 133]` and lower lid `[133, 155, 154, 153, 145, 144, 163, 7, 33]`; left eye upper lid `[362, 398, 384, 385, 386, 387, 388, 466, 263]` and lower lid `[263, 249, 390, 373, 374, 380, 381, 382, 362]`.
-      * Repaired supratarsal creases and eliminated upside-down eye geometry.
-    * Repaired Oral Fissure Seam (`apps/web/src/vision/mediapipe/landmark-mapper.ts`):
-      * Replaced the tangled 20-point lip-enclosing loop with the exact 11-point stomion line `[78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308]`, restoring a clean, natural mouth line.
-    * Fixed Semantic Segmentation Mask Array Retrieval (`packages/structural-analysis/src/reconstruction/index.ts`):
-      * Repaired property access on `subject.semanticSegmentation.masks` from object property access (`.hair`, which returned undefined) to array search (`.find(m => m.category === 'hair')`), allowing neural segmentation masks to reach the hair reconstructor.
-    * Unified Multi-Modal Pipeline Re-Enrichment (`apps/web/src/vision/mediapipe/mediapipe-delegate.ts`):
-      * Invoked `enrichSubjectWithReconstruction` after face, pose, and segmentation masks are unified, ensuring the artistic reconstructor has access to 478 face landmarks, 33 BlazePose body landmarks, and neural semantic masks simultaneously.
-    * Organic Hair Flow & Bob Hairstyle Silhouette (`packages/structural-analysis/src/reconstruction/hair-reconstructor.ts`):
-      * Replaced mathematical cranial dome (`archSteps = 16`) and headband arc with neural hair mask boundary and smooth flowing flank streamlines curving inward beneath the jaw, faithfully capturing the shoulder-length bob haircut.
-    * Clothing Chest Triangle & Horizontal Band Removal (`packages/structural-analysis/src/reconstruction/body-reconstructor.ts`):
-      * Eliminated closed clothing polygon loops that spanned the bottom of the photo; synthesized open, natural crewneck collar and downward-sloping shoulder curves.
-    * Organic Feature Smoothing (`packages/structural-analysis/src/reconstruction/face-reconstructor.ts`):
-      * Applied Gaussian 3-point smoothing across mandibular jawline and eyelids; eliminated triangular mouth corner ticks and antenna lash spikes.
-  * Verified 22/22 test suites pass with 0 errors; in-browser visual verification confirmed faithful likeness to `BM-01` with zero artifacts.
+* **Segmentation-Anchored Structural Reconstruction & Spatial Ownership (`TASK-114`):**
+  * Established **Segmentation as the Authoritative Outer Structural Anchor** while preserving MediaPipe Face for inner facial anatomy, MediaPipe Pose for body geometry constrained by segmentation, and TASK-113 for photographic tonal reconstruction:
+    * Clean Segmentation & Small Side Artifact Filtering (`packages/structural-analysis/src/silhouette/clean-segmentation.ts`):
+      * Two-pass connected component labeling with union-find disjoint-set forest.
+      * Deterministic rejection of disconnected micro-components below `minAreaFraction = 0.02` (2% of subject area) and `minAbsolutePixels = 80`.
+      * Morphological closing (fill pinholes) and opening (smooth boundaries).
+    * Authoritative Subject Silhouette Extraction (`packages/structural-analysis/src/silhouette/authoritative-silhouette.ts`):
+      * 8-directional Moore-neighborhood boundary contour tracing with clockwise winding.
+      * 3-point Gaussian kernel smoothing across silhouette vertices.
+      * Adaptive Ramer-Douglas-Peucker (RDP) simplification preserving natural cranial and shoulder shape.
+      * Semantic regional boundary extraction (hair outer boundary, clothing outer boundary).
+    * Semantic Spatial Ownership Regions (`packages/structural-analysis/src/silhouette/spatial-ownership.ts`):
+      * High-performance pixel-mask sampling with tolerance margin ($O(1)$ lookup).
+      * Segment-polygon intersection bisection clipping.
+    * Structural Model & Fusion Engine (`packages/structural-analysis/src/silhouette/structural-model.ts`):
+      * Formalized `SubjectStructure` and `StructuralModel` fusing segmentation outer silhouette, inner face anatomy, and body geometry.
+      * Anchored MediaPipe Pose to subject segmentation mask, filtering skeletal connections that extend into empty background.
+    * Hard Stroke Validation Gate & Segmentation-Aware Clipping (`packages/stroke-engine/src/candidates/spatial-validator.ts`):
+      * Intercepts candidate strokes before ordering, scheduling, and rendering.
+      * Enforces multi-factor ownership: strokes outside subject boundary or outside assigned semantic region are rejected (`outside_subject`, `wrong_semantic_region`, `invalid_subject_id`).
+      * Trims crossing strokes at the silhouette boundary via bisection clipping.
+    * Elimination of Unwanted Waves & Stray Diagonal Lines:
+      * Constrained hair flow streamlines and strands within authoritative hair boundaries (`isPointInOrNearPoly`).
+      * Constrained tonal shading to valid density regions ($D(x,y) > 0$), preventing broad clothing/hair marks from leaking into background.
+    * Multi-Person Isolation (`BM-11`):
+      * Enforced independent subject IDs, independent authoritative silhouettes, and isolated spatial ownership masks for all co-present subjects.
+    * 9 Visual Debug Layers & Rejection Telemetry in Web UI (`apps/web/src/App.tsx`):
+      * Exposed 9 layers: `Source`, `Raw Segmentation`, `Clean Segmentation`, `Authoritative Silhouette`, `Pose`, `Face Landmarks`, `Structural Fusion`, `Final Geometry`, `Final Artwork`.
+      * Added real-time telemetry card displaying valid vs rejected counts, boundary-clipped counts, and detailed rejection reasons.
+    * Benchmarking & Verification:
+      * Added `tests/structural-analysis/segmentation-anchored-reconstruction.test.ts` with 7 unit tests (100% pass).
+      * Generated all 11 required BM-01 artifacts (`bm-01-raw-segmentation`, `bm-01-clean-segmentation`, `bm-01-authoritative-silhouette`, `bm-01-pose-structure`, `bm-01-face-structure`, `bm-01-structural-fusion`, `bm-01-valid-strokes`, `bm-01-rejected-strokes`, `bm-01-final-structure`, `bm-01-final-generated-only`, `bm-01-side-by-side`).
+      * Verified across all 12 benchmarks (`BM-01` to `BM-12`).
+      * Monorepo: 24 test suites pass (0 failures), 0 typecheck errors across all 8 workspaces, production build succeeds.
 
 ### Fixed
 * **Pose Estimation Failures on BM-02 & BM-06 (`BUG-002`):**

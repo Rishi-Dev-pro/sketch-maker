@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" fill="#ffffff" />
+  <g id="contour-paths">
+  <path d="M 372.48 673.19 L 348.76 764.45 L 325.05 855.72" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" />
+  <path d="M 646.52 673.19 L 670.24 764.45 L 693.95 855.72" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" />
+  <path d="M 325.05 855.72 L 166.94 886.02 L 8.85 951.07" fill="none" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" />
+  <path d="M 693.95 855.72 L 852.05 886.02 L 1010.15 951.07" fill="none" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" />
+  <path d="M 325.05 855.72 L 417.27 882.34 L 509.50 888.48 L 601.72 882.34 L 693.95 855.72" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" />
+  </g>
+</svg>

@@ -374,12 +374,30 @@ export class MediaPipeWebDelegate implements MediaPipeRuntimeDelegate {
     const faceSubjects = mapMediaPipeFacesToSubjectModels(rawFaces, dims, 0.92, input.image.luminance);
     let unifiedSubjects = associateFacesAndPoses(faceSubjects, rawPoses, dims);
 
-    // Attach semantic segmentation if computed
+    // If segment-only mode or no face/pose detected, create subject directly from segmentation (Section 2 & 28)
+    if (segmentationOutput && unifiedSubjects.length === 0) {
+      const segSubject: SubjectModel = {
+        id: 'subject-segmentation-1',
+        version: '1.0.0',
+        sourceDimensions: dims,
+        boundingBox: segmentationOutput.semanticSegmentation.masks[0]?.boundingBox ?? { x: 0.1, y: 0.1, width: 0.8, height: 0.8 },
+        silhouette: [],
+        semanticSegmentation: segmentationOutput.semanticSegmentation,
+        globalConfidence: segmentationOutput.semanticSegmentation.confidence ?? 0.90,
+        timestamp: Date.now(),
+      };
+      unifiedSubjects = [segSubject];
+    }
+
+    // Attach semantic segmentation and enrich with authoritative reconstruction
     if (segmentationOutput && unifiedSubjects.length > 0) {
-      unifiedSubjects = unifiedSubjects.map((sub, idx) => ({
-        ...sub,
-        semanticSegmentation: idx === 0 ? segmentationOutput!.semanticSegmentation : undefined,
-      }));
+      unifiedSubjects = unifiedSubjects.map((sub, idx) => {
+        const withSeg = {
+          ...sub,
+          semanticSegmentation: idx === 0 ? segmentationOutput!.semanticSegmentation : undefined,
+        };
+        return enrichSubjectWithReconstruction(withSeg, input.image.luminance);
+      });
     }
 
     return {

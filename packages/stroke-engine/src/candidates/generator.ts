@@ -1,4 +1,4 @@
-import { BoundingBox } from '@sketch-maker/shared-types';
+import { BoundingBox, Point2D } from '@sketch-maker/shared-types';
 import {
   VectorGeometry,
   StrokeCandidate,
@@ -18,7 +18,8 @@ import {
 } from './properties';
 import { evaluateStrokeEligibility } from './filtering';
 import { validateStrokeCandidate } from './validator';
-import { computeBoundingBox } from '../geometry/cleaning';
+import { validateAndClipSpatialOwnership } from './spatial-validator';
+import { computeBoundingBox, computeArcLength } from '../geometry/cleaning';
 
 /**
  * Transforms a VectorGeometry into an artistic set of procedural StrokeCandidates.
@@ -28,7 +29,8 @@ import { computeBoundingBox } from '../geometry/cleaning';
  * 2. Profile Occlusion: features tagged as occluded in BM-02 strictly yield zero drawable strokes.
  * 3. Multi-Person Isolation: subject IDs from BM-11 are strictly preserved.
  * 4. Safe Scaling: no pathological stroke explosion; caps and partitions are bounded.
- * 5. Pure TypeScript: zero browser/DOM dependencies.
+ * 5. Spatial Ownership: strokes are anchored to authoritative silhouettes and clipped at boundaries.
+ * 6. Pure TypeScript: zero browser/DOM dependencies.
  */
 export function generateStrokeCandidates(
   geometry: VectorGeometry,
@@ -52,6 +54,35 @@ export function generateStrokeCandidates(
   let totalWidth = 0;
   let drawableCount = 0;
 
+  // Telemetry counters
+  let totalCandidatesCount = 0;
+  let rejectedOutsideSubject = 0;
+  let rejectedWrongSemanticRegion = 0;
+  let rejectedOccluded = 0;
+  let rejectedInvalidSubjectId = 0;
+  let rejectedGeometricInvalidity = 0;
+  let clippedCandidates = 0;
+
+  // Extract authoritative silhouettes and hair boundaries per subject
+  const subjectSilhouettes = new Map<string, Point2D[]>();
+  const hairBoundaries = new Map<string, Point2D[]>();
+
+  if (geometry && geometry.paths) {
+    for (const p of geometry.paths) {
+      const sId = p.subjectId || 'subject_default';
+      if ((p.source === 'silhouette' || p.id.includes('silhouette')) && p.points && p.points.length >= 4) {
+        if (!subjectSilhouettes.has(sId) || p.points.length > subjectSilhouettes.get(sId)!.length) {
+          subjectSilhouettes.set(sId, p.points);
+        }
+      }
+      if (p.id.includes('hair') && (p.source === 'silhouette' || p.closed) && p.points && p.points.length >= 4) {
+        if (!hairBoundaries.has(sId) || p.points.length > hairBoundaries.get(sId)!.length) {
+          hairBoundaries.set(sId, p.points);
+        }
+      }
+    }
+  }
+
   if (geometry && geometry.paths) {
     for (const path of geometry.paths) {
       const subjectId = path.subjectId || 'subject_default';
@@ -63,7 +94,26 @@ export function generateStrokeCandidates(
 
       for (let sIdx = 0; sIdx < segments.length; sIdx++) {
         const seg = segments[sIdx];
-        const segBounds = computeBoundingBox(seg.points);
+        totalCandidatesCount++;
+
+        // 1. Spatial Ownership Validation & Clipping (TASK-114)
+        const spatialRes = validateAndClipSpatialOwnership(
+          seg.points,
+          role,
+          subjectId,
+          subjectSilhouettes,
+          hairBoundaries
+        );
+
+        let activePoints = seg.points;
+        let activeLength = seg.length;
+        if (spatialRes.valid && spatialRes.wasClipped) {
+          activePoints = spatialRes.points;
+          activeLength = computeArcLength(activePoints);
+          clippedCandidates++;
+        }
+
+        const segBounds = computeBoundingBox(activePoints);
         const candidateId = segments.length === 1
           ? `${path.id}_stroke`
           : `${path.id}_stroke_${sIdx}`;
@@ -71,11 +121,23 @@ export function generateStrokeCandidates(
         // Eligibility check (occlusion, confidence, length, background)
         const eligibility = evaluateStrokeEligibility(
           path,
-          seg.points,
-          seg.length,
+          activePoints,
+          activeLength,
           role,
           effectiveConfig
         );
+
+        let finalDrawable = eligibility.drawable;
+        let finalReason = eligibility.filteredReason;
+
+        if (!spatialRes.valid) {
+          finalDrawable = false;
+          finalReason = spatialRes.filteredReason;
+          if (finalReason === 'outside_subject') rejectedOutsideSubject++;
+          else if (finalReason === 'wrong_semantic_region') rejectedWrongSemanticRegion++;
+        } else if (finalReason === 'occluded') {
+          rejectedOccluded++;
+        }
 
         // Compute physical and artistic properties
         const width = computeStrokeWidth(
@@ -97,7 +159,7 @@ export function generateStrokeCandidates(
           role,
           path.level,
           path.confidence,
-          seg.length
+          activeLength
         );
 
         const candidate: StrokeCandidate = {
@@ -105,7 +167,7 @@ export function generateStrokeCandidates(
           subjectId,
           sourcePathId: path.id,
           source: path.source,
-          points: seg.points,
+          points: activePoints,
           curves: seg.curves,
           closed: seg.closed,
           confidence: path.confidence,
@@ -115,19 +177,19 @@ export function generateStrokeCandidates(
           hierarchyLevel: path.level,
           width,
           density,
-          length: seg.length,
+          length: activeLength,
           bounds: segBounds,
           visibility: path.visibility,
-          drawable: eligibility.drawable,
+          drawable: finalDrawable,
           isBackground: eligibility.isBackground,
           isSkeletal,
-          filteredReason: eligibility.filteredReason
+          filteredReason: finalReason
         };
 
         // Validate candidate structure
         const val = validateStrokeCandidate(candidate);
         if (!val.valid) {
-          // Log or handle malformed candidate gracefully without throwing
+          rejectedGeometricInvalidity++;
           continue;
         }
 
@@ -166,7 +228,18 @@ export function generateStrokeCandidates(
     strokesBySemanticRole: roleCounts,
     strokesByHierarchy: hierarchyCounts,
     strokesBySubject: subjectCounts,
-    generationLatencyMs: latency
+    generationLatencyMs: latency,
+    rejectionTelemetry: {
+      totalCandidates: totalCandidatesCount,
+      validCandidates: drawableCount,
+      rejectedCandidates: filteredCandidates,
+      rejectedOutsideSubject,
+      rejectedWrongSemanticRegion,
+      rejectedOccluded,
+      rejectedInvalidSubjectId,
+      rejectedGeometricInvalidity,
+      clippedCandidates,
+    }
   };
 
   // Overall bounds

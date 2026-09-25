@@ -168,7 +168,20 @@ function harvestSubjectCandidates(
         let level: PathHierarchyLevel = 2;
         let source: GeometrySource = 'reconstructed_feature';
 
-        if (p.id.includes('hatch') || p.id.includes('shading')) {
+        if (
+          p.id.includes('authoritative_silhouette') ||
+          (p as any).source === 'silhouette' ||
+          (p.id.includes('silhouette') && !p.id.includes('hair'))
+        ) {
+          level = 0;
+          source = 'silhouette';
+        } else if (p.id.includes('hair_outer_boundary')) {
+          level = 0;
+          source = 'silhouette';
+        } else if (p.id.includes('clothing_outer_boundary')) {
+          level = 1;
+          source = 'clothing_structure';
+        } else if (p.id.includes('hatch') || p.id.includes('shading')) {
           level = 4;
           source = 'tonal_shading';
         } else if (p.id.includes('hair_strand')) {

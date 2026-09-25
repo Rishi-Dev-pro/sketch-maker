@@ -4,9 +4,9 @@
 
 * **Current Date / Time:** 2026-09-25
 * **Current Phase:** Phase 1 — Feasibility Prototype (Headless Photo → Strokes Pipeline)
-* **Current Version:** v0.4.4-alpha (TASK-114 Photo-Exact Likeness & Artifact Removal)
+* **Current Version:** v0.4.5-alpha (TASK-114 Segmentation-Anchored Structural Reconstruction)
 * **Current Milestone:** M1 — Feasibility Prototype (Headless Pipeline)
-* **Status:** COMPLETE (TASK-114 Photo-Exact Pencil Sketch Likeness Verified via Browser & 22 Test Suites)
+* **Status:** COMPLETE (TASK-114 Segmentation-Anchored Reconstruction Verified across 12 Benchmarks & 24 Test Suites)
 
 ---
 
@@ -53,16 +53,16 @@ Phase 1 pipeline is advancing through structural analysis:
     7. *Contour-Off Acceptance Test:* Added diagnostic mode `Tonal Portrait (Contour-Off)` where all contour outlines, fine anatomy, and hair strands are turned off, and the portrait remains recognizable through value alone.
     8. *Image-Level & 12 Semantic Zone Diagnostics:* Implemented `evaluateTonalDiagnostics` tracking source vs generated mean, variance, contrast, and correlation across 12 facial zones plus a 10-bin luminance histogram.
     9. *12 Benchmark Suite Verification:* Verified across all 12 benchmarks (`BM-01` to `BM-12`) with 0 regressions, profile occlusion safety (`BM-02`), multi-subject isolation (`BM-11`), 23 passing test suites, 0 typecheck errors, and full build pass.
-28: **TASK-114 (Photo-Exact Likeness, Full Multi-Modal Integration & Artifact Removal):** Resolved critical likeness defects and artifacts to achieve faithful, realistic pencil sketch portrait matching `BM-01`:
-    1. *Corrected MediaPipe Eyelid Topology:* Fixed inversion of upper vs lower eyelid indices in `landmark-mapper.ts` (upper lid: `[33, 246, 161, 160, 159, 158, 157, 173, 133]` for right eye; `[362, 398, 384, 385, 386, 387, 388, 466, 263]` for left eye), correctly aligning eyelid curvature and supratarsal creases.
-    2. *Oral Fissure 11-Point Seam:* Replaced tangled 20-point loop with exact stomion seam `[78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308]`, eliminating distorted mouth knots.
-    3. *Array Mask Retrieval Bug Fix:* Fixed `subject.semanticSegmentation.masks` property access in `reconstruction/index.ts` from `.masks.hair` (which returned undefined) to `.find(m => m.category === 'hair')`, restoring real neural segmentation hair and clothing masks.
-    4. *Unified Pipeline Re-Enrichment:* Re-ran `enrichSubjectWithReconstruction` after face, pose, and segmentation masks are unified in `mediapipe-delegate.ts`, providing the reconstructor with true 478 face landmarks, 33 body pose landmarks, neural segmentation masks, and photo luminance.
-    5. *Organic Hair Flow & Bob Silhouette:* Removed artificial mathematical cranial dome (`archSteps = 16`) and headband arc; utilized neural hair mask contour and synthesized smooth flank streamlines curving gently inward under the jaw to match the real bob haircut.
-    6. *Chest Triangle & Polygon Box Removal:* Eliminated closed clothing polygon loops that spanned the bottom of the photo; replaced with open, natural crewneck collar and shoulder contours.
-    7. *Organic Feature Smoothing:* Applied Gaussian 3-point smoothing across mandibular jawline and eyelids, eliminated triangular mouth corner ticks and antenna lash spikes.
-28: **Automated Verification:** All 22 test suites pass (320+ unit and integration tests), 0 TypeScript compiler errors across all 8 workspaces. In-browser side-by-side verification confirms authentic pencil portrait likeness to `BM-01` with zero visual defects.
-29: **Stop Condition:** TASK-114 complete. Verified photo-exact pencil portrait.
+28: **TASK-114 (Segmentation-Anchored Structural Reconstruction & Spatial Ownership):** Established segmentation as the authoritative outer structural anchor while preserving MediaPipe Face for inner facial anatomy, MediaPipe Pose for body geometry constrained by segmentation, and TASK-113 for photographic tonal reconstruction:
+    1. *Segmentation as Authoritative Outer Anchor:* Raw multiclass/foreground semantic masks undergo two-pass connected component analysis, deterministic small side artifact filtering (`minAreaFraction = 0.02`, `minAbsolutePixels = 80`), morphological closing & opening, 8-directional Moore boundary tracing, 3-point Gaussian smoothing, and adaptive RDP simplification.
+    2. *Semantic Spatial Ownership Regions:* Structured `RegionMask`s for hair, face, neck, clothing, and torso with associated boundaries and pixel ownership.
+    3. *Pose Anchoring to Subject Mask:* Constrained BlazePose connections and joints to subject pixel boundaries, suppressing shoulder and torso extensions into empty background.
+    4. *Hard Stroke Validation Gate & Boundary Clipping:* Intercepts stroke candidates prior to ordering, scheduling, and rendering. Strokes outside subject boundaries or incompatible semantic regions are strictly rejected (`outside_subject`, `wrong_semantic_region`, `invalid_subject_id`). Crossing strokes (inside $\to$ outside) are trimmed at the boundary via segment-polygon intersection bisection clipping.
+    5. *Elimination of Extra Waves & Stray Diagonals:* Constrained hair flow streamlines and strands within authoritative hair boundaries (`isPointInOrNearPoly`), and clamped tonal shading to valid density regions ($D(x,y) > 0$), terminating unwanted diagonal lines across empty background.
+    6. *Multi-Person Isolation (BM-11):* Each subject maintains independent `subjectId`, authoritative silhouette, and isolated spatial ownership masks.
+    7. *9 Visual Debug Layers & Rejection Telemetry:* UI exposes 9 independent structural layers (Source, Raw Segmentation, Clean Segmentation, Authoritative Silhouette, Pose, Face Landmarks, Structural Fusion, Final Geometry, Final Artwork) and live telemetry on accepted, rejected, and clipped candidates.
+29: **Automated Verification:** All 24 test suites pass (100% pass across 330+ tests), 0 TypeScript compiler errors across all 8 workspaces, production bundle builds cleanly. All 11 required BM-01 artifacts generated and verified.
+30: **Stop Condition:** TASK-114 complete. Waiting for visual review before starting TASK-115.
 
 ---
 

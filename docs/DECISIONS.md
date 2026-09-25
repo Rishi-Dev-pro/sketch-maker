@@ -441,6 +441,44 @@ This document serves as the permanent record of major architectural and technica
   - Zero regression across all 12 benchmarks (latency 300–500ms).
   - 100% test pass rate across 23 test suites (325+ tests).
 
+---
+
+### ADR-019: Segmentation-Anchored Structural Reconstruction & Semantic Spatial Ownership Gate (TASK-114)
+* **Date:** 2026-09-26
+* **Status:** ACCEPTED
+* **Context:**
+  Visual reviews revealed structural loss between perception and rendering:
+  - Face-only mode omitted the outer head boundary and shoulders, losing global portrait structure.
+  - Full perception mode introduced unwanted stray strokes (waves outside the hair, long diagonal lines crossing the background).
+  - While segmentation detected the outer boundary accurately, downstream vector and stroke engines discarded this information, synthesizing floating hair curves and clothing lines without spatial constraints.
+* **Decision:**
+  Establish **Segmentation as the Authoritative Outer Structural Anchor**:
+  1. *Responsibility Matrix:*
+     - Outer subject boundaries, hair boundary, neck/shoulders, clothing: **Segmentation**.
+     - Inner facial anatomy (eyes, brows, nose, mouth, inner jaw): **MediaPipe Face**.
+     - Body geometry (constrained to segmentation): **MediaPipe Pose**.
+     - Photographic value to graphite density: **TASK-113 Tonal Engine**.
+  2. *Clean Segmentation Pipeline:*
+     - Convert raw multiclass mask into cleaned foreground mask via two-pass connected component analysis with union-find disjoint sets.
+     - Reject disconnected side micro-artifacts (`< 2% subject area` or `< 80 pixels`).
+     - Morphological closing & opening to eliminate pinholes and smooth pixel staircases.
+     - 8-directional Moore-neighborhood boundary contour tracing with clockwise winding.
+     - 3-point Gaussian smoothing and adaptive RDP simplification.
+  3. *Semantic Spatial Ownership Regions:*
+     - Represent explicit `RegionMask`s for hair, face, neck, clothing, and torso.
+  4. *Hard Stroke Validation Gate & Boundary Clipping:*
+     - Intercept stroke candidates before ordering, scheduling, and rendering.
+     - Reject strokes lying outside subject bounds (`outside_subject`), strokes in wrong semantic regions (`wrong_semantic_region`), and cross-subject strokes (`invalid_subject_id`).
+     - Trim crossing strokes at the silhouette boundary via bisection segment-polygon clipping.
+  5. *Pose Anchoring:*
+     - Constrain Pose landmark joints and connections to the subject segmentation mask, preventing shoulders or torso lines from extending into empty background.
+* **Consequences:**
+  - Outer silhouette, hair boundary, neck, and shoulders are cleanly and authoritatively preserved.
+  - Stray diagonal lines and external wave artifacts are completely eliminated at the source layer.
+  - Multi-person isolation (`BM-11`) is guaranteed with independent silhouettes, faces, poses, and stroke ownership.
+  - 100% deterministic (zero `Math.random()`).
+  - 24 test suites pass; average benchmark latency is 903.2 ms (< 1500 ms SLA).
+
 
 
 

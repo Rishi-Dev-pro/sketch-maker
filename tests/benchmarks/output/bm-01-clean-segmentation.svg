@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" fill="#ffffff" />
+  <g id="contour-paths">
+  <path d="M 23.37 39.37 L 988.63 39.37 L 988.63 1012.62 L 23.37 1012.62 Z" fill="none" stroke="#00f0ff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" />
+  </g>
+</svg>

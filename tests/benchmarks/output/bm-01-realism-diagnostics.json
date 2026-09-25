@@ -2,7 +2,7 @@
   "benchmarkId": "BM-01",
   "task": "TASK-112",
   "title": "Female Studio Frontal Portrait Visual Realism Calibration",
-  "timestamp": "2026-09-25T12:23:09.042Z",
+  "timestamp": "2026-09-25T19:31:34.775Z",
   "calibration": {
     "anatomicalAnchors": {
       "pupilsAccented": true,
@@ -83,10 +83,10 @@
       ]
     },
     "metrics": {
-      "totalReconstructedPaths": 275,
-      "vectorPaths": 275,
-      "drawableStrokes": 285,
-      "latencyMs": 389.2
+      "totalReconstructedPaths": 211,
+      "vectorPaths": 211,
+      "drawableStrokes": 195,
+      "latencyMs": 867.7
     }
   }
 }

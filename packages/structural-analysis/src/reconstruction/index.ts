@@ -23,6 +23,7 @@ import {
   generateSubjectShadingStrokes,
   evaluateTonalDiagnostics,
 } from '../tonal';
+import { buildSubjectStructuralModel } from '../silhouette';
 
 export * from './face-reconstructor';
 export * from './hair-reconstructor';
@@ -30,13 +31,16 @@ export * from './body-reconstructor';
 export * from './semantic-boundary-filter';
 export * from './coverage-reporter';
 export * from '../tonal';
+export * from '../silhouette';
 
 /**
  * Executes the complete Feature Reconstruction and Artistic Interpretation layer
  * on a raw perception SubjectModel.
  *
  * Enforces the core architectural principle:
- * "Perception evidence is not automatically artwork."
+ * "Segmentation is the authoritative outer structural anchor;
+ *  MediaPipe Face is inner facial anatomy;
+ *  MediaPipe Pose is body geometry constrained by segmentation."
  */
 export function reconstructSubjectFeatures(
   subject: SubjectModel,
@@ -48,6 +52,25 @@ export function reconstructSubjectFeatures(
   const confidence = Math.max(0.75, subject.globalConfidence ?? 0.85);
 
   const allReconstructedPaths: ContourPath[] = [];
+
+  // 0. Build Authoritative Subject Structural Model & Clean Silhouette (TASK-114)
+  const {
+    structuralModel,
+    authoritativeSilhouette,
+    hairBoundary,
+    clothingBoundary,
+  } = buildSubjectStructuralModel(subject);
+
+  // Authoritative Outer Subject Silhouette MUST be the foundational contour (Phase 0 Foundation)
+  if (authoritativeSilhouette && authoritativeSilhouette.points.length >= 4) {
+    allReconstructedPaths.push(authoritativeSilhouette);
+  }
+  if (hairBoundary && hairBoundary.points.length >= 4) {
+    allReconstructedPaths.push(hairBoundary);
+  }
+  if (clothingBoundary && clothingBoundary.points.length >= 4) {
+    allReconstructedPaths.push(clothingBoundary);
+  }
 
   // 1. Reconstruct Eyes (Smooth, continuous eyelids, crease, and circular iris/pupil)
   const leftEye = reconstructEye(face?.leftEye, 'left', pose, confidence, subjectId);
@@ -225,6 +248,8 @@ export function reconstructSubjectFeatures(
     shadingStrokes,
     hairMassStrokes,
     clothingMassStrokes,
+    authoritativeSilhouette,
+    structuralModel,
     allReconstructedPaths,
     confidence,
     timestamp: Date.now(),
@@ -241,6 +266,9 @@ export function enrichSubjectWithReconstruction(
   const reconstruction = reconstructSubjectFeatures(subject, luminance);
   return {
     ...subject,
+    silhouette: reconstruction.authoritativeSilhouette
+      ? [reconstruction.authoritativeSilhouette]
+      : subject.silhouette,
     reconstruction,
   };
 }

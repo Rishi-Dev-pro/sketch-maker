@@ -122,6 +122,79 @@ function renderTonalMapToSvg(
 </svg>`;
 }
 
+/**
+ * Converts ContourPaths into a standalone SVG string.
+ */
+function renderContourPathsToSvg(
+  paths: { points: readonly { x: number; y: number }[]; closed?: boolean; color?: string; width?: number; opacity?: number }[],
+  width = 800,
+  height = 800,
+  defaultColor = '#00f0ff',
+  defaultWidth = 2,
+  bgColor = '#ffffff'
+): string {
+  const svgPaths = paths.map((p) => {
+    if (!p.points || p.points.length < 2) return '';
+    const pts = p.points;
+    const d = `M ${(pts[0].x * width).toFixed(2)} ${(pts[0].y * height).toFixed(2)} ` +
+      pts.slice(1).map(pt => `L ${(pt.x * width).toFixed(2)} ${(pt.y * height).toFixed(2)}`).join(' ') +
+      (p.closed ? ' Z' : '');
+    const strokeColor = p.color || defaultColor;
+    const strokeWidth = p.width ?? defaultWidth;
+    const opacity = p.opacity ?? 0.9;
+    return `<path d="${d}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" opacity="${opacity}" />`;
+  }).filter(Boolean).join('\n  ');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
+  <rect width="${width}" height="${height}" fill="${bgColor}" />
+  <g id="contour-paths">
+  ${svgPaths}
+  </g>
+</svg>`;
+}
+
+/**
+ * Converts StrokeCandidates into an SVG visualization showing valid and rejected candidates.
+ */
+function renderCandidatesToSvg(
+  candidates: readonly any[],
+  width = 800,
+  height = 800,
+  bgColor = '#ffffff',
+  referenceSilhouette?: readonly { x: number; y: number }[]
+): string {
+  let refSvg = '';
+  if (referenceSilhouette && referenceSilhouette.length >= 3) {
+    const dRef = `M ${(referenceSilhouette[0].x * width).toFixed(2)} ${(referenceSilhouette[0].y * height).toFixed(2)} ` +
+      referenceSilhouette.slice(1).map(pt => `L ${(pt.x * width).toFixed(2)} ${(pt.y * height).toFixed(2)}`).join(' ') + ' Z';
+    refSvg = `<path d="${dRef}" fill="none" stroke="rgba(0, 240, 255, 0.35)" stroke-width="2" stroke-dasharray="6,4" />\n  `;
+  }
+
+  const svgPaths = candidates.map((c) => {
+    if (!c.points || c.points.length < 2) return '';
+    const pts = c.points;
+    const d = `M ${(pts[0].x * width).toFixed(2)} ${(pts[0].y * height).toFixed(2)} ` +
+      pts.slice(1).map(pt => `L ${(pt.x * width).toFixed(2)} ${(pt.y * height).toFixed(2)}`).join(' ') +
+      (c.closed ? ' Z' : '');
+
+    const strokeColor = c.drawable ? '#22c55e' : '#ef4444';
+    const dash = c.drawable ? '' : 'stroke-dasharray="4,3"';
+    const strokeWidth = c.drawable ? (c.width ?? 1.5) : 2.0;
+    const opacity = c.drawable ? 0.85 : 0.95;
+
+    return `<path d="${d}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" ${dash} stroke-linecap="round" stroke-linejoin="round" opacity="${opacity}" />`;
+  }).filter(Boolean).join('\n  ');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
+  <rect width="${width}" height="${height}" fill="${bgColor}" />
+  <g id="candidates">
+  ${refSvg}${svgPaths}
+  </g>
+</svg>`;
+}
+
 export async function runRealisticSketchBenchmark(): Promise<RealisticSketchBenchmarkRow[]> {
   console.log('================================================================================');
   console.log('  TASK-111: MediaPipe High-Fidelity Realistic Sketch Benchmark (BM-01 to BM-12)');
@@ -215,15 +288,150 @@ export async function runRealisticSketchBenchmark(): Promise<RealisticSketchBenc
 
     rows.push(row);
 
-    // Export Visual SVGs, Side-by-Side Comparison HTML, and Realism Diagnostics for BM-01
+    // Export Visual SVGs, Side-by-Side Comparison HTML, and Realism Diagnostics for BM-01 (TASK-114)
     if (item.id.toLowerCase().startsWith('bm-01')) {
-      // 1. Final Generated-Only Artwork (Contours + Shading + Hair on white canvas)
+      // 1. Raw Segmentation Boundary SVG
+      const rawSegmentationPaths: any[] = [];
+      if (primarySubject.contours) {
+        for (const c of primarySubject.contours) {
+          rawSegmentationPaths.push({ points: c.points, closed: c.closed, color: '#ec4899', width: 2.0 });
+        }
+      }
+      const rawSegSvg = renderContourPathsToSvg(rawSegmentationPaths, decoded.width, decoded.height, '#ec4899', 2, '#ffffff');
+      fs.writeFileSync(path.join(outputDir, 'bm-01-raw-segmentation.svg'), rawSegSvg, 'utf8');
+
+      // 2. Clean Segmentation SVG
+      const cleanSegPaths: any[] = [];
+      const primaryStructure = reconstruction.structuralModel?.subjects?.[0];
+      if (primaryStructure) {
+        if (primaryStructure.silhouette?.points) {
+          cleanSegPaths.push({ points: primaryStructure.silhouette.points, closed: true, color: '#00f0ff', width: 2.8 });
+        }
+        if (primaryStructure.regions?.hair?.boundary?.points) {
+          cleanSegPaths.push({ points: primaryStructure.regions.hair.boundary.points, closed: true, color: '#c084fc', width: 2.0 });
+        }
+        if (primaryStructure.regions?.clothing?.boundary?.points) {
+          cleanSegPaths.push({ points: primaryStructure.regions.clothing.boundary.points, closed: true, color: '#14b8a6', width: 2.0 });
+        }
+      }
+      const cleanSegSvg = renderContourPathsToSvg(cleanSegPaths, decoded.width, decoded.height, '#00f0ff', 2, '#ffffff');
+      fs.writeFileSync(path.join(outputDir, 'bm-01-clean-segmentation.svg'), cleanSegSvg, 'utf8');
+
+      // 3. Authoritative Subject Silhouette SVG (TASK-114 Outer Structural Anchor)
+      const authSilPaths: any[] = [];
+      if (reconstruction.authoritativeSilhouette) {
+        authSilPaths.push({ points: reconstruction.authoritativeSilhouette.points, closed: true, color: '#00f0ff', width: 3.2 });
+      }
+      const authSilSvg = renderContourPathsToSvg(authSilPaths, decoded.width, decoded.height, '#00f0ff', 3.2, '#ffffff');
+      fs.writeFileSync(path.join(outputDir, 'bm-01-authoritative-silhouette.svg'), authSilSvg, 'utf8');
+
+      // 4. Pose Structure SVG (Neck, Shoulders, Body constrained by segmentation)
+      const posePaths: any[] = [];
+      if (reconstruction.body) {
+        reconstruction.body.neckLines?.forEach(p => posePaths.push({ points: p.points, color: '#f59e0b', width: 2.2 }));
+        reconstruction.body.shoulderLines?.forEach(p => posePaths.push({ points: p.points, color: '#fbbf24', width: 2.5 }));
+        reconstruction.body.collarLines?.forEach(p => posePaths.push({ points: p.points, color: '#06b6d4', width: 2.0 }));
+      }
+      const poseSvg = renderContourPathsToSvg(posePaths, decoded.width, decoded.height, '#fbbf24', 2.5, '#ffffff');
+      fs.writeFileSync(path.join(outputDir, 'bm-01-pose-structure.svg'), poseSvg, 'utf8');
+
+      // 5. Face Structure SVG (Inner facial anatomy from MediaPipe Face)
+      const facePaths: any[] = [];
+      if (reconstruction.eyes) {
+        reconstruction.eyes.forEach(e => {
+          facePaths.push({ points: e.upperLid.points, color: '#00f0ff', width: 2.2 });
+          facePaths.push({ points: e.lowerLid.points, color: '#38bdf8', width: 1.8 });
+          facePaths.push({ points: e.irisContour.points, color: '#00f0ff', width: 1.8 });
+          facePaths.push({ points: e.pupilContour.points, color: '#0284c7', width: 2.0 });
+        });
+      }
+      if (reconstruction.brows) {
+        reconstruction.brows.forEach(b => {
+          facePaths.push({ points: b.arch.points, color: '#a855f7', width: 2.2 });
+        });
+      }
+      if (reconstruction.nose) {
+        facePaths.push({ points: reconstruction.nose.bridge.points, color: '#10b981', width: 2.0 });
+        facePaths.push({ points: reconstruction.nose.tip.points, color: '#34d399', width: 2.2 });
+        facePaths.push({ points: reconstruction.nose.leftAla.points, color: '#10b981', width: 1.8 });
+        facePaths.push({ points: reconstruction.nose.rightAla.points, color: '#10b981', width: 1.8 });
+      }
+      if (reconstruction.mouth) {
+        facePaths.push({ points: reconstruction.mouth.oralFissure.points, color: '#e11d48', width: 2.5 });
+        facePaths.push({ points: reconstruction.mouth.upperVermilion.points, color: '#f43f5e', width: 2.0 });
+        facePaths.push({ points: reconstruction.mouth.lowerVermilion.points, color: '#f43f5e', width: 2.0 });
+      }
+      if (reconstruction.jawChin) {
+        facePaths.push({ points: reconstruction.jawChin.jawline.points, color: '#38bdf8', width: 2.4 });
+        facePaths.push({ points: reconstruction.jawChin.chin.points, color: '#0284c7', width: 2.6 });
+      }
+      const faceSvg = renderContourPathsToSvg(facePaths, decoded.width, decoded.height, '#10b981', 2, '#ffffff');
+      fs.writeFileSync(path.join(outputDir, 'bm-01-face-structure.svg'), faceSvg, 'utf8');
+
+      // 6. Structural Fusion SVG (Authoritative Silhouette + Pose + Inner Face Anatomy)
+      const fusionPaths = [...authSilPaths, ...posePaths, ...facePaths];
+      const fusionSvg = renderContourPathsToSvg(fusionPaths, decoded.width, decoded.height, '#00f0ff', 2, '#ffffff');
+      fs.writeFileSync(path.join(outputDir, 'bm-01-structural-fusion.svg'), fusionSvg, 'utf8');
+
+      // 7. Valid Strokes SVG
+      const validCandidates = candidates.candidates.filter(c => c.drawable);
+      const validSvg = renderCandidatesToSvg(validCandidates, decoded.width, decoded.height, '#ffffff');
+      fs.writeFileSync(path.join(outputDir, 'bm-01-valid-strokes.svg'), validSvg, 'utf8');
+
+      // 8. Rejected Strokes SVG & Telemetry JSON
+      const rejectedCandidates = candidates.candidates.filter(c => !c.drawable);
+      const silPoints = reconstruction.authoritativeSilhouette?.points;
+      const rejectedSvg = renderCandidatesToSvg(rejectedCandidates, decoded.width, decoded.height, '#ffffff', silPoints);
+      fs.writeFileSync(path.join(outputDir, 'bm-01-rejected-strokes.svg'), rejectedSvg, 'utf8');
+
+      const rejectedReport = {
+        benchmarkId: 'BM-01',
+        task: 'TASK-114',
+        title: 'Stroke Rejection & Spatial Ownership Telemetry',
+        rejectionTelemetry: candidates.metrics.rejectionTelemetry,
+        totalCandidates: candidates.candidates.length,
+        validCount: validCandidates.length,
+        rejectedCount: rejectedCandidates.length,
+        clippedCount: candidates.metrics.rejectionTelemetry?.clippedCandidates ?? 0,
+        rejectionReasons: {
+          outside_subject: candidates.metrics.rejectionTelemetry?.rejectedOutsideSubject ?? 0,
+          wrong_semantic_region: candidates.metrics.rejectionTelemetry?.rejectedWrongSemanticRegion ?? 0,
+          profile_occluded: candidates.metrics.rejectionTelemetry?.rejectedOccluded ?? 0,
+          invalid_subject_id: candidates.metrics.rejectionTelemetry?.rejectedInvalidSubjectId ?? 0,
+          geometric_invalidity: candidates.metrics.rejectionTelemetry?.rejectedGeometricInvalidity ?? 0,
+        },
+        rejectedStrokes: rejectedCandidates.map(c => ({
+          id: c.id,
+          semanticRole: c.semanticRole,
+          filteredReason: c.filteredReason,
+          length: c.length,
+          confidence: c.confidence,
+          bounds: c.bounds,
+          pointCount: c.points?.length ?? 0
+        }))
+      };
+      fs.writeFileSync(
+        path.join(outputDir, 'bm-01-rejected-strokes.json'),
+        JSON.stringify(rejectedReport, null, 2),
+        'utf8'
+      );
+
+      // 9. Final Structural Geometry SVG
+      const finalStructurePaths: any[] = geometry.paths.map(p => ({
+        points: p.points,
+        closed: p.closed,
+        color: p.level === 0 ? '#00f0ff' : p.level === 1 ? '#a855f7' : '#94a3b8',
+        width: p.level === 0 ? 2.5 : 1.8
+      }));
+      const finalStructSvg = renderContourPathsToSvg(finalStructurePaths, decoded.width, decoded.height, '#00f0ff', 2, '#ffffff');
+      fs.writeFileSync(path.join(outputDir, 'bm-01-final-structure.svg'), finalStructSvg, 'utf8');
+
+      // 10. Final Generated-Only Artwork (Contours + Shading + Hair on white canvas)
       const finalSvg = renderStrokesToSvg(styledState.styledStrokes, decoded.width, decoded.height, '#ffffff');
-      const svgPath = path.join(outputDir, 'bm-01-final-generated-only.svg');
-      fs.writeFileSync(svgPath, finalSvg, 'utf8');
+      fs.writeFileSync(path.join(outputDir, 'bm-01-final-generated-only.svg'), finalSvg, 'utf8');
       fs.writeFileSync(path.join(outputDir, 'bm-01-realistic-pencil.svg'), finalSvg, 'utf8');
 
-      // 2. Contours Only
+      // Contours Only
       const contourStrokes = styledState.styledStrokes.filter(s => {
         const role = s.semanticRole;
         return role === 'contour' || role === 'silhouette' || role === 'eye' || role === 'mouth' ||
@@ -233,7 +441,7 @@ export async function runRealisticSketchBenchmark(): Promise<RealisticSketchBenc
       const contourSvg = renderStrokesToSvg(contourStrokes, decoded.width, decoded.height, '#ffffff');
       fs.writeFileSync(path.join(outputDir, 'bm-01-contours-only.svg'), contourSvg, 'utf8');
 
-      // 3. Hatching Only (No contours, no hair, pure procedural graphite shading)
+      // Hatching Only
       const hatchingStrokes = styledState.styledStrokes.filter(s => {
         const role = s.semanticRole;
         return role === 'hatching' || role === 'cross_hatching' || role === 'tonal_stroke' || role === 'shadow_stroke';
@@ -241,7 +449,7 @@ export async function runRealisticSketchBenchmark(): Promise<RealisticSketchBenc
       const hatchingSvg = renderStrokesToSvg(hatchingStrokes, decoded.width, decoded.height, '#ffffff');
       fs.writeFileSync(path.join(outputDir, 'bm-01-hatching-only.svg'), hatchingSvg, 'utf8');
 
-      // 4. Hair Only (Hair mass + primary + secondary + accent strands without face)
+      // Hair Only
       const hairStrokes = styledState.styledStrokes.filter(s => {
         const role = s.semanticRole;
         return role === 'hair_strand' || role === 'hair';
@@ -249,7 +457,7 @@ export async function runRealisticSketchBenchmark(): Promise<RealisticSketchBenc
       const hairSvg = renderStrokesToSvg(hairStrokes, decoded.width, decoded.height, '#ffffff');
       fs.writeFileSync(path.join(outputDir, 'bm-01-hair-only.svg'), hairSvg, 'utf8');
 
-      // 5. Tonal Map (Pure labeled grayscale planes)
+      // Tonal Map
       const tonalSvg = renderTonalMapToSvg(reconstruction.tonalRegions ?? [], decoded.width, decoded.height);
       fs.writeFileSync(path.join(outputDir, 'bm-01-tonal-map.svg'), tonalSvg, 'utf8');
 
@@ -539,10 +747,11 @@ export async function runRealisticSketchBenchmark(): Promise<RealisticSketchBenc
 </html>`;
       const comparisonHtmlPath = path.join(outputDir, 'bm-01-comparison.html');
       fs.writeFileSync(comparisonHtmlPath, comparisonHtml, 'utf8');
+      fs.writeFileSync(path.join(outputDir, 'bm-01-side-by-side.html'), comparisonHtml, 'utf8');
 
-      console.log(`[ARTIFACT] Generated BM-01 Realistic Pencil SVG:      ${svgPath}`);
+      console.log(`[ARTIFACT] Generated BM-01 Realistic Pencil SVG:      ${path.join(outputDir, 'bm-01-realistic-pencil.svg')}`);
       console.log(`[ARTIFACT] Generated BM-01 Standalone HTML:            ${htmlPath}`);
-      console.log(`[ARTIFACT] Generated BM-01 Side-by-Side HTML:          ${comparisonHtmlPath}`);
+      console.log(`[ARTIFACT] Generated BM-01 Side-by-Side HTML:          ${path.join(outputDir, 'bm-01-side-by-side.html')}`);
       console.log(`[ARTIFACT] Generated BM-01 Realism Diagnostics JSON:   ${diagnosticsPath}\n`);
     }
   }

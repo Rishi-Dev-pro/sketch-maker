@@ -1,0 +1,477 @@
+{
+  "benchmarkId": "BM-01",
+  "task": "TASK-114",
+  "title": "Stroke Rejection & Spatial Ownership Telemetry",
+  "rejectionTelemetry": {
+    "totalCandidates": 227,
+    "validCandidates": 195,
+    "rejectedCandidates": 32,
+    "rejectedOutsideSubject": 29,
+    "rejectedWrongSemanticRegion": 0,
+    "rejectedOccluded": 0,
+    "rejectedInvalidSubjectId": 0,
+    "rejectedGeometricInvalidity": 0,
+    "clippedCandidates": 30
+  },
+  "totalCandidates": 227,
+  "validCount": 195,
+  "rejectedCount": 32,
+  "clippedCount": 30,
+  "rejectionReasons": {
+    "outside_subject": 29,
+    "wrong_semantic_region": 0,
+    "profile_occluded": 0,
+    "invalid_subject_id": 0,
+    "geometric_invalidity": 0
+  },
+  "rejectedStrokes": [
+    {
+      "id": "subj_1_shoulder_left_stroke",
+      "semanticRole": "body_structure",
+      "filteredReason": "outside_subject",
+      "length": 0.3242,
+      "confidence": 0.6375,
+      "bounds": {
+        "x": 0.00864,
+        "y": 0.83566,
+        "width": 0.30879,
+        "height": 0.09312000000000009
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_shoulder_right_stroke",
+      "semanticRole": "body_structure",
+      "filteredReason": "outside_subject",
+      "length": 0.3242,
+      "confidence": 0.6375,
+      "bounds": {
+        "x": 0.67769,
+        "y": 0.83566,
+        "width": 0.30877999999999994,
+        "height": 0.09312000000000009
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_face_mandibular_jaw_stroke_1",
+      "semanticRole": "facial_contour",
+      "filteredReason": "outside_subject",
+      "length": 0.0096,
+      "confidence": 0.188,
+      "bounds": {
+        "x": 0.28223,
+        "y": 0.62891,
+        "width": 0.005640000000000034,
+        "height": 0.007809999999999984
+      },
+      "pointCount": 2
+    },
+    {
+      "id": "subj_1_face_mandibular_jaw_stroke_2",
+      "semanticRole": "facial_contour",
+      "filteredReason": "outside_subject",
+      "length": 0.0257,
+      "confidence": 0.188,
+      "bounds": {
+        "x": 0.28604,
+        "y": 0.63867,
+        "width": 0.023309999999999997,
+        "height": 0.009770000000000056
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_face_mandibular_jaw_stroke_5",
+      "semanticRole": "facial_contour",
+      "filteredReason": "outside_subject",
+      "length": 0.0388,
+      "confidence": 0.188,
+      "bounds": {
+        "x": 0.68555,
+        "y": 0.62598,
+        "width": 0.029290000000000038,
+        "height": 0.023430000000000062
+      },
+      "pointCount": 4
+    },
+    {
+      "id": "subj_1_neck_left_stroke",
+      "semanticRole": "body_structure",
+      "filteredReason": "outside_subject",
+      "length": 0.1842,
+      "confidence": 0.66,
+      "bounds": {
+        "x": 0.31743,
+        "y": 0.65741,
+        "width": 0.04632000000000003,
+        "height": 0.1782499999999999
+      },
+      "pointCount": 2
+    },
+    {
+      "id": "subj_1_neck_right_stroke",
+      "semanticRole": "body_structure",
+      "filteredReason": "outside_subject",
+      "length": 0.1842,
+      "confidence": 0.66,
+      "bounds": {
+        "x": 0.63137,
+        "y": 0.65741,
+        "width": 0.04632000000000003,
+        "height": 0.1782499999999999
+      },
+      "pointCount": 2
+    },
+    {
+      "id": "subj_1_mouth_upper_lip_stroke",
+      "semanticRole": "mouth",
+      "filteredReason": "low_confidence",
+      "length": 0.8446,
+      "confidence": 0.12,
+      "bounds": {
+        "x": 0.36328,
+        "y": 0.45898,
+        "width": 0.20605999999999997,
+        "height": 0.03809000000000001
+      },
+      "pointCount": 134
+    },
+    {
+      "id": "subj_1_mouth_fissure_stroke",
+      "semanticRole": "mouth",
+      "filteredReason": "low_confidence",
+      "length": 0.215,
+      "confidence": 0.127,
+      "bounds": {
+        "x": 0.36328,
+        "y": 0.49805,
+        "width": 0.20605999999999997,
+        "height": 0.010739999999999972
+      },
+      "pointCount": 26
+    },
+    {
+      "id": "subj_1_mouth_lower_lip_stroke",
+      "semanticRole": "mouth",
+      "filteredReason": "low_confidence",
+      "length": 0.9218,
+      "confidence": 0.072,
+      "bounds": {
+        "x": 0.36328,
+        "y": 0.51563,
+        "width": 0.20605999999999997,
+        "height": 0.04003000000000001
+      },
+      "pointCount": 138
+    },
+    {
+      "id": "subj_1_clothing_collar_stroke_0",
+      "semanticRole": "clothing_boundary",
+      "filteredReason": "outside_subject",
+      "length": 0.2743,
+      "confidence": 0.63,
+      "bounds": {
+        "x": 0.31743,
+        "y": 0.83566,
+        "width": 0.27019000000000004,
+        "height": 0.03200000000000003
+      },
+      "pointCount": 4
+    },
+    {
+      "id": "subj_1_clothing_collar_stroke_1",
+      "semanticRole": "clothing_boundary",
+      "filteredReason": "outside_subject",
+      "length": 0.0937,
+      "confidence": 0.63,
+      "bounds": {
+        "x": 0.58762,
+        "y": 0.83566,
+        "width": 0.09006999999999998,
+        "height": 0.026000000000000023
+      },
+      "pointCount": 2
+    },
+    {
+      "id": "subj_1_hair_flow_crown_sweep_stroke",
+      "semanticRole": "hair",
+      "filteredReason": "outside_subject",
+      "length": 0.3336,
+      "confidence": 0.6375,
+      "bounds": {
+        "x": 0.46153,
+        "y": 0,
+        "width": 0.28306,
+        "height": 0.14449
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_12_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.6534,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.31235,
+        "y": 0.61769,
+        "width": 0.52637,
+        "height": 0.38231000000000004
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_13_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.6248,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.32906,
+        "y": 0.62049,
+        "width": 0.50324,
+        "height": 0.36563
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_14_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.7228,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.27451,
+        "y": 0.60079,
+        "width": 0.5984700000000001,
+        "height": 0.39920999999999995
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_15_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.7403,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.25839,
+        "y": 0.59937,
+        "width": 0.61838,
+        "height": 0.40063000000000004
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_16_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.5813,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.33901,
+        "y": 0.67881,
+        "width": 0.4803,
+        "height": 0.32119
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_17_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.572,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.31763,
+        "y": 0.7306,
+        "width": 0.49933999999999995,
+        "height": 0.2694
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_18_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.5844,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.24698,
+        "y": 0.71957,
+        "width": 0.5083300000000001,
+        "height": 0.28042999999999996
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_19_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.5925,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.21103,
+        "y": 0.73323,
+        "width": 0.5245599999999999,
+        "height": 0.26676999999999995
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_20_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.5371,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.22578,
+        "y": 0.748,
+        "width": 0.47024,
+        "height": 0.252
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_21_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.5625,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.17273,
+        "y": 0.76324,
+        "width": 0.5059199999999999,
+        "height": 0.23675999999999997
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_22_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.47,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.16921,
+        "y": 0.80096,
+        "width": 0.42217000000000005,
+        "height": 0.19904
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_23_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.6028,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.17859,
+        "y": 0.74585,
+        "width": 0.5418999999999999,
+        "height": 0.25415
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_24_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.4963,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.14634,
+        "y": 0.8032,
+        "width": 0.4516,
+        "height": 0.19679999999999997
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_25_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.5237,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.08567,
+        "y": 0.77724,
+        "width": 0.47094,
+        "height": 0.22275999999999996
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_26_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.5399,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.14425,
+        "y": 0.7902,
+        "width": 0.49272000000000005,
+        "height": 0.2098
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_27_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.4429,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.12657,
+        "y": 0.83449,
+        "width": 0.4071100000000001,
+        "height": 0.16551000000000005
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_28_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.4535,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.09209,
+        "y": 0.85507,
+        "width": 0.42500000000000004,
+        "height": 0.14493
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_clothing_mass_fallback_hatch_broad_29_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.4701,
+      "confidence": 0.8731960416759283,
+      "bounds": {
+        "x": 0.04818,
+        "y": 0.82399,
+        "width": 0.43161,
+        "height": 0.17601
+      },
+      "pointCount": 3
+    },
+    {
+      "id": "subj_1_field_temple_right_hatch_medium_0_stroke",
+      "semanticRole": "hatching",
+      "filteredReason": "outside_subject",
+      "length": 0.059,
+      "confidence": 0.8408614286817895,
+      "bounds": {
+        "x": 0.69798,
+        "y": 0.12807,
+        "width": 0.04149999999999998,
+        "height": 0.04150000000000001
+      },
+      "pointCount": 3
+    }
+  ]
+}

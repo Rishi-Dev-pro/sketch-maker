@@ -159,6 +159,22 @@ export function reconstructBody(
     visibility: 'visible',
   });
 
+  // 4. Incorporate real neural semantic clothing contours when available (Section 21)
+  if (clothingLoops && clothingLoops.length > 0) {
+    clothingLoops.forEach((loop, idx) => {
+      if (loop.length >= 4) {
+        clothingContours.push({
+          id: `${subjectId}_clothing_contour_${idx}`,
+          region: 'clothing',
+          points: smoothPolyline(loop, true),
+          closed: true,
+          confidence: confidence * 0.90,
+          visibility: 'visible',
+        });
+      }
+    });
+  }
+
   return {
     confidence,
     neckLines,

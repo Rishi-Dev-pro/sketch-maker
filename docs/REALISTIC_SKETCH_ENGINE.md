@@ -235,3 +235,47 @@ TASK-113 completes the transformation of the portrait engine from a line-centric
 - Outlines are suppressed along low-contrast boundaries (nasal bridge, cheek transitions, lower eyelid).
 - Confirmed by the Contour-Off Acceptance Test: with contours, fine anatomy, and hair strands disabled, the portrait reads with full human recognition purely through 3,352 lines of chiaroscuro value fields and graphite shading marks.
 
+---
+
+### 14. Segmentation-Anchored Structural Reconstruction (TASK-114)
+
+TASK-114 establishes **neural segmentation as the authoritative outer structural anchor**, eliminating structural loss between perception and rendering while strictly enforcing semantic spatial ownership.
+
+#### 14.1 Responsibility Matrix
+| Anatomical Structure | Primary Authority | Secondary Evidence |
+| :--- | :--- | :--- |
+| Outer Silhouette / Head Boundary | Semantic Segmentation | Face Landmarks (temple / jaw envelope) |
+| Hair Silhouette & Mass Boundary | Semantic Segmentation (hair) | Face Landmarks |
+| Inner Facial Anatomy | MediaPipe Face (478) | Photographic Luminance Field |
+| Eyes, Eyebrows, Nose, Mouth | MediaPipe Face (478) | Photographic Luminance Field |
+| Jaw Reference / Contour | MediaPipe Face + Segmentation | Face-to-Silhouette Fusion |
+| Neck | Segmentation + Pose | Face Jaw Convergence |
+| Shoulders & Torso Boundary | Semantic Segmentation (body) | MediaPipe Pose (33) |
+| Clothing Boundary & Mass | Semantic Segmentation (clothing) | Photographic Luminance Field |
+
+#### 14.2 Clean Segmentation & Connected Component Analysis
+- Converts raw probability masks into clean binary masks via thresholding ($T = 0.50$).
+- Deterministic 2-pass connected-component labeling with disjoint-set forest merges connected foreground regions.
+- Filters disconnected noise and floating background artifacts (< 2% primary subject area or < 80 px).
+- Closes micro-gaps and fills internal holes via $3 \times 3$ morphological dilation and erosion.
+
+#### 14.3 Authoritative Subject Silhouette & Regional Boundaries
+- Moore-neighborhood 8-directional contour boundary tracing computes clockwise boundary paths.
+- 3-point Gaussian smoothing removes stair-step pixel quantization artifacts.
+- Ramer-Douglas-Peucker (RDP) adaptive geometric simplification preserves hair curves while simplifying long body/torso edges.
+- Traces regional masks (`hair`, `clothing`, `torso`) to form definitive spatial ownership boundaries.
+
+#### 14.4 Face-to-Silhouette & Pose Fusion
+- Structural model fuses inner facial landmarks within the outer silhouette coordinate system.
+- Pose skeleton joints and limbs are validated against segmentation; limb strokes extending into empty background are rejected.
+- Hair reconstructor and clothing shading generator sample region masks (`isPointInOrNearPoly` and `density > 0`), stopping stray wave lines and broad diagonal hatching from escaping the subject.
+
+#### 14.5 Hard Spatial Ownership Validation & Clipping Gate
+- Candidate strokes are validated against the authoritative silhouette and semantic region masks prior to sorting, timeline generation, and rendering.
+- Strokes extending across subject boundaries are clipped at boundary intersections using binary bisection search.
+- Unwanted strokes originating from out-of-bounds bounding box extrapolation are rejected with strict telemetry recording:
+  - `totalCandidates`: Total raw geometric strokes generated.
+  - `validCandidates`: Strokes passing all ownership gates.
+  - `rejectedCandidates`: Strokes dropped (`outside_subject`, `wrong_semantic_region`, `geometric_invalidity`).
+  - `clippedCandidates`: Strokes trimmed to stay strictly within subject contours.
+

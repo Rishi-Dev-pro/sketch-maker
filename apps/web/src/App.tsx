@@ -286,6 +286,83 @@ export const App: React.FC = () => {
         playerRef.current.seek(currentTimeline.totalDurationMs);
       }
       setGeneratedOnly(true);
+    } else if (m === 'raw_segmentation') {
+      setShowSourceImage(false);
+      setShowMediaPipeLandmarks(false);
+      setShowFaceMesh(false);
+      setShowPoseSkeleton(false);
+      setShowSemanticMasks(true);
+      setShowReconstructedFeatures(false);
+      setShowTonalRegions(false);
+      setShowContours(false);
+      setShowHatching(false);
+      setShowHairFlow(false);
+      setShowFinalArtwork(false);
+      setShowStrokeCandidates(false);
+      setShowVectorGeometry(false);
+      setGeneratedOnly(true);
+    } else if (m === 'clean_segmentation') {
+      setShowSourceImage(false);
+      setShowMediaPipeLandmarks(false);
+      setShowFaceMesh(false);
+      setShowPoseSkeleton(false);
+      setShowSemanticMasks(true);
+      setShowReconstructedFeatures(true);
+      setShowTonalRegions(false);
+      setShowContours(true);
+      setShowHatching(false);
+      setShowHairFlow(false);
+      setShowFinalArtwork(false);
+      setShowStrokeCandidates(false);
+      setShowVectorGeometry(false);
+      setGeneratedOnly(true);
+    } else if (m === 'authoritative_silhouette') {
+      setShowSourceImage(false);
+      setShowMediaPipeLandmarks(false);
+      setShowFaceMesh(false);
+      setShowPoseSkeleton(false);
+      setShowSemanticMasks(false);
+      setShowReconstructedFeatures(true);
+      setShowTonalRegions(false);
+      setShowContours(true);
+      setShowHatching(false);
+      setShowHairFlow(false);
+      setShowFinalArtwork(false);
+      setShowStrokeCandidates(false);
+      setShowVectorGeometry(true);
+      setGeneratedOnly(true);
+    } else if (m === 'pose') {
+      setShowSourceImage(false);
+      setShowMediaPipeLandmarks(false);
+      setShowFaceMesh(false);
+      setShowPoseSkeleton(true);
+      setShowPoseLandmarks(true);
+      setShowSemanticMasks(false);
+      setShowReconstructedFeatures(false);
+      setShowTonalRegions(false);
+      setShowContours(false);
+      setShowHatching(false);
+      setShowHairFlow(false);
+      setShowFinalArtwork(false);
+      setShowStrokeCandidates(false);
+      setShowVectorGeometry(false);
+      setGeneratedOnly(true);
+    } else if (m === 'structural_fusion') {
+      setShowSourceImage(false);
+      setShowMediaPipeLandmarks(false);
+      setShowFaceMesh(false);
+      setShowPoseSkeleton(true);
+      setShowPoseLandmarks(true);
+      setShowSemanticMasks(false);
+      setShowReconstructedFeatures(true);
+      setShowTonalRegions(false);
+      setShowContours(true);
+      setShowHatching(false);
+      setShowHairFlow(false);
+      setShowFinalArtwork(false);
+      setShowStrokeCandidates(false);
+      setShowVectorGeometry(true);
+      setGeneratedOnly(true);
     } else if (m === 'final') {
       setShowSourceImage(false);
       setShowMediaPipeLandmarks(false);
@@ -861,6 +938,11 @@ export const App: React.FC = () => {
         recon.body.neckLines?.forEach((c: any) => drawReconContour(c, '#f59e0b', 2.2));
         recon.body.shoulderLines?.forEach((c: any) => drawReconContour(c, '#fbbf24', 2.5));
         recon.body.collarLines?.forEach((c: any) => drawReconContour(c, '#06b6d4', 2.0));
+      }
+
+      // Authoritative Subject Silhouette (TASK-114 Outer Structural Anchor)
+      if (recon.authoritativeSilhouette) {
+        drawReconContour(recon.authoritativeSilhouette, '#00f0ff', activeDiagnosticMode === 'authoritative_silhouette' ? 3.5 : 2.5);
       }
     }
 
@@ -1851,12 +1933,12 @@ export const App: React.FC = () => {
               alignItems: 'center',
             }}
           >
-            {/* TASK-113 Diagnostic & Calibration Layer Views */}
+            {/* TASK-114 Structural Debug Pipeline Layers */}
             <div
               style={{
                 display: 'flex',
                 gap: '0.35rem',
-                marginBottom: '0.65rem',
+                marginBottom: '0.4rem',
                 padding: '0.35rem 0.6rem',
                 borderRadius: 'var(--radius-md)',
                 background: 'rgba(15, 23, 42, 0.85)',
@@ -1868,17 +1950,17 @@ export const App: React.FC = () => {
               }}
             >
               <span style={{ fontWeight: 700, color: 'var(--accent-cyan)', fontSize: '0.74rem', marginRight: '0.3rem' }}>
-                🔬 TASK-113 Views:
+                📐 TASK-114 Structural Layers:
               </span>
               {[
                 { id: 'source', label: '1. Source' },
-                { id: 'tonal_field', label: '2. Tonal Field L(x,y)' },
-                { id: 'graphite_density', label: '3. Graphite Density D(x,y)' },
-                { id: 'graphite_marks', label: '4. Graphite Marks' },
-                { id: 'contours', label: '5. Contours Only' },
-                { id: 'hair_mass', label: '6. Hair Mass' },
-                { id: 'hair_flow', label: '7. Hair Flow' },
-                { id: 'tonal_portrait_only', label: '8. Tonal Portrait (Contour-Off)' },
+                { id: 'raw_segmentation', label: '2. Raw Segmentation' },
+                { id: 'clean_segmentation', label: '3. Clean Segmentation' },
+                { id: 'authoritative_silhouette', label: '4. Authoritative Silhouette' },
+                { id: 'pose', label: '5. Pose' },
+                { id: 'landmarks', label: '6. Face Landmarks' },
+                { id: 'structural_fusion', label: '7. Structural Fusion' },
+                { id: 'contours', label: '8. Final Geometry' },
                 { id: 'final', label: '9. Final Artwork' },
               ].map((btn) => (
                 <button
@@ -1892,6 +1974,54 @@ export const App: React.FC = () => {
                     borderColor: activeDiagnosticMode === btn.id ? '#00f0ff' : 'rgba(255,255,255,0.12)',
                     background: activeDiagnosticMode === btn.id ? 'rgba(0, 240, 255, 0.2)' : 'rgba(30, 41, 59, 0.6)',
                     color: activeDiagnosticMode === btn.id ? '#00f0ff' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontWeight: activeDiagnosticMode === btn.id ? 700 : 500,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+
+            {/* TASK-113 Photographic Tonal Engine Views */}
+            <div
+              style={{
+                display: 'flex',
+                gap: '0.35rem',
+                marginBottom: '0.65rem',
+                padding: '0.3rem 0.6rem',
+                borderRadius: 'var(--radius-md)',
+                background: 'rgba(15, 23, 42, 0.70)',
+                border: '1px solid rgba(236, 72, 153, 0.25)',
+                width: '100%',
+                justifyContent: 'center',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+              }}
+            >
+              <span style={{ fontWeight: 700, color: '#ec4899', fontSize: '0.74rem', marginRight: '0.3rem' }}>
+                🔬 TASK-113 Tonal Views:
+              </span>
+              {[
+                { id: 'tonal_field', label: 'Tonal Field L(x,y)' },
+                { id: 'graphite_density', label: 'Graphite Density D(x,y)' },
+                { id: 'graphite_marks', label: 'Graphite Marks' },
+                { id: 'hair_mass', label: 'Hair Mass' },
+                { id: 'hair_flow', label: 'Hair Flow' },
+                { id: 'tonal_portrait_only', label: 'Tonal Portrait (Contour-Off)' },
+              ].map((btn) => (
+                <button
+                  key={btn.id}
+                  onClick={() => setDiagnosticMode(btn.id as any)}
+                  style={{
+                    padding: '0.18rem 0.45rem',
+                    fontSize: '0.68rem',
+                    borderRadius: '4px',
+                    border: '1px solid',
+                    borderColor: activeDiagnosticMode === btn.id ? '#ec4899' : 'rgba(255,255,255,0.10)',
+                    background: activeDiagnosticMode === btn.id ? 'rgba(236, 72, 153, 0.2)' : 'rgba(30, 41, 59, 0.5)',
+                    color: activeDiagnosticMode === btn.id ? '#ec4899' : 'var(--text-secondary)',
                     cursor: 'pointer',
                     fontWeight: activeDiagnosticMode === btn.id ? 700 : 500,
                     transition: 'all 0.15s ease',
@@ -3511,6 +3641,88 @@ export const App: React.FC = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* TASK-114 Stroke Rejection & Spatial Ownership Telemetry Card */}
+            {currentStrokeCandidates?.metrics?.rejectionTelemetry && (
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid rgba(0, 240, 255, 0.3)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                <h3 style={{ fontSize: '0.95rem', marginBottom: '0.75rem', fontWeight: 600, color: '#00f0ff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>🛡️ Stroke Spatial Ownership & Rejection Gate (TASK-114)</span>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: '#10b981',
+                    background: 'rgba(16,185,129,0.12)',
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '4px',
+                    border: '1px solid rgba(16,185,129,0.3)',
+                  }}>
+                    AUTHORITATIVE ANCHOR ACTIVE
+                  </span>
+                </h3>
+
+                {/* Acceptance Ratio Bar */}
+                {(() => {
+                  const telem = currentStrokeCandidates.metrics.rejectionTelemetry!;
+                  const acceptPct = telem.totalCandidates > 0
+                    ? Math.round((telem.validCandidates / telem.totalCandidates) * 100)
+                    : 100;
+                  return (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.35rem', color: '#94a3b8' }}>
+                        <span>Spatial Validation Pass Rate</span>
+                        <span style={{ color: '#00f0ff', fontWeight: 700 }}>
+                          {telem.validCandidates} / {telem.totalCandidates} ({acceptPct}%)
+                        </span>
+                      </div>
+                      <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', marginBottom: '0.75rem', overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${acceptPct}%`,
+                          height: '100%',
+                          background: 'linear-gradient(90deg, #10b981, #00f0ff)',
+                          borderRadius: '3px',
+                        }} />
+                      </div>
+
+                      {/* Telemetry Breakdown Grid */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', fontSize: '0.74rem' }}>
+                        <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div style={{ color: '#94a3b8', fontSize: '0.68rem' }}>Valid (Passed Gate)</div>
+                          <div style={{ color: '#10b981', fontWeight: 700, fontSize: '0.95rem' }}>{telem.validCandidates}</div>
+                        </div>
+                        <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div style={{ color: '#94a3b8', fontSize: '0.68rem' }}>Rejected (Total)</div>
+                          <div style={{ color: telem.rejectedCandidates > 0 ? '#f59e0b' : '#94a3b8', fontWeight: 700, fontSize: '0.95rem' }}>{telem.rejectedCandidates}</div>
+                        </div>
+                        <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div style={{ color: '#94a3b8', fontSize: '0.68rem' }}>Boundary Clipped</div>
+                          <div style={{ color: '#38bdf8', fontWeight: 700, fontSize: '0.95rem' }}>{telem.clippedCandidates}</div>
+                        </div>
+                        <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div style={{ color: '#94a3b8', fontSize: '0.68rem' }}>Outside Subject</div>
+                          <div style={{ color: telem.rejectedOutsideSubject > 0 ? '#ef4444' : '#64748b', fontWeight: 600 }}>{telem.rejectedOutsideSubject}</div>
+                        </div>
+                        <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div style={{ color: '#94a3b8', fontSize: '0.68rem' }}>Wrong Semantic Region</div>
+                          <div style={{ color: telem.rejectedWrongSemanticRegion > 0 ? '#ef4444' : '#64748b', fontWeight: 600 }}>{telem.rejectedWrongSemanticRegion}</div>
+                        </div>
+                        <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div style={{ color: '#94a3b8', fontSize: '0.68rem' }}>Profile Occluded (BM-02)</div>
+                          <div style={{ color: telem.rejectedOccluded > 0 ? '#fbbf24' : '#64748b', fontWeight: 600 }}>{telem.rejectedOccluded}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

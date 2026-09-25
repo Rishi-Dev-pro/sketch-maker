@@ -20,3 +20,4 @@ export * from './hair';
 export * from './providers';
 export * from './reconstruction';
 export * from './tonal';
+export * from './silhouette';

@@ -841,3 +841,97 @@ Contour lines are suppressed or softened where photographic luminance transition
 ### 16.7 The Contour-Off Acceptance Criterion
 The definitive acceptance test: when all contours, fine anatomy, and hair strands are turned completely OFF, the portrait must remain instantly recognizable as a human likeness through tonal value fields and shading marks alone.
 
+---
+
+## 17. Segmentation-Anchored Structural Reconstruction Architecture (TASK-114)
+
+### 17.1 Conceptual Structural Hierarchy
+The perception-to-reconstruction pipeline enforces a strict structural separation of responsibilities:
+```text
+                    PHOTO
+                      │
+        ┌─────────────┼─────────────┐
+        │             │             │
+        ▼             ▼             ▼
+  SEGMENTATION    FACE 478       POSE 33
+        │             │             │
+        ▼             ▼             ▼
+  OUTER SHAPE    INNER FACE     BODY SHAPE
+        │             │             │
+        └─────────────┼─────────────┘
+                      ▼
+              STRUCTURAL MODEL
+                      │
+                      ▼
+             TONAL RECONSTRUCTION (TASK-113)
+                      │
+                      ▼
+              GRAPHITE RENDERING
+```
+
+### 17.2 The Responsibility Matrix
+| Structure | Primary Authority | Secondary Evidence |
+| :--- | :--- | :--- |
+| Hair outer silhouette | Segmentation | Face landmarks |
+| Head outer silhouette | Segmentation | Face landmarks |
+| Face internal anatomy | MediaPipe Face | Luminance |
+| Eyes & Eyebrows | MediaPipe Face | Luminance |
+| Nose & Mouth | MediaPipe Face | Luminance |
+| Jaw & Chin | MediaPipe Face + Segmentation | Luminance |
+| Ears | MediaPipe Face | Segmentation |
+| Neck & Shoulders | Pose + Segmentation | Face |
+| Torso & Clothing | Segmentation + Pose | — |
+| Hair mass & flow | Segmentation | Luminance + Deterministic flow |
+| Background boundary | Segmentation | — |
+
+### 17.3 Clean Segmentation Pipeline
+Raw semantic masks are converted into clean, artifact-free boundaries before vector extraction:
+```text
+Raw semantic mask
+        ↓
+Confidence thresholding
+        ↓
+Connected component analysis (Two-pass union-find disjoint set)
+        ↓
+Subject component selection (Association with face/pose anchors)
+        ↓
+Small artifact removal (< 2% subject area or < 80 pixels rejected)
+        ↓
+Morphological closing (fill pinholes) & opening (smooth edges)
+        ↓
+8-directional Moore boundary tracing (Clockwise winding)
+        ↓
+3-point Gaussian smoothing
+        ↓
+Adaptive RDP simplification
+        ↓
+Authoritative Subject Silhouette
+```
+
+### 17.4 Semantic Spatial Ownership Regions
+Every major structure maintains an explicit spatial ownership region:
+```typescript
+export interface SubjectStructure {
+  subjectId: string;
+  silhouette: ContourPath;
+  regions: {
+    readonly hair?: RegionMask;
+    readonly face?: RegionMask;
+    readonly neck?: RegionMask;
+    readonly clothing?: RegionMask;
+    readonly torso?: RegionMask;
+  };
+  face?: FacialFeatures;
+  pose?: BodyPose;
+  confidence: number;
+}
+```
+
+### 17.5 Hard Stroke Validation Gate & Boundary Clipping
+Before any stroke candidate reaches sequence ordering, scheduling, or rendering, it is audited against its subject's spatial ownership region:
+1. **Subject Ownership:** `stroke.subjectId === subject.id`
+2. **Boundary Validation:** Strokes lying entirely outside the subject's authoritative silhouette are REJECTED (`outside_subject`).
+3. **Region Ownership:** Feature-specific strokes must lie within their assigned semantic mask or within allowable margin.
+4. **Segmentation-Aware Clipping:** Strokes legitimately crossing from inside to outside the silhouette (e.g. collar boundaries, hair fringes) are bisected and trimmed at the polygon boundary; outside segments are discarded.
+5. **Telemetry:** Captures total candidates, valid candidates, rejected candidates by category, and clipped candidates.
+

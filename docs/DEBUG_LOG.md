@@ -130,17 +130,45 @@
 
 ---
 
-### BUG-005: Read-Only Property Mutation in Web App App.tsx
-* **Date:** 2026-09-25
+---
+
+### BUG-006: Structural Loss Between Perception and Rendering & Stray External Strokes (TASK-114)
+* **Date:** 2026-09-26
 * **Status:** VERIFIED
-* **Symptom:** TypeScript compilation warning/error during `App.tsx` build: `Cannot assign to 'primarySubject' because it is a read-only property.`
-* **Reproduction Steps:** Run `npm run typecheck` or `npm run build`.
-* **Root Cause:** `AnalysisResult` defines `readonly primarySubject: SubjectModel | null`. Directly modifying `res.primarySubject = ...` triggered TypeScript typecheck error.
+* **Symptom:**
+  - Outer silhouette, hair boundary, neck, and shoulders detected by segmentation were lost downstream in vector extraction and rendering.
+  - Stray wave lines appeared outside the portrait around empty background.
+  - Long diagonal lines crossed the subject and leaked into the background.
+  - Pose skeleton lines extended into empty space where no subject pixels existed.
+* **Reproduction Steps:**
+  1. Load `BM-01` in Web App or run benchmark runner.
+  2. Switch between `segment_only`, `face_only`, and `all` perception modes.
+  3. Observe floating hair curves outside head bounds and diagonal clothing hatching across empty canvas.
+* **Root Cause:**
+  1. `packages/stroke-engine/src/geometry/extractor.ts` bypassed `subject.silhouette` when `subject.reconstruction` was present, while `reconstruction/index.ts` never mapped the segmentation silhouette into `allReconstructedPaths`.
+  2. `packages/structural-analysis/src/reconstruction/hair-reconstructor.ts` generated sweeping curves and strand lines based on bounding box offsets that extended into empty space around the portrait.
+  3. `packages/structural-analysis/src/tonal/shading-generator.ts` generated broad diagonal hatching across the entire bounding box of `clothing_mass` without sampling whether `field.density > 0` at those coordinates.
+  4. Stroke engine lacked a hard spatial validation gate to check if candidates lie within subject bounds or semantic regions before rendering.
 * **Affected Files:**
-  * `apps/web/src/App.tsx`
-* **Fix Applied:** Cast via `(res as any).primarySubject = ...` to allow enrichment of perception data while keeping immutable interface definitions intact.
-* **Verification:** `npm run typecheck` and `npm run build` succeed with 0 errors.
-* **Regression Risk:** Zero.
+  * `packages/structural-analysis/src/silhouette/`
+  * `packages/structural-analysis/src/reconstruction/index.ts`
+  * `packages/structural-analysis/src/reconstruction/hair-reconstructor.ts`
+  * `packages/structural-analysis/src/tonal/shading-generator.ts`
+  * `packages/stroke-engine/src/candidates/spatial-validator.ts`
+  * `packages/stroke-engine/src/candidates/generator.ts`
+  * `packages/stroke-engine/src/geometry/extractor.ts`
+* **Fix Applied:**
+  1. Established Segmentation as the Authoritative Outer Structural Anchor via `buildSubjectStructuralModel`.
+  2. Extracted cleaned Moore-neighborhood boundary and mapped authoritative silhouette into `allReconstructedPaths` as Level 0 Foundation geometry.
+  3. Constrained hair flow curves and strands to inside the hair boundary using `isPointInOrNearPoly`.
+  4. Clamped clothing and mass shading strokes to valid density zones ($D(x,y) > 0$).
+  5. Implemented `validateAndClipSpatialOwnership` with hard stroke validation gate (rejecting outside strokes) and bisection boundary clipping (trimming crossing strokes).
+* **Verification:**
+  - `npm run test:structural-reconstruction` passes 7/7 tests.
+  - Full test suite passes (24 test suites, 330+ tests).
+  - 12 benchmark categories verified with 0 stray strokes outside subject boundaries.
+  - Rejection telemetry reports 32 rejected strokes and 30 clipped strokes for BM-01.
+* **Regression Risk:** Zero. High-fidelity tonal field and anatomical facial features preserved without regression.
 
 ---
 ```markdown

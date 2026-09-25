@@ -211,10 +211,37 @@ export function generateFieldShadingStrokes(
     const cx = bounds.x + bW * 0.5 + perpX * (t - 0.5 + jitterOffset) * bW * 1.1;
     const cy = bounds.y + bH * 0.5 + perpY * (t - 0.5 + jitterOffset) * bH * 1.1;
 
-    const startX = clamp(cx - cosA * effLen * 0.5);
-    const startY = clamp(cy - sinA * effLen * 0.5);
-    const endX = clamp(cx + cosA * effLen * 0.5);
-    const endY = clamp(cy + sinA * effLen * 0.5);
+    // Check if anchor is in active density region
+    const sampleAt = (px: number, py: number): number => {
+      if (px < bounds.x || px > bounds.x + bW || py < bounds.y || py > bounds.y + bH) return 0;
+      const gx = Math.max(0, Math.min(gridW - 1, Math.floor(((px - bounds.x) / Math.max(1e-5, bW)) * gridW)));
+      const gy = Math.max(0, Math.min(gridH - 1, Math.floor(((py - bounds.y) / Math.max(1e-5, bH)) * gridH)));
+      return density[gy * gridW + gx];
+    };
+
+    if (scale === 'broad' && sampleAt(cx, cy) < 0.04) {
+      continue;
+    }
+
+    let startX = clamp(cx - cosA * effLen * 0.5);
+    let startY = clamp(cy - sinA * effLen * 0.5);
+    let endX = clamp(cx + cosA * effLen * 0.5);
+    let endY = clamp(cy + sinA * effLen * 0.5);
+
+    // Trim stroke endpoints so they do not escape the density region (Section 24)
+    if (scale === 'broad') {
+      for (let s = 0; s < 6 && sampleAt(startX, startY) < 0.03; s++) {
+        startX = clamp(startX * 0.7 + cx * 0.3);
+        startY = clamp(startY * 0.7 + cy * 0.3);
+      }
+      for (let s = 0; s < 6 && sampleAt(endX, endY) < 0.03; s++) {
+        endX = clamp(endX * 0.7 + cx * 0.3);
+        endY = clamp(endY * 0.7 + cy * 0.3);
+      }
+      if (Math.hypot(endX - startX, endY - startY) < 0.006) {
+        continue;
+      }
+    }
 
     // 3-point curved stroke incorporating anatomical surface bowing
     const midX = clamp((startX + endX) * 0.5 + perpX * bow * effLen);
